@@ -16,7 +16,7 @@ export type View = "workbench" | "workflow" | "car3d" | "results" | "compare" | 
 export const NAV = [
   { id: "workbench", label: "音频工作台", icon: Upload },
   { id: "workflow", label: "流程图", icon: Workflow },
-  { id: "car3d", label: "3D 智能座舱与车门", icon: Car },
+  { id: "car3d", label: "小米 SU7 3D 座舱", icon: Car },
   { id: "results", label: "计算结果", icon: ListFilter },
   { id: "compare", label: "处理前后对比", icon: ArrowLeftRight },
   { id: "evaluation", label: "仿真评测数据集", icon: FlaskConical },

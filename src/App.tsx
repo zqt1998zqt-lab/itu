@@ -58,7 +58,7 @@ const COPY = {
     "查看实际计算值、完整波形与频谱，以及每项指标的有效条件。",
   ],
   workflow: ["音频从哪里来，指标如何得到", "沿着信号路径，查看录音位置、处理节点与计算条件。"],
-  car3d: ["3D 智能座舱与车门声学交互", "支持 360° 旋转、点击开闭车门（主驾/副驾/后门）、车漆定制与顶棚双麦拾音波束透视。"],
+  car3d: ["小米 SU7 智能座舱与车载声学", "探索高保真小米 SU7 3D 数字孪生、原厂车漆定制与主驾顶棚双麦拾音波束透视。"],
   compare: ["处理前后对比", "把噪声变化与语音保真放在一起，看清优化的代价。"],
   metrics: ["指标与计算方法", "音频工程计算与原表 17 类实验室指标的对应关系。"],
   evaluation: ["多维音频仿真评测", "浏览真实语音素材的配对数据集，比较不同场景与处理模式。"],
@@ -390,8 +390,8 @@ export default function App() {
               <a href="#car3d" className="audio-flow-entry" style={{ borderColor: "rgba(56, 189, 248, 0.4)", background: "rgba(14, 165, 233, 0.08)", marginBottom: 12 }}>
                 <Car size={20} aria-hidden="true" style={{ color: "#38bdf8" }} />
                 <div>
-                  <strong>3D 智能座舱与车门交互模型</strong>
-                  <span>探索实车几何、点击打开车门、观察顶棚双麦克风阵列与主驾拾音波束。</span>
+                  <strong>小米 SU7 智能座舱与车载声学仿真</strong>
+                  <span>体验高保真小米 SU7 3D 数字孪生、原厂专属车漆与主驾顶棚双麦拾音波束。</span>
                 </div>
                 <ArrowRight size={17} aria-hidden="true" />
               </a>

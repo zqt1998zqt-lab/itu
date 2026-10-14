@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HSAE VCP · 工业级高保真 3D 轿跑与座舱声学平台</title>
+  <title>HSAE VCP · 小米 SU7 智能座舱与车载声学仿真平台</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body, html { width: 100%; height: 100%; overflow: hidden; background: linear-gradient(180deg, #bcdcf5 0%, #e3eef8 100%); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; color: #0f172a; }
@@ -12,13 +12,13 @@
     .header-bar {
       position: absolute; top: 16px; left: 24px; right: 24px;
       display: flex; justify-content: space-between; align-items: center;
-      background: rgba(255, 255, 255, 0.78); backdrop-filter: blur(20px);
+      background: rgba(255, 255, 255, 0.82); backdrop-filter: blur(20px);
       border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 14px;
       padding: 12px 24px; z-index: 10;
       box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
     }
     .brand-title { display: flex; align-items: center; gap: 12px; }
-    .brand-logo { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #0284c7, #2563eb); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #fff; letter-spacing: 1px; }
+    .brand-logo { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #2563eb); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; color: #fff; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35); }
     .brand-text h1 { font-size: 15px; font-weight: 700; color: #0f172a; letter-spacing: 0.5px; }
     .brand-text p { font-size: 11px; color: #64748b; }
 
@@ -26,48 +26,40 @@
     .pill-btn {
       background: transparent; border: none; color: #475569; font-size: 12px; font-weight: 600;
       padding: 6px 14px; border-radius: 7px; cursor: pointer; transition: all 0.2s ease;
+      display: inline-flex; align-items: center; gap: 5px;
     }
     .pill-btn:hover { color: #0f172a; background: rgba(15, 23, 42, 0.07); }
     .pill-btn.active { color: #fff; background: #0284c7; box-shadow: 0 2px 10px rgba(2, 132, 199, 0.45); }
+    .pill-btn.highlight { border: 1px dashed rgba(2, 132, 199, 0.55); }
 
     .panel-left {
-      position: absolute; top: 88px; left: 24px; width: 284px;
-      background: rgba(255, 255, 255, 0.82); backdrop-filter: blur(20px);
+      position: absolute; top: 88px; left: 24px; width: 292px;
+      background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px);
       border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 16px;
-      padding: 20px; z-index: 10;
+      padding: 18px; z-index: 10;
       box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
-      display: flex; flex-direction: column; gap: 18px;
+      display: flex; flex-direction: column; gap: 16px;
+      max-height: calc(100vh - 120px); overflow-y: auto;
     }
     .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #0284c7; display: flex; align-items: center; gap: 8px; }
     .section-title::before { content: ""; width: 4px; height: 12px; background: #0284c7; border-radius: 2px; }
 
-    .door-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .door-btn {
-      background: rgba(15, 23, 42, 0.04); border: 1px solid rgba(15, 23, 42, 0.08);
-      border-radius: 10px; padding: 10px; cursor: pointer; transition: all 0.2s;
-      text-align: left; display: flex; flex-direction: column; gap: 4px;
+    .color-picker { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+    .color-dot {
+      width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2.5px solid transparent;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
     }
-    .door-btn:hover { background: rgba(2, 132, 199, 0.08); border-color: rgba(2, 132, 199, 0.35); }
-    .door-btn.open { background: rgba(2, 132, 199, 0.13); border-color: #0284c7; }
-    .door-btn .door-name { font-size: 12px; font-weight: 600; color: #0f172a; }
-    .door-btn .door-status { font-size: 10px; color: #64748b; font-weight: 500; }
-    .door-btn.open .door-status { color: #0284c7; }
+    .color-dot:hover { transform: scale(1.15); }
+    .color-dot.active { border-color: #0f172a; transform: scale(1.15); box-shadow: 0 0 12px rgba(15, 23, 42, 0.35); }
 
     .action-row { display: flex; gap: 8px; }
     .sub-btn {
-      flex: 1; padding: 8px; background: rgba(15, 23, 42, 0.05); border: 1px solid rgba(15, 23, 42, 0.1);
+      flex: 1; padding: 7px 10px; background: rgba(15, 23, 42, 0.05); border: 1px solid rgba(15, 23, 42, 0.1);
       border-radius: 8px; font-size: 11px; font-weight: 600; color: #334155; cursor: pointer; text-align: center;
       transition: all 0.2s;
     }
     .sub-btn:hover { background: rgba(2, 132, 199, 0.12); color: #0284c7; border-color: rgba(2, 132, 199, 0.35); }
-
-    .color-picker { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
-    .color-dot {
-      width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent;
-      transition: transform 0.2s, border-color 0.2s;
-    }
-    .color-dot:hover { transform: scale(1.15); }
-    .color-dot.active { border-color: #0f172a; transform: scale(1.15); box-shadow: 0 0 12px rgba(15, 23, 42, 0.35); }
+    .sub-btn.active { background: rgba(2, 132, 199, 0.16); color: #0284c7; border-color: #0284c7; }
 
     .toggle-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #334155; }
     .switch { position: relative; display: inline-block; width: 38px; height: 20px; }
@@ -78,24 +70,25 @@
     input:checked + .slider:before { transform: translateX(18px); }
 
     .panel-right {
-      position: absolute; bottom: 24px; right: 24px; width: 310px;
-      background: rgba(255, 255, 255, 0.82); backdrop-filter: blur(20px);
+      position: absolute; bottom: 24px; right: 24px; width: 334px;
+      background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px);
       border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 16px;
       padding: 18px; z-index: 10;
       box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
+      transition: all 0.3s ease;
     }
     .acoustic-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; background: rgba(2, 132, 199, 0.1); color: #0284c7; border: 1px solid rgba(2, 132, 199, 0.25); margin-bottom: 12px; }
     .acoustic-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: #0284c7; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% { opacity: 0.3; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.2); } 100% { opacity: 0.3; transform: scale(0.9); } }
 
-    .data-list { display: flex; flex-direction: column; gap: 8px; font-size: 11px; }
-    .data-item { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(15, 23, 42, 0.06); padding-bottom: 6px; }
+    .data-list { display: flex; flex-direction: column; gap: 7px; font-size: 11px; }
+    .data-item { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(15, 23, 42, 0.06); padding-bottom: 5px; }
     .data-label { color: #64748b; }
     .data-val { color: #0f172a; font-weight: 600; font-family: monospace; }
 
     .hint-bar {
       position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
-      background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.78); backdrop-filter: blur(12px);
       border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 20px;
       padding: 8px 20px; font-size: 11px; color: #475569; z-index: 10;
       box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
@@ -103,12 +96,24 @@
     }
     .hint-bar span { display: inline-flex; align-items: center; gap: 4px; }
     .hint-bar kbd { background: rgba(15, 23, 42, 0.08); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 10px; color: #0f172a; }
+
+    .mic-tooltip {
+      position: absolute; z-index: 20; pointer-events: none;
+      background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px); color: #fff; font-size: 11px;
+      padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.4);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+      display: none; transform: translate(-50%, -135%);
+      white-space: nowrap; transition: opacity 0.15s; font-weight: 500;
+    }
   </style>
 
-  <!-- 稳定可用的 Three.js r128 与插件库 -->
+  <!-- Three.js 与依赖解码器 (Draco + Meshopt + GLTFLoader) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+  <script src="/models/DRACOLoader.js"></script>
+  <script src="/models/meshopt_decoder.js"></script>
+  <script src="/models/GLTFLoader.js"></script>
 </head>
 <body>
   <div id="canvas-container"></div>
@@ -116,82 +121,74 @@
   <!-- 顶部导航 -->
   <div class="header-bar">
     <div class="brand-title">
-      <div class="brand-logo">GT</div>
+      <div class="brand-logo">SU7</div>
       <div class="brand-text">
-        <h1>HSAE VCP · 工业级高保真 3D 轿跑与座舱声学平台</h1>
-        <p>Photorealistic Aerodynamic Coupe & Acoustic Wavefield Simulation</p>
+        <h1>HSAE VCP · 小米 SU7 智能座舱与车载声学仿真平台</h1>
+        <p>Xiaomi SU7 5-Zone Acoustic Digital Twin & Wavefield Simulation</p>
       </div>
     </div>
     <div class="view-pills">
       <button class="pill-btn active" onclick="setPresetCamera('exterior')">外观 360°</button>
-      <button class="pill-btn" onclick="setPresetCamera('driver')">主驾座舱视角</button>
-      <button class="pill-btn" onclick="setPresetCamera('top')">顶部鸟瞰</button>
-      <button class="pill-btn" onclick="setPresetCamera('front')">前脸特写</button>
-      <button class="pill-btn" onclick="setPresetCamera('wheel')">轮毂细节</button>
+      <button class="pill-btn" onclick="setPresetCamera('driver')">主驾视角</button>
+      <button class="pill-btn highlight" id="pill-mic" onclick="selectFocus('front_mic')">📡 前排中置双麦</button>
+      <button class="pill-btn" id="pill-5zone" onclick="selectFocus('5zone')">🎙️ 五音区拓扑</button>
+      <button class="pill-btn" id="pill-extmic" onclick="selectFocus('ext_mic')">🌐 车外 4 麦</button>
       <button class="pill-btn" onclick="resetCar()">复位</button>
     </div>
   </div>
 
   <!-- 左侧控制面板 -->
   <div class="panel-left">
-    <div class="section-title">车门控制与交互</div>
-    <div class="door-grid">
-      <div class="door-btn" id="btn-fl" onclick="toggleDoor('fl')">
-        <span class="door-name">左前门 (主驾)</span>
-        <span class="door-status" id="status-fl">已关闭</span>
-      </div>
-      <div class="door-btn" id="btn-fr" onclick="toggleDoor('fr')">
-        <span class="door-name">右前门 (副驾)</span>
-        <span class="door-status" id="status-fr">已关闭</span>
-      </div>
-      <div class="door-btn" id="btn-rl" onclick="toggleDoor('rl')">
-        <span class="door-name">左后门</span>
-        <span class="door-status" id="status-rl">已关闭</span>
-      </div>
-      <div class="door-btn" id="btn-rr" onclick="toggleDoor('rr')">
-        <span class="door-name">右后门</span>
-        <span class="door-status" id="status-rr">已关闭</span>
-      </div>
-    </div>
-    <div class="action-row">
-      <div class="sub-btn" onclick="setAllDoors(true)">一键全开 (展翼)</div>
-      <div class="sub-btn" onclick="setAllDoors(false)">一键全闭</div>
+    <div class="section-title">SU7 原厂专属车漆</div>
+    <div class="color-picker">
+      <div class="color-dot active" style="background: #0284c7;" onclick="changeColor(0x0284c7, this)" title="海湾蓝 (Gulf Blue)"></div>
+      <div class="color-dot" style="background: #475569;" onclick="changeColor(0x475569, this)" title="雅灰 (Mineral Gray)"></div>
+      <div class="color-dot" style="background: #2d4a3e;" onclick="changeColor(0x2d4a3e, this)" title="橄榄绿 (Olive Green)"></div>
+      <div class="color-dot" style="background: #ea580c;" onclick="changeColor(0xc2410c, this)" title="熔岩橙 (Lava Orange)"></div>
+      <div class="color-dot" style="background: #581c87;" onclick="changeColor(0x581c87, this)" title="霞光紫 (Radiant Purple)"></div>
+      <div class="color-dot" style="background: #0a0f1d;" onclick="changeColor(0x0a0f1d, this)" title="曜石黑 (Obsidian Black)"></div>
     </div>
 
-    <div class="section-title">超跑高光车漆</div>
-    <div class="color-picker">
-      <div class="color-dot active" style="background: #1e293b;" onclick="changeColor(0x1e293b, this)" title="星空深灰"></div>
-      <div class="color-dot" style="background: #0284c7;" onclick="changeColor(0x0284c7, this)" title="竞速深蓝"></div>
-      <div class="color-dot" style="background: #e2e8f0;" onclick="changeColor(0xe2e8f0, this)" title="极光冷银"></div>
-      <div class="color-dot" style="background: #dc2626;" onclick="changeColor(0xb91c1c, this)" title="烈焰绯红"></div>
-      <div class="color-dot" style="background: #047857;" onclick="changeColor(0x065f46, this)" title="英伦暗绿"></div>
-      <div class="color-dot" style="background: #0f172a;" onclick="changeColor(0x0a0f1d, this)" title="曜石极夜黑"></div>
+    <div class="section-title">实车麦克风物理拓扑</div>
+    <div class="action-row">
+      <button class="sub-btn" id="btn-front-mic" onclick="selectFocus('front_mic')">📡 前排中央控制盒 (中轴线)</button>
+    </div>
+    <div class="action-row">
+      <button class="sub-btn" id="btn-5zone" onclick="selectFocus('5zone')">🎙️ 车内 3模组 / 8麦 (五音区)</button>
+      <button class="sub-btn" id="btn-ext-mic" onclick="selectFocus('ext_mic')">🌐 车外 4组全向麦</button>
     </div>
 
     <div class="section-title">座舱与声学透视</div>
     <div class="toggle-row">
-      <span>透视 X-Ray 模式 (看清内饰)</span>
+      <span>透视 X-Ray 模式 (看清座舱空间)</span>
       <label class="switch">
         <input type="checkbox" id="chk-xray" onchange="toggleXRay(this.checked)">
         <span class="slider"></span>
       </label>
     </div>
     <div class="toggle-row">
-      <span>主驾声学波束 (ZCSC Beam)</span>
+      <span>主驾声学拾音波束 (ZCSC Beam)</span>
       <label class="switch">
         <input type="checkbox" id="chk-beam" checked onchange="toggleBeam(this.checked)">
         <span class="slider"></span>
       </label>
     </div>
     <div class="toggle-row">
-      <span>车门扬声器声波涟漪 (AEC Echo)</span>
+      <span>后排多音区声场 (Rear Zones)</span>
       <label class="switch">
-        <input type="checkbox" id="chk-soundwave" checked onchange="toggleSoundWave(this.checked)">
+        <input type="checkbox" id="chk-rearzones" checked onchange="toggleRearZones(this.checked)">
         <span class="slider"></span>
       </label>
     </div>
     <div class="toggle-row">
-      <span>车灯与氛围光</span>
+      <span>车外 4 组拾音标定点 (Exterior)</span>
+      <label class="switch">
+        <input type="checkbox" id="chk-extmics" checked onchange="toggleExtMics(this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span>水滴大灯 / 光环尾灯</span>
       <label class="switch">
         <input type="checkbox" id="chk-lights" checked onchange="toggleLights(this.checked)">
         <span class="slider"></span>
@@ -200,38 +197,16 @@
   </div>
 
   <!-- 右侧声学状态 HUD -->
-  <div class="panel-right">
-    <div class="acoustic-badge"><div class="dot"></div> NV200 车载声学实车阵列在线</div>
-    <div class="data-list">
-      <div class="data-item">
-        <span class="data-label">麦克风阵列拓扑</span>
-        <span class="data-val">前顶棚双麦 (35mm间距)</span>
-      </div>
-      <div class="data-item">
-        <span class="data-label">主驾区域约束 (ZCSC)</span>
-        <span class="data-val" style="color: #0284c7;">τ = 1.18 smp (+45°)</span>
-      </div>
-      <div class="data-item">
-        <span class="data-label">空间定向度 (SDR)</span>
-        <span class="data-val" id="hud-sdr">0.965 (强聚焦)</span>
-      </div>
-      <div class="data-item">
-        <span class="data-label">频域相干比率 (Incoherent)</span>
-        <span class="data-val" id="hud-incoh">0.142 (对齐锁定)</span>
-      </div>
-      <div class="data-item">
-        <span class="data-label">双讲判定响应状态</span>
-        <span class="data-val" id="hud-status" style="color: #16a34a;">FULL DUPLEX READY</span>
-      </div>
-    </div>
+  <div class="panel-right" id="hud-panel">
+    <!-- 动态生成 -->
   </div>
 
-  <!-- 底部提示 -->
+  <!-- 底部操作提示 -->
   <div class="hint-bar">
-    <span><kbd>左键</kbd> 旋转模型</span>
-    <span><kbd>滚轮</kbd> 无级缩放</span>
-    <span><kbd>右键</kbd> 平移机位</span>
-    <span>直接<kbd>鼠标点击</kbd>车身任意车门即可开/闭门</span>
+    <span><kbd>点击全息标定点</kbd> 聚焦对应位置硬件参数</span>
+    <span><kbd>左键拖拽</kbd> 360° 旋转</span>
+    <span><kbd>滚轮缩放</kbd> 无级推拉</span>
+    <span><kbd>右键拖拽</kbd> 平移机位</span>
   </div>
 
   <script>
@@ -239,28 +214,10 @@
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xdfeaf6);
-    scene.fog = new THREE.FogExp2(0xdfeaf6, 0.0065);
+    scene.fog = new THREE.FogExp2(0xdfeaf6, 0.0055);
 
-    // =====================================================================
-    // 小米 SU7 实车尺寸（米）：长 4997 / 宽 1963 / 高 1455 / 轴距 3000
-    //   前轮距 1693 / 后轮距 1699 / 245-45R19 胎径 703mm
-    //   引用来源：小米汽车官方参数配置表 + 汽车之家
-    // =====================================================================
-    const SU7 = {
-      LEN: 4.997, WID: 1.963, HGT: 1.455,
-      WB: 3.000, TRACK_F: 1.693, TRACK_R: 1.699,
-      TIRE_R: 0.3515, TIRE_W: 0.245
-    };
-    const KZ = SU7.LEN / 4.5;      // 纵向比例（原模型车长 4.5）
-    const KY = SU7.HGT / 1.345;    // 高度比例（原模型车高 1.345）
-    const KX = SU7.WID / 1.93;     // 宽度比例（原模型车宽 1.93）
-    const AXLE_Z = SU7.WB / 2;     // 前/后轴 z = ±1.5
-    const BODY_HALF = 2.4785;      // 车壳（放样体）半长；灯具/牌照凸出后整车 = 4.997
-    const ARCH_OLD = 1.44;         // 旧坐标中的轮心 z
-    const DOOR_HINGE_X = 0.98 * KX; // 门铰链 x（随车宽换算）
-
-    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(5.8 * 1.08, 2.4 * KY, 6.2 * 1.08);
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 2000);
+    camera.position.set(5.5, 2.2, 5.8);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -268,33 +225,28 @@
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
+    renderer.toneMappingExposure = 1.15;
     container.appendChild(renderer.domElement);
 
-    // --- 环境贴图生成器：白天户外光照 (Daylight HDRI Generator) ---
-    // 蓝天穹顶 + 太阳 + 地面反弹，是车漆白天反射质感的来源
+    // --- 高动态环境贴图生成器：白天自然天光 (Daylight HDRI Generator) ---
     function createDayEnvironment() {
       const cvs = document.createElement('canvas');
-      cvs.width = 1024;
-      cvs.height = 512;
+      cvs.width = 1024; cvs.height = 512;
       const ctx = cvs.getContext('2d');
 
-      // 上半球：天空（天顶蓝 → 地平线亮白）
       const sky = ctx.createLinearGradient(0, 0, 0, 256);
-      sky.addColorStop(0, '#3179c9');
-      sky.addColorStop(0.55, '#93c3ea');
-      sky.addColorStop(1, '#e2edf8');
+      sky.addColorStop(0, '#2d74c4');
+      sky.addColorStop(0.55, '#8ec0ea');
+      sky.addColorStop(1, '#dfeaf6');
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, 1024, 256);
 
-      // 下半球：地面反弹（明亮水泥 → 深一点）
       const gnd = ctx.createLinearGradient(0, 256, 0, 512);
       gnd.addColorStop(0, '#dbe2ea');
-      gnd.addColorStop(1, '#98a0aa');
+      gnd.addColorStop(1, '#949ca5');
       ctx.fillStyle = gnd;
       ctx.fillRect(0, 256, 1024, 256);
 
-      // 太阳（左上，形成车漆上的圆润高光）
       const sun = ctx.createRadialGradient(290, 70, 3, 290, 70, 150);
       sun.addColorStop(0, 'rgba(255,255,255,1)');
       sun.addColorStop(0.15, 'rgba(255,253,244,0.95)');
@@ -303,7 +255,6 @@
       ctx.fillStyle = sun;
       ctx.fillRect(110, 0, 400, 250);
 
-      // 天顶柔光带（车顶/引擎盖的连续反射条）
       const topLight = ctx.createLinearGradient(240, 16, 800, 16);
       topLight.addColorStop(0, 'rgba(255,255,255,0)');
       topLight.addColorStop(0.25, 'rgba(255,255,255,0.92)');
@@ -312,7 +263,6 @@
       ctx.fillStyle = topLight;
       ctx.fillRect(240, 6, 560, 76);
 
-      // 左侧冷蓝天光 / 右侧暖阳补光（侧面曲面层次）
       const leftLight = ctx.createLinearGradient(40, 150, 250, 150);
       leftLight.addColorStop(0, 'rgba(186,219,255,0)');
       leftLight.addColorStop(0.5, 'rgba(196,224,255,0.8)');
@@ -331,75 +281,31 @@
       texture.mapping = THREE.EquirectangularReflectionMapping;
       return texture;
     }
-    const dayEnv = createDayEnvironment();
-    scene.environment = dayEnv;
+    scene.environment = createDayEnvironment();
 
-    // --- 天空穹顶（白天）：蓝天渐变 + 云 + 地平线薄雾 ---
+    // --- 天空穹顶 ---
     function createDaySkyTexture() {
       const cvs = document.createElement('canvas');
-      cvs.width = 2048;
-      cvs.height = 1024;
+      cvs.width = 2048; cvs.height = 1024;
       const ctx = cvs.getContext('2d');
-      const HZ = 512;   // 地平线 = 赤道（与视线齐平）
+      const HZ = 512;
 
-      // 天空：蓝天一直压到地平线附近（薄雾只占最后 ~3°，模拟晴朗天气）
       const sky = ctx.createLinearGradient(0, 0, 0, HZ);
-      sky.addColorStop(0, '#1a5cb0');
-      sky.addColorStop(0.35, '#3a83cb');
-      sky.addColorStop(0.62, '#559bd6');
-      sky.addColorStop(0.86, '#6fa9de');
-      sky.addColorStop(0.97, '#a9cdea');
+      sky.addColorStop(0, '#195ab0');
+      sky.addColorStop(0.35, '#3880c8');
+      sky.addColorStop(0.62, '#5397d4');
+      sky.addColorStop(0.86, '#6da6dc');
+      sky.addColorStop(0.97, '#a7cbea');
       sky.addColorStop(1, '#dfeaf6');
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, 2048, HZ);
 
-      // 地平线以下（远景地面雾）
       const below = ctx.createLinearGradient(0, HZ, 0, 1024);
       below.addColorStop(0, '#dfeaf6');
-      below.addColorStop(0.35, '#d2dae3');
-      below.addColorStop(1, '#c4cbd4');
+      below.addColorStop(0.35, '#d0d8e2');
+      below.addColorStop(1, '#c2c9d2');
       ctx.fillStyle = below;
       ctx.fillRect(0, HZ, 2048, 1024 - HZ);
-
-      // 太阳光晕（左上前方，晴天感）
-      const sunGlow = ctx.createRadialGradient(430, 96, 4, 430, 96, 230);
-      sunGlow.addColorStop(0, 'rgba(255,255,252,1)');
-      sunGlow.addColorStop(0.06, 'rgba(255,252,238,0.95)');
-      sunGlow.addColorStop(0.28, 'rgba(255,248,222,0.35)');
-      sunGlow.addColorStop(0.65, 'rgba(255,250,235,0.12)');
-      sunGlow.addColorStop(1, 'rgba(255,250,235,0)');
-      ctx.fillStyle = sunGlow;
-      ctx.fillRect(180, 0, 500, 360);
-
-      // 柔和云团
-      function cloud(cx, cy, r, squash, alpha) {
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.scale(1, squash);
-        const cg = ctx.createRadialGradient(0, 0, 1, 0, 0, r);
-        cg.addColorStop(0, 'rgba(255,255,255,' + alpha + ')');
-        cg.addColorStop(0.5, 'rgba(255,255,255,' + (alpha * 0.6).toFixed(3) + ')');
-        cg.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = cg;
-        ctx.beginPath();
-        ctx.arc(0, 0, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-      // 近地平线的云（普通视角能看到）
-      cloud(150, 470, 210, 0.11, 0.9);
-      cloud(330, 488, 150, 0.10, 0.72);
-      cloud(1000, 462, 230, 0.11, 0.85);
-      cloud(1180, 484, 160, 0.10, 0.66);
-      cloud(1560, 476, 200, 0.11, 0.8);
-      cloud(1750, 494, 140, 0.10, 0.6);
-      cloud(700, 498, 170, 0.09, 0.5);
-      // 高空的云（抬头可见）
-      cloud(300, 300, 250, 0.32, 0.85);
-      cloud(470, 340, 170, 0.30, 0.6);
-      cloud(1150, 258, 265, 0.30, 0.8);
-      cloud(1330, 308, 185, 0.28, 0.55);
-      cloud(1800, 330, 210, 0.28, 0.6);
 
       const texture = new THREE.CanvasTexture(cvs);
       texture.mapping = THREE.EquirectangularReflectionMapping;
@@ -420,46 +326,18 @@
     skyDome.renderOrder = -1;
     scene.add(skyDome);
 
-    // --- 轨道控制 (OrbitControls + 原生拖拽 Fallback) ---
+    // --- 轨道控制器 ---
     let controls;
     if (typeof THREE !== 'undefined' && typeof THREE.OrbitControls === 'function') {
       controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.05;
       controls.maxPolarAngle = Math.PI / 2 + 0.01;
-      controls.minDistance = 2.0;
+      controls.minDistance = 0.8;
       controls.maxDistance = 16.0;
-      controls.target.set(0, 0.62 * KY, 0);
+      controls.target.set(0, 0.65, 0);
     } else {
-      controls = { update: () => {}, target: new THREE.Vector3(0, 0.62 * KY, 0) };
-      let isDragging = false, prevX = 0, prevY = 0, lon = 45, lat = 20, dist = 9.0;
-      const updateFallbackCam = () => {
-        lat = Math.max(-5, Math.min(85, lat));
-        const phi = (90 - lat) * (Math.PI / 180);
-        const theta = lon * (Math.PI / 180);
-        camera.position.x = dist * Math.sin(phi) * Math.sin(theta);
-        camera.position.y = dist * Math.cos(phi) + 0.62 * KY;
-        camera.position.z = dist * Math.sin(phi) * Math.cos(theta);
-        camera.lookAt(0, 0.62 * KY, 0);
-      };
-      updateFallbackCam();
-      window.addEventListener('mousedown', e => {
-        if (!e.target.closest('.header-bar, .panel-left, .panel-right, .hint-bar')) {
-          isDragging = true; prevX = e.clientX; prevY = e.clientY;
-        }
-      });
-      window.addEventListener('mousemove', e => {
-        if (!isDragging) return;
-        lon -= (e.clientX - prevX) * 0.45;
-        lat += (e.clientY - prevY) * 0.45;
-        prevX = e.clientX; prevY = e.clientY;
-        updateFallbackCam();
-      });
-      window.addEventListener('mouseup', () => isDragging = false);
-      window.addEventListener('wheel', e => {
-        dist = Math.max(3.0, Math.min(16.0, dist + e.deltaY * 0.01));
-        updateFallbackCam();
-      }, { passive: true });
+      controls = { update: () => {}, target: new THREE.Vector3(0, 0.65, 0) };
     }
 
     const TWEEN_ENGINE = (typeof TWEEN !== 'undefined') ? TWEEN : {
@@ -474,19 +352,19 @@
           }
         };
       },
-      Easing: { Cubic: { Out: null, InOut: null } },
+      Easing: { Cubic: { InOut: null } },
       update: function() {}
     };
 
-    // --- 灯光系统（白天户外：阳光 + 天光 + 地面反弹）---
-    const ambientLight = new THREE.AmbientLight(0xdfeaff, 0.30);
+    // --- 白天户外灯光系统 ---
+    const ambientLight = new THREE.AmbientLight(0xdfeaff, 0.35);
     scene.add(ambientLight);
 
-    const hemiLight = new THREE.HemisphereLight(0xa9cdf0, 0xbfb8a8, 0.40);
+    const hemiLight = new THREE.HemisphereLight(0xa9cdf0, 0xbfb8a8, 0.45);
     scene.add(hemiLight);
 
-    const dirLight = new THREE.DirectionalLight(0xfff3dd, 1.7);
-    dirLight.position.set(7, 11, 5);
+    const dirLight = new THREE.DirectionalLight(0xfff5e4, 1.8);
+    dirLight.position.set(7, 12, 6);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 2048;
     dirLight.shadow.mapSize.height = 2048;
@@ -495,12 +373,10 @@
     dirLight.shadow.bias = -0.0004;
     scene.add(dirLight);
 
-    // 天空散射补光（原冷色轮廓光，白天改为柔和天光）
-    const rimLight = new THREE.DirectionalLight(0x9ec8ff, 0.35);
+    const rimLight = new THREE.DirectionalLight(0x9ec8ff, 0.4);
     rimLight.position.set(-6, 5, -6);
     scene.add(rimLight);
 
-    // 侧向环境补光（让车身侧面曲面有光泽层次）
     const sideFill = new THREE.DirectionalLight(0xcfe3ff, 0.35);
     sideFill.position.set(-9, 4, 1.5);
     scene.add(sideFill);
@@ -509,11 +385,11 @@
     sideFill2.position.set(9, 3.5, -1.5);
     scene.add(sideFill2);
 
-    // 白天户外地面（室外水泥广场）
+    // 室外展台地面
     const floorGeo = new THREE.PlaneGeometry(900, 900);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x6f767f,
-      roughness: 0.68,
+      color: 0x727982,
+      roughness: 0.70,
       metalness: 0.08
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -521,637 +397,597 @@
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // 真实底盘接触阴影 (Ground Contact Shadow)
-    const shadowGeo = new THREE.PlaneGeometry(3.0, 6.0);
+    // 柔和底盘接触阴影
+    const shadowGeo = new THREE.PlaneGeometry(2.6, 5.6);
     const shadowCvs = document.createElement('canvas');
     shadowCvs.width = 256; shadowCvs.height = 512;
     const sCtx = shadowCvs.getContext('2d');
-    const radGrad = sCtx.createRadialGradient(128, 256, 40, 128, 256, 130);
-    radGrad.addColorStop(0, 'rgba(0,0,0,0.72)');
-    radGrad.addColorStop(0.6, 'rgba(0,0,0,0.4)');
+    const radGrad = sCtx.createRadialGradient(128, 256, 35, 128, 256, 130);
+    radGrad.addColorStop(0, 'rgba(0,0,0,0.78)');
+    radGrad.addColorStop(0.5, 'rgba(0,0,0,0.45)');
     radGrad.addColorStop(1, 'rgba(0,0,0,0)');
     sCtx.fillStyle = radGrad;
     sCtx.fillRect(0, 0, 256, 512);
     const shadowTex = new THREE.CanvasTexture(shadowCvs);
-    const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0.55, depthWrite: false });
+    const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0.60, depthWrite: false });
     const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
     shadowMesh.rotation.x = -Math.PI / 2;
     shadowMesh.position.y = 0.002;
     scene.add(shadowMesh);
 
-    // --- 高级真实材质定义 (Photorealistic PBR Materials) ---
+    // --- 小米 SU7 高保真物理 PBR 材质 ---
     const carPaintMat = new THREE.MeshPhysicalMaterial({
-      color: 0x1e293b,
-      metalness: 0.82,
-      roughness: 0.16,
+      color: 0x0284c7,
+      metalness: 0.85,
+      roughness: 0.15,
       clearcoat: 1.0,
-      clearcoatRoughness: 0.045,
+      clearcoatRoughness: 0.04,
       reflectivity: 1.0,
-      envMapIntensity: 1.25,
+      envMapIntensity: 1.35,
       side: THREE.DoubleSide
     });
 
     const carGlassMat = new THREE.MeshPhysicalMaterial({
-      color: 0x05080f,
-      metalness: 0.25,
+      color: 0x07111e,
+      metalness: 0.1,
       roughness: 0.05,
       transparent: true,
-      opacity: 0.88,
-      envMapIntensity: 1.6,
+      opacity: 0.75,
+      envMapIntensity: 1.8,
       side: THREE.DoubleSide
     });
 
-    const carChromeMat = new THREE.MeshStandardMaterial({
-      color: 0xf1f5f9,
-      metalness: 0.98,
-      roughness: 0.05
-    });
-
-    const carbonMat = new THREE.MeshStandardMaterial({
-      color: 0x18181b,
-      metalness: 0.6,
-      roughness: 0.35
-    });
-
-    const interiorMat = new THREE.MeshStandardMaterial({
-      color: 0x111318,
-      roughness: 0.85,
-      metalness: 0.1,
-      side: THREE.DoubleSide
-    });
-
-    const seatMat = new THREE.MeshStandardMaterial({
-      color: 0x881337,
-      roughness: 0.55,
-      metalness: 0.15
-    });
-
-    const ledGlowMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
-    const tailGlowMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
-
-    // =====================================================================
-    // 车身剖面参数（超椭圆截面放样 Loft）—— 流线型轿跑形体
-    // （原始剖面在 4.5m 车长空间定义，这里统一换算到 SU7 实车尺寸）
-    // =====================================================================
-    function smoothLUT(pts) {
-      return function (z) {
-        if (z <= pts[0][0]) return pts[0][1];
-        const last = pts[pts.length - 1];
-        if (z >= last[0]) return last[1];
-        for (let i = 0; i < pts.length - 1; i++) {
-          const za = pts[i][0], va = pts[i][1], zb = pts[i + 1][0], vb = pts[i + 1][1];
-          if (z >= za && z <= zb) {
-            let t = (z - za) / (zb - za);
-            t = t * t * (3 - 2 * t);
-            return va + (vb - va) * t;
-          }
-        }
-        return last[1];
-      };
-    }
-
-    // 新坐标 → 旧坐标：轮拱重新对中到 ±1.5（轴距 3000mm），车头/车尾拉伸到 ±2.4985
-    function zToOld(z) {
-      const s = z < 0 ? -1 : 1, a = Math.abs(z);
-      if (a <= AXLE_Z) return s * a * (ARCH_OLD / AXLE_Z);
-      return s * (ARCH_OLD + (a - AXLE_Z) * (2.25 - ARCH_OLD) / (BODY_HALF - AXLE_Z));
-    }
-
-    const topYFnRaw = smoothLUT([
-      [-2.25, 0.78], [-2.10, 0.84], [-1.95, 0.905], [-1.75, 1.00], [-1.50, 1.14],
-      [-1.30, 1.24], [-1.05, 1.315], [-0.70, 1.345], [-0.20, 1.33], [0.20, 1.26],
-      [0.50, 1.12], [0.72, 0.95], [0.95, 0.87], [1.35, 0.82], [1.70, 0.755],
-      [2.00, 0.68], [2.18, 0.615], [2.25, 0.60]
-    ]);
-
-    const botYFnRaw = smoothLUT([
-      [-2.25, 0.38], [-2.10, 0.32], [-1.94, 0.285], [-1.86, 0.275],
-      [-1.82, 0.28], [-1.78, 0.42], [-1.68, 0.58], [-1.54, 0.70], [-1.42, 0.735], [-1.30, 0.70], [-1.16, 0.58], [-1.06, 0.42], [-1.02, 0.28],
-      [-0.95, 0.265],
-      [0.95, 0.265],
-      [1.02, 0.28], [1.06, 0.42], [1.16, 0.58], [1.30, 0.70], [1.42, 0.735], [1.54, 0.70], [1.68, 0.58], [1.78, 0.42], [1.82, 0.28],
-      [1.86, 0.275], [1.94, 0.285], [2.10, 0.32], [2.25, 0.40]
-    ]);
-
-    const halfWFnRaw = smoothLUT([
-      [-2.25, 0.80], [-2.05, 0.90], [-1.75, 0.945], [-1.42, 0.955], [-0.90, 0.955],
-      [-0.30, 0.96], [0.30, 0.965], [0.90, 0.965], [1.42, 0.955], [1.75, 0.93],
-      [2.00, 0.86], [2.18, 0.76], [2.25, 0.70]
-    ]);
-
-    // 输出坐标一律换算到 SU7 实车尺寸
-    const topYFn = z => topYFnRaw(zToOld(z)) * KY;
-    const botYFn = z => botYFnRaw(zToOld(z));
-    const halfWFn = z => halfWFnRaw(zToOld(z)) * KX;
-
-    const SE_N = 2.35; // 超椭圆指数（车身截面圆润度）
-    function sePow(v) { return Math.sign(v) * Math.pow(Math.abs(v), 2 / SE_N); }
-
-    function isGlassPanel(z, th) {
-      let t = th % (2 * Math.PI);
-      if (t < 0) t += 2 * Math.PI;
-      const dTop = Math.abs(t - Math.PI / 2);
-      // 阈值按 SU7 车长换算（原 -1.5/0.5/0.99/-1.98 → 新坐标）
-      if (z > -1.574 && z < 0.521 && dTop > 0.50 && dTop < 1.06) {
-        if (!(z > -0.458 && z < -0.271)) return true; // 排除 B 柱
-      }
-      if (z >= 0.521 && z < 1.031 && dTop < 0.72) return true;   // 前挡
-      if (z > -2.166 && z <= -1.574 && dTop < 0.80) return true; // 后挡（溜背）
-      return false;
-    }
-
-    function buildBodyLoft() {
-      const Z0 = -BODY_HALF, Z1 = BODY_HALF, NZ = 36, M = 40;
-      const zs = [];
-      for (let j = 0; j < NZ; j++) zs.push(Z0 + (Z1 - Z0) * j / (NZ - 1));
-      const positions = [];
-      for (let j = 0; j < NZ; j++) {
-        const z = zs[j];
-        const a = halfWFn(z), yt = topYFn(z), yb = botYFn(z);
-        const cy = (yt + yb) / 2, b = (yt - yb) / 2;
-        for (let k = 0; k < M; k++) {
-          const th = (2 * Math.PI * k) / M;
-          positions.push(a * sePow(Math.cos(th)), cy + b * sePow(Math.sin(th)), z);
-        }
-      }
-      const startCenter = NZ * M, endCenter = NZ * M + 1;
-      positions.push(0, (topYFn(zs[0]) + botYFn(zs[0])) / 2, zs[0]);
-      positions.push(0, (topYFn(zs[NZ - 1]) + botYFn(zs[NZ - 1])) / 2, zs[NZ - 1]);
-
-      const paintIdx = [], glassIdx = [];
-      for (let j = 0; j < NZ - 1; j++) {
-        const zm = (zs[j] + zs[j + 1]) / 2;
-        for (let k = 0; k < M; k++) {
-          const k2 = (k + 1) % M;
-          const thm = (2 * Math.PI * (k + 0.5)) / M;
-          const tgt = isGlassPanel(zm, thm) ? glassIdx : paintIdx;
-          const q00 = j * M + k, q01 = j * M + k2, q10 = (j + 1) * M + k, q11 = (j + 1) * M + k2;
-          tgt.push(q00, q01, q10, q01, q11, q10);
-        }
-      }
-      for (let k = 0; k < M; k++) {
-        const k2 = (k + 1) % M;
-        paintIdx.push(startCenter, k2, k);
-        paintIdx.push(endCenter, (NZ - 1) * M + k, (NZ - 1) * M + k2);
-      }
-      return { positions, paintIdx, glassIdx };
-    }
-
-    // 门壳（局部坐标，铰链在原点，门体向 -z 展开）
-    function buildDoorShell(zHinge, zEnd, sign, outward) {
-      const NZd = 7, Md = 15;
-      const positions = [], idx = [];
-      const thLo = -0.90, thHi = 0.45;
-      for (let i = 0; i < NZd; i++) {
-        const z = zHinge + (zEnd - zHinge) * i / (NZd - 1);
-        const a = halfWFn(z) * outward, yt = topYFn(z), yb = botYFn(z);
-        const cy = (yt + yb) / 2, b = (yt - yb) / 2;
-        for (let k = 0; k < Md; k++) {
-          const th = thLo + (thHi - thLo) * k / (Md - 1);
-          const x = sign * a * sePow(Math.cos(th)) - sign * DOOR_HINGE_X;
-          const y = cy + b * sePow(Math.sin(th));
-          positions.push(x, y, z - zHinge);
-        }
-      }
-      for (let i = 0; i < NZd - 1; i++) {
-        for (let k = 0; k < Md - 1; k++) {
-          const q00 = i * Md + k, q01 = i * Md + k + 1, q10 = (i + 1) * Md + k, q11 = (i + 1) * Md + k + 1;
-          idx.push(q00, q10, q01, q01, q10, q11);
-        }
-      }
-      return { positions, idx };
-    }
-
-    // --- 构建车身 ---
     const carRoot = new THREE.Group();
     scene.add(carRoot);
 
-    const mainBody = new THREE.Group();
-    carRoot.add(mainBody);
+    let glbLoadedModel = null;
 
-    (function buildStreamlinedBody() {
-      const loft = buildBodyLoft();
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.Float32BufferAttribute(loft.positions, 3));
-      geo.setIndex(loft.paintIdx);
-      geo.computeVertexNormals();
-      const bodyMesh = new THREE.Mesh(geo, carPaintMat);
-      bodyMesh.castShadow = true;
-      bodyMesh.receiveShadow = true;
-      mainBody.add(bodyMesh);
+    // --- 载入小米 SU7 工业级 glTF 3D 模型 ---
+    function loadXiaomiSU7() {
+      if (typeof THREE.GLTFLoader === 'undefined') return;
 
-      const gGeo = new THREE.BufferGeometry();
-      gGeo.setAttribute('position', new THREE.Float32BufferAttribute(loft.positions.slice(), 3));
-      gGeo.setIndex(loft.glassIdx);
-      gGeo.computeVertexNormals();
-      const glassMesh = new THREE.Mesh(gGeo, carGlassMat);
-      glassMesh.renderOrder = 2;
-      mainBody.add(glassMesh);
-    })();
+      const gltfLoader = new THREE.GLTFLoader();
 
-    // 前唇 / 格栅 / 大灯 / 牌照（尺寸按 SU7 车长/车宽/车高换算）
-    const splitterGeo = new THREE.BoxGeometry(1.52 * KX, 0.04, 0.22);
-    const splitter = new THREE.Mesh(splitterGeo, carbonMat);
-    splitter.position.set(0, 0.315, 2.3885);
-    mainBody.add(splitter);
-
-    const grilleMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.9, metalness: 0.3 });
-
-    const lowerIntakeGeo = new THREE.BoxGeometry(1.45 * KX, 0.12, 0.05);
-    const lowerIntake = new THREE.Mesh(lowerIntakeGeo, grilleMat);
-    lowerIntake.position.set(0, 0.350, 2.4685);
-    mainBody.add(lowerIntake);
-
-    const plateGeo = new THREE.BoxGeometry(0.36, 0.11, 0.02);
-    const plateMat = new THREE.MeshStandardMaterial({ color: 0xd8dee9, roughness: 0.5 });
-    const plate = new THREE.Mesh(plateGeo, plateMat);
-    plate.position.set(0, 0.44, 2.4885);
-    mainBody.add(plate);
-
-    // 大灯：深色灯壳贴着翼子板/机盖交界曲面（三轴按曲面坡度偏转）+ 亮色灯带
-    const headlightHousingMat = new THREE.MeshStandardMaterial({ color: 0x0e1624, metalness: 0.9, roughness: 0.18 });
-    const headlightGeo = new THREE.BoxGeometry(0.46, 0.052, 0.13);
-    const headlightStripGeo = new THREE.BoxGeometry(0.40, 0.020, 0.05);
-    function buildHeadlight(sign) {
-      const g = new THREE.Group();
-      g.add(new THREE.Mesh(headlightGeo, headlightHousingMat));
-      const strip = new THREE.Mesh(headlightStripGeo, ledGlowMat);
-      strip.position.set(0, 0.026, 0.048);   // 灯带上沿：从前方/上方都能看到
-      g.add(strip);
-      g.position.set(sign * 0.64, 0.650, 2.305);
-      g.rotation.set(0.28, -sign * 0.26, -sign * 0.30);
-      mainBody.add(g);
-      return strip;
-    }
-    const headlightL = buildHeadlight(1);
-    const headlightR = buildHeadlight(-1);
-
-    // 尾部：鸭尾 / 贯穿尾灯 / 扩散器 / 排气
-    // 鸭尾：贴合尾部下压曲面的小翻边（SU7 的鸭尾是行李箱盖末端上翘的唇，倾角随尾箱面 ≈23°）
-    const spoilerGeo = new THREE.BoxGeometry(1.35 * KX, 0.035, 0.14);
-    const spoiler = new THREE.Mesh(spoilerGeo, carbonMat);
-    spoiler.position.set(0, 0.885, -2.395);
-    spoiler.rotation.x = -0.403;
-    mainBody.add(spoiler);
-
-    const taillightGeo = new THREE.BoxGeometry(1.5 * KX, 0.055, 0.05);
-    const taillight = new THREE.Mesh(taillightGeo, tailGlowMat);
-    taillight.position.set(0, 0.660, -2.4735);
-    mainBody.add(taillight);
-
-    const diffuserGeo = new THREE.BoxGeometry(1.5 * KX, 0.13, 0.30);
-    const diffuser = new THREE.Mesh(diffuserGeo, carbonMat);
-    diffuser.position.set(0, 0.40, -2.345);
-    mainBody.add(diffuser);
-
-    // 注：SU7 为纯电车型 → 无排气尾管，尾部只保留扩散器造型
-
-    // --- 可交互车门系统（曲面门壳 + 铰链开合） ---
-    const doors = {
-      fl: { mesh: null, open: false, targetAngle: 0, currentAngle: 0, name: '左前门 (主驾)' },
-      fr: { mesh: null, open: false, targetAngle: 0, currentAngle: 0, name: '右前门 (副驾)' },
-      rl: { mesh: null, open: false, targetAngle: 0, currentAngle: 0, name: '左后门' },
-      rr: { mesh: null, open: false, targetAngle: 0, currentAngle: 0, name: '右后门' }
-    };
-    const clickableDoors = [];
-    const hingeX = DOOR_HINGE_X, hingeY = 0.62 * KY;
-    const FRONT_HINGE_Z = 0.72 * KZ, REAR_HINGE_Z = -0.42 * KZ;
-    const FRONT_DOOR_END_Z = -0.28 * KZ, REAR_DOOR_END_Z = -1.28 * KZ;
-
-    function buildCurvedDoor(isLeft, isFront) {
-      const hinge = new THREE.Group();
-      const sign = isLeft ? 1 : -1;
-      const zHinge = isFront ? FRONT_HINGE_Z : REAR_HINGE_Z;
-      const zEnd = isFront ? FRONT_DOOR_END_Z : REAR_DOOR_END_Z;
-      const len = Math.abs(zHinge - zEnd);
-
-      // 1. 外门壳（车漆曲面，随车身型面）—— 注意转换到铰链局部坐标（y 需减去铰链高度）
-      const shell = buildDoorShell(zHinge, zEnd, sign, 1.014);
-      for (let vi = 1; vi < shell.positions.length; vi += 3) shell.positions[vi] -= hingeY;
-      const shellGeo = new THREE.BufferGeometry();
-      shellGeo.setAttribute('position', new THREE.Float32BufferAttribute(shell.positions, 3));
-      shellGeo.setIndex(shell.idx);
-      shellGeo.computeVertexNormals();
-      const doorPanel = new THREE.Mesh(shellGeo, carPaintMat);
-      doorPanel.castShadow = true;
-      hinge.add(doorPanel);
-
-      // 2. 内衬板（深色内饰面，开门后可见）
-      const liner = buildDoorShell(zHinge, zEnd, sign, 1.002);
-      for (let vi = 1; vi < liner.positions.length; vi += 3) liner.positions[vi] -= hingeY;
-      const linerGeo = new THREE.BufferGeometry();
-      linerGeo.setAttribute('position', new THREE.Float32BufferAttribute(liner.positions, 3));
-      linerGeo.setIndex(liner.idx);
-      linerGeo.computeVertexNormals();
-      const linerMesh = new THREE.Mesh(linerGeo, interiorMat);
-      hinge.add(linerMesh);
-
-      // 3. 隐藏式门把手
-      const handleGeo = new THREE.BoxGeometry(0.025, 0.028, 0.15);
-      const handle = new THREE.Mesh(handleGeo, carChromeMat);
-      handle.position.set(sign * 0.012, 0.06 * KY, -len * 0.7);
-      hinge.add(handle);
-
-      // 4. 后视镜（仅前门）
-      if (isFront) {
-        const mirrorGroup = new THREE.Group();
-        const armGeo = new THREE.CylinderGeometry(0.016, 0.02, 0.11, 12);
-        const arm = new THREE.Mesh(armGeo, carbonMat);
-        arm.rotation.z = sign * (Math.PI / 2.6);
-        arm.position.set(sign * 0.045 * KX, 0.28 * KY, 0.0);
-        mirrorGroup.add(arm);
-
-        const shellGeoM = new THREE.BoxGeometry(0.10, 0.075, 0.19);
-        const shellM = new THREE.Mesh(shellGeoM, carPaintMat);
-        shellM.position.set(sign * 0.10 * KX, 0.32 * KY, -0.04);
-        shellM.rotation.y = sign * 0.18;
-        mirrorGroup.add(shellM);
-
-        const mirrorGlassGeo = new THREE.PlaneGeometry(0.07, 0.15);
-        const mirrorGlass = new THREE.Mesh(mirrorGlassGeo, carChromeMat);
-        mirrorGlass.position.set(sign * 0.10 * KX - sign * 0.052, 0.32 * KY, -0.04);
-        mirrorGlass.rotation.y = isLeft ? -Math.PI / 2 : Math.PI / 2;
-        mirrorGroup.add(mirrorGlass);
-
-        hinge.add(mirrorGroup);
+      if (typeof THREE.DRACOLoader !== 'undefined') {
+        const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('/models/draco/');
+        gltfLoader.setDRACOLoader(dracoLoader);
       }
 
-      // 5. 门内扬声器 + 声波涟漪
-      const speakerUnit = new THREE.Group();
-      const spkFrameGeo = new THREE.CylinderGeometry(0.085, 0.085, 0.018, 24);
-      const spkFrameMat = new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.7, roughness: 0.3 });
-      const spkFrame = new THREE.Mesh(spkFrameGeo, spkFrameMat);
-      spkFrame.rotation.z = Math.PI / 2;
-
-      const spkGrilleGeo = new THREE.CylinderGeometry(0.077, 0.077, 0.02, 24);
-      const spkGrilleMat = new THREE.MeshStandardMaterial({ color: 0x52525b, metalness: 0.9, roughness: 0.2 });
-      const spkGrille = new THREE.Mesh(spkGrilleGeo, spkGrilleMat);
-      spkGrille.rotation.z = Math.PI / 2;
-
-      const waveRingGeo = new THREE.RingGeometry(0.085, 0.115, 32);
-      const waveRingMat = new THREE.MeshBasicMaterial({ color: 0x0284c7, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
-      const waveRing = new THREE.Mesh(waveRingGeo, waveRingMat);
-      waveRing.rotation.y = Math.PI / 2;
-      waveRing.position.x = -sign * 0.028;
-      waveRing.name = 'spk_wave';
-
-      speakerUnit.add(spkFrame, spkGrille, waveRing);
-      speakerUnit.position.set(-sign * 0.02, -0.22 * KY, -len * 0.55);
-      hinge.add(speakerUnit);
-
-      doorPanel.userData = { isDoor: true };
-      clickableDoors.push(doorPanel);
-
-      return hinge;
-    }
-
-    doors.fl.mesh = buildCurvedDoor(true, true);
-    doors.fl.mesh.position.set(hingeX, hingeY, FRONT_HINGE_Z);
-    carRoot.add(doors.fl.mesh);
-
-    doors.fr.mesh = buildCurvedDoor(false, true);
-    doors.fr.mesh.position.set(-hingeX, hingeY, FRONT_HINGE_Z);
-    carRoot.add(doors.fr.mesh);
-
-    doors.rl.mesh = buildCurvedDoor(true, false);
-    doors.rl.mesh.position.set(hingeX, hingeY, REAR_HINGE_Z);
-    carRoot.add(doors.rl.mesh);
-
-    doors.rr.mesh = buildCurvedDoor(false, false);
-    doors.rr.mesh.position.set(-hingeX, hingeY, REAR_HINGE_Z);
-    carRoot.add(doors.rr.mesh);
-
-    doors.fl.mesh.userData = { doorKey: 'fl' };
-    doors.fr.mesh.userData = { doorKey: 'fr' };
-    doors.rl.mesh.userData = { doorKey: 'rl' };
-    doors.rr.mesh.userData = { doorKey: 'rr' };
-    doors.fl.mesh.children.forEach(c => c.userData.doorKey = 'fl');
-    doors.fr.mesh.children.forEach(c => c.userData.doorKey = 'fr');
-    doors.rl.mesh.children.forEach(c => c.userData.doorKey = 'rl');
-    doors.rr.mesh.children.forEach(c => c.userData.doorKey = 'rr');
-
-    // --- 运动轮毂与制动系统 ---
-    function buildRealisticWheel(isFront, isLeft) {
-      const wheel = new THREE.Group();
-
-      const tireGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.125, 40, 1, true);
-      const tireMat = new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.85, metalness: 0.1 });
-      const tire = new THREE.Mesh(tireGeo, tireMat);
-      tire.rotation.z = Math.PI / 2;
-      tire.castShadow = true;
-      wheel.add(tire);
-
-      // 胎侧弧度（内收的侧面）
-      const shoulderGeo = new THREE.TorusGeometry(0.283, 0.063, 12, 40);
-      const shoulderMat = new THREE.MeshStandardMaterial({ color: 0x0e0e10, roughness: 0.9, metalness: 0.05 });
-      const shoulderA = new THREE.Mesh(shoulderGeo, shoulderMat);
-      shoulderA.rotation.y = Math.PI / 2;
-      shoulderA.position.x = 0.0625;
-      const shoulderB = shoulderA.clone();
-      shoulderB.position.x = -0.0625;
-      wheel.add(shoulderA, shoulderB);
-
-      const rimMat = new THREE.MeshStandardMaterial({ color: 0xe4e4e7, metalness: 0.95, roughness: 0.15 });
-      const rimSign = isLeft ? 1 : -1;
-
-      // 轮辋面盘（封闭胎内腔；辐条以浮雕形式立在其外侧）
-      const faceGeo = new THREE.CylinderGeometry(0.298, 0.298, 0.03, 40);
-      const face = new THREE.Mesh(faceGeo, rimMat);
-      face.rotation.z = Math.PI / 2;
-      face.position.x = rimSign * 0.048;
-      wheel.add(face);
-
-      const rimCenterGeo = new THREE.CylinderGeometry(0.115, 0.115, 0.20, 28);
-      const rimCenter = new THREE.Mesh(rimCenterGeo, rimMat);
-      rimCenter.rotation.z = Math.PI / 2;
-      wheel.add(rimCenter);
-
-      for (let i = 0; i < 5; i++) {
-        const spokeGeo = new THREE.BoxGeometry(0.045, 0.24, 0.055);
-        const spoke = new THREE.Mesh(spokeGeo, rimMat);
-        const angle = (i * 2 * Math.PI) / 5;
-        spoke.position.set(rimSign * 0.082, Math.sin(angle) * 0.14, Math.cos(angle) * 0.14);
-        spoke.rotation.x = -angle;
-        wheel.add(spoke);
-
-        const spoke2Geo = new THREE.BoxGeometry(0.03, 0.20, 0.04);
-        const spoke2 = new THREE.Mesh(spoke2Geo, rimMat);
-        const angle2 = angle + Math.PI / 5;
-        spoke2.position.set(rimSign * 0.094, Math.sin(angle2) * 0.12, Math.cos(angle2) * 0.12);
-        spoke2.rotation.x = -angle2;
-        wheel.add(spoke2);
+      if (typeof MeshoptDecoder !== 'undefined') {
+        gltfLoader.setMeshoptDecoder(MeshoptDecoder);
       }
 
-      const rotorGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.02, 32);
-      const rotorMat = new THREE.MeshStandardMaterial({ color: 0x71717a, metalness: 0.95, roughness: 0.25 });
-      const rotor = new THREE.Mesh(rotorGeo, rotorMat);
-      rotor.rotation.z = Math.PI / 2;
-      rotor.position.x = isLeft ? -0.03 : 0.03;
-      wheel.add(rotor);
+      gltfLoader.load(
+        '/models/su7/sm_car.gltf',
+        function (gltf) {
+          const su7 = gltf.scene;
+          glbLoadedModel = su7;
 
-      const caliperGeo = new THREE.BoxGeometry(0.055, 0.13, 0.085);
-      const caliperMat = new THREE.MeshPhysicalMaterial({ color: 0xdc2626, metalness: 0.3, roughness: 0.15, clearcoat: 1.0 });
-      const caliper = new THREE.Mesh(caliperGeo, caliperMat);
-      caliper.position.set(isLeft ? -0.04 : 0.04, 0.14, 0);
-      wheel.add(caliper);
+          su7.rotation.y = -Math.PI / 2;
+          su7.position.set(0, 0, 0);
 
-      // 轮距 1693/1699mm、轴距 3000mm、245/45R19（胎径 703mm）——按 SU7 实车定位
-      const track = isFront ? SU7.TRACK_F : SU7.TRACK_R;
-      const x = (isLeft ? 1 : -1) * track / 2;
-      const z = (isFront ? 1 : -1) * AXLE_Z;
-      wheel.scale.setScalar(SU7.TIRE_R / 0.36);
-      wheel.position.set(x, SU7.TIRE_R, z);
-      return wheel;
+          su7.traverse(child => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+
+              if (Array.isArray(child.material)) {
+                child.material = child.material.map(mat => {
+                  if (mat && mat.name === 'Car_body') return carPaintMat;
+                  if (mat && mat.name === 'Car_window') return carGlassMat;
+                  if (mat) mat.envMapIntensity = 1.35;
+                  return mat;
+                });
+              } else if (child.material) {
+                if (child.material.name === 'Car_body') {
+                  child.material = carPaintMat;
+                } else if (child.material.name === 'Car_window') {
+                  child.material = carGlassMat;
+                } else {
+                  child.material.envMapIntensity = 1.35;
+                }
+              }
+            }
+          });
+
+          carRoot.add(su7);
+          console.log('✅ 小米 SU7 高精 3D 资产加载并渲染成功');
+        },
+        undefined,
+        function (err) {
+          console.error('小米 SU7 加载异常:', err);
+        }
+      );
     }
 
-    const wheels = [
-      buildRealisticWheel(true, true),
-      buildRealisticWheel(true, false),
-      buildRealisticWheel(false, true),
-      buildRealisticWheel(false, false)
-    ];
-    wheels.forEach(w => carRoot.add(w));
-
-    // --- 座舱内饰系统 ---
-    const interior = new THREE.Group();
-    carRoot.add(interior);
-
-    const dashGeo = new THREE.BoxGeometry(1.48 * KX, 0.30 * KY, 0.55 * KZ);
-    const dash = new THREE.Mesh(dashGeo, interiorMat);
-    dash.position.set(0, 0.78 * KY, 0.66 * KZ);
-    interior.add(dash);
-
-    const screenGeo = new THREE.BoxGeometry(0.78 * KX, 0.18 * KY, 0.02);
-    const screenMat = new THREE.MeshBasicMaterial({ color: 0x0284c7 });
-    const screen = new THREE.Mesh(screenGeo, screenMat);
-    screen.position.set(0.1 * KX, 0.95 * KY, 0.56 * KZ);
-    screen.rotation.x = -0.18;
-    interior.add(screen);
-
-    const steerTorus = new THREE.TorusGeometry(0.16, 0.026, 16, 32);
-    const steerMat = new THREE.MeshStandardMaterial({ color: 0x09090b, roughness: 0.4 });
-    const steer = new THREE.Mesh(steerTorus, steerMat);
-    steer.position.set(0.42 * KX, 0.90 * KY, 0.42 * KZ);
-    steer.rotation.x = -0.58;
-    interior.add(steer);
-
-    function buildBucketSeat(x) {
-      const seat = new THREE.Group();
-      const cushionGeo = new THREE.BoxGeometry(0.48 * KX, 0.14 * KY, 0.52 * KZ);
-      const cushion = new THREE.Mesh(cushionGeo, seatMat);
-      cushion.position.set(0, 0.36 * KY, 0);
-
-      const backGeo = new THREE.BoxGeometry(0.46 * KX, 0.66 * KY, 0.12 * KZ);
-      const back = new THREE.Mesh(backGeo, seatMat);
-      back.position.set(0, 0.71 * KY, -0.22 * KZ);
-      back.rotation.x = -0.16;
-
-      const headGeo = new THREE.BoxGeometry(0.24 * KX, 0.17 * KY, 0.08 * KZ);
-      const head = new THREE.Mesh(headGeo, seatMat);
-      head.position.set(0, 1.07 * KY, -0.30 * KZ);
-
-      seat.add(cushion, back, head);
-      seat.position.set(x, 0.14 * KY, 0.06 * KZ);
-      return seat;
+    if (typeof MeshoptDecoder !== 'undefined' && MeshoptDecoder.ready) {
+      MeshoptDecoder.ready.then(loadXiaomiSU7).catch(loadXiaomiSU7);
+    } else {
+      loadXiaomiSU7();
     }
-    interior.add(buildBucketSeat(0.42 * KX), buildBucketSeat(-0.42 * KX));
 
-    // --- 声学系统可视化 ---
+    // =========================================================================
+    // 小米 SU7 真实车载麦克风声学系统 (车内3模组8麦五音区 + 车外4组全向麦)
+    // =========================================================================
     const acoustics = new THREE.Group();
     carRoot.add(acoustics);
 
-    const micUnitGeo = new THREE.BoxGeometry(0.16 * KX, 0.024, 0.06 * KZ);
-    const micUnitMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.9, roughness: 0.2 });
-    const micUnit = new THREE.Mesh(micUnitGeo, micUnitMat);
-    micUnit.position.set(0, 1.148 * KY, 0.48 * KZ);
-    acoustics.add(micUnit);
+    // -------------------------------------------------------------------------
+    // 模组 1: 前排顶棚中央控制盒模组 (Overhead Console)
+    // 【物理修正】：位于前挡风玻璃上方、车内后视镜与前排阅读灯控制盒内部（正中轴线 X=0!）
+    // -------------------------------------------------------------------------
+    const frontMicGroup = new THREE.Group();
+    // 正中轴线位置：X=0, 高度 Y=1.34 (天幕内侧控制盒), 纵向 Z=0.35 (后视镜正上方)
+    frontMicGroup.position.set(0, 1.34, 0.35);
+    frontMicGroup.name = 'frontMicGroup';
+    acoustics.add(frontMicGroup);
 
-    const micGeo = new THREE.SphereGeometry(0.015, 16, 16);
-    const micMat = new THREE.MeshBasicMaterial({ color: 0x0284c7 });
-    const micL = new THREE.Mesh(micGeo, micMat);
-    micL.position.set(0.05 * KX, 1.142 * KY, 0.48 * KZ);
-    const micR = new THREE.Mesh(micGeo, micMat);
-    micR.position.set(-0.05 * KX, 1.142 * KY, 0.48 * KZ);
-    acoustics.add(micL, micR);
+    // 35mm 双麦物理间距 (ITU-T P.1100 规范：中轴线对称 ±17.5mm)
+    const micRingGeo = new THREE.RingGeometry(0.007, 0.014, 24);
+    const micRingMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+    const frontMicL = new THREE.Mesh(micRingGeo, micRingMat);
+    frontMicL.rotation.x = Math.PI / 2;
+    frontMicL.position.set(-0.0175, 0, 0); // Mic 1 (左侧偏主驾)
+    const frontMicR = new THREE.Mesh(micRingGeo, micRingMat);
+    frontMicR.rotation.x = Math.PI / 2;
+    frontMicR.position.set(0.0175, 0, 0);  // Mic 2 (右侧偏副驾)
+    frontMicGroup.add(frontMicL, frontMicR);
 
-    const beamGeo = new THREE.ConeGeometry(0.42, 0.9, 32, 1, true);
+    // 双麦中心点
+    const micDotGeo = new THREE.SphereGeometry(0.0035, 12, 12);
+    const micDotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const dotL = new THREE.Mesh(micDotGeo, micDotMat);
+    dotL.position.set(-0.0175, 0, 0);
+    const dotR = new THREE.Mesh(micDotGeo, micDotMat);
+    dotR.position.set(0.0175, 0, 0);
+    frontMicGroup.add(dotL, dotR);
+
+    // 35mm 声学基线连线
+    const baselineGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-0.0175, 0, 0),
+      new THREE.Vector3(0.0175, 0, 0)
+    ]);
+    const baselineMat = new THREE.LineDashedMaterial({ color: 0x38bdf8, dashSize: 0.005, gapSize: 0.003, transparent: true, opacity: 0.85 });
+    const baselineLine = new THREE.Line(baselineGeo, baselineMat);
+    baselineLine.computeLineDistances();
+    frontMicGroup.add(baselineLine);
+
+    // 前排中央全息雷达刻度光圈
+    const frontReticleGeo = new THREE.RingGeometry(0.048, 0.056, 36);
+    const frontReticleMat = new THREE.MeshBasicMaterial({ color: 0x0284c7, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+    const frontReticle = new THREE.Mesh(frontReticleGeo, frontReticleMat);
+    frontReticle.rotation.x = Math.PI / 2;
+    frontMicGroup.add(frontReticle);
+
+    // 选中波纹脉冲环
+    const frontRippleGeo = new THREE.RingGeometry(0.075, 0.092, 36);
+    const frontRippleMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+    const frontRipple = new THREE.Mesh(frontRippleGeo, frontRippleMat);
+    frontRipple.rotation.x = Math.PI / 2;
+    frontRipple.visible = false;
+    frontMicGroup.add(frontRipple);
+
+    // 点击碰撞箱
+    const frontHitGeo = new THREE.SphereGeometry(0.22, 16, 16);
+    const frontHitMat = new THREE.MeshBasicMaterial({ visible: false });
+    const frontHitBox = new THREE.Mesh(frontHitGeo, frontHitMat);
+    frontHitBox.name = 'frontHitBox';
+    frontMicGroup.add(frontHitBox);
+
+    // -------------------------------------------------------------------------
+    // 主驾 ZCSC 空间约束声学拾音波束
+    // 【物理校准】：起点为前顶棚中央控制盒 (0, 1.34, 0.35)，斜向投射至主驾驶位 (-0.38, 0.98, -0.15)
+    // 形成真实空间斜向方位角 +45°、俯仰角 -28° 的主驾定向拾音波束！
+    // -------------------------------------------------------------------------
+    const driverMouthPos = new THREE.Vector3(-0.38, 0.98, -0.15);
+    const frontConsolePos = new THREE.Vector3(0, 1.34, 0.35);
+    const beamVec = new THREE.Vector3().subVectors(driverMouthPos, frontConsolePos);
+    const beamLen = beamVec.length(); // 约 0.73m
+
+    const beamGeo = new THREE.ConeGeometry(0.34, beamLen, 32, 1, true);
+    // 将圆锥底面居中，顶点朝向原点
+    beamGeo.translate(0, -beamLen / 2, 0);
+
     const beamMat = new THREE.MeshBasicMaterial({
-      color: 0x0891b2,
+      color: 0x0284c7,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.32,
+      wireframe: true,
       side: THREE.DoubleSide,
       depthWrite: false
     });
     const driverBeam = new THREE.Mesh(beamGeo, beamMat);
-    driverBeam.position.set(0.30 * KX, 0.90, 0.15 * KZ);
-    driverBeam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0.18, 0.86, 0.30).normalize());
-    driverBeam.scale.setScalar(0.70);
+    driverBeam.position.copy(frontConsolePos);
+    // 使得圆锥从控制盒指向主驾嘴部
+    driverBeam.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), beamVec.clone().normalize());
+    driverBeam.name = 'driverBeam';
     acoustics.add(driverBeam);
 
-    const talkerGeo = new THREE.SphereGeometry(0.065, 16, 16);
-    const talkerMat = new THREE.MeshBasicMaterial({ color: 0x075985, wireframe: true });
+    // 主驾口唇发声点 (Talker Point)
+    const talkerGeo = new THREE.SphereGeometry(0.05, 16, 16);
+    const talkerMat = new THREE.MeshBasicMaterial({ color: 0x0284c7, wireframe: true });
     const talkerPoint = new THREE.Mesh(talkerGeo, talkerMat);
-    talkerPoint.position.set(0.42 * KX, 1.06 * KY, -0.02 * KZ);
+    talkerPoint.position.copy(driverMouthPos);
+    talkerPoint.name = 'talkerPoint';
     acoustics.add(talkerPoint);
 
-    // --- 交互与事件系统 ---
+    // 副驾对称参考波束 (浅色示意波束，体现前排中央控制盒同时覆盖双音区)
+    const passMouthPos = new THREE.Vector3(0.38, 0.98, -0.15);
+    const passBeamVec = new THREE.Vector3().subVectors(passMouthPos, frontConsolePos);
+    const passBeamLen = passBeamVec.length();
+    const passBeamGeo = new THREE.ConeGeometry(0.30, passBeamLen, 24, 1, true);
+    passBeamGeo.translate(0, -passBeamLen / 2, 0);
+    const passBeamMat = new THREE.MeshBasicMaterial({
+      color: 0x64748b,
+      transparent: true,
+      opacity: 0.16,
+      wireframe: true,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    const passBeam = new THREE.Mesh(passBeamGeo, passBeamMat);
+    passBeam.position.copy(frontConsolePos);
+    passBeam.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), passBeamVec.clone().normalize());
+    acoustics.add(passBeam);
+
+    // -------------------------------------------------------------------------
+    // 模组 2 & 3: 小米 SU7 后排座舱顶棚横梁两侧模组 (覆盖后左、后右、后中第五音区)
+    // -------------------------------------------------------------------------
+    const rearMicsGroup = new THREE.Group();
+    acoustics.add(rearMicsGroup);
+
+    function createRearModule(xPos, name) {
+      const g = new THREE.Group();
+      g.position.set(xPos, 1.32, -0.85); // 位于后排座椅上方顶棚横梁
+      g.name = name;
+
+      const rGeo = new THREE.RingGeometry(0.025, 0.032, 24);
+      const rMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
+      const ring = new THREE.Mesh(rGeo, rMat);
+      ring.rotation.x = Math.PI / 2;
+      g.add(ring);
+
+      const dMesh = new THREE.Mesh(new THREE.SphereGeometry(0.004, 12, 12), new THREE.MeshBasicMaterial({ color: 0xa7f3d0 }));
+      g.add(dMesh);
+
+      const hit = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), new THREE.MeshBasicMaterial({ visible: false }));
+      hit.name = name + '_hit';
+      g.add(hit);
+
+      return g;
+    }
+
+    const rearLeftMod = createRearModule(-0.42, 'rearLeftMod');  // 后排左侧模组
+    const rearRightMod = createRearModule(0.42, 'rearRightMod'); // 后排右侧模组
+    rearMicsGroup.add(rearLeftMod, rearRightMod);
+
+    // 后排中间第 5 音区全息声源标定点
+    const rearMidPos = new THREE.Vector3(0, 0.95, -0.90);
+    const midZoneGeo = new THREE.RingGeometry(0.06, 0.075, 24);
+    const midZoneMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
+    const midZoneMesh = new THREE.Mesh(midZoneGeo, midZoneMat);
+    midZoneMesh.rotation.x = Math.PI / 2;
+    midZoneMesh.position.copy(rearMidPos);
+    rearMicsGroup.add(midZoneMesh);
+
+    // -------------------------------------------------------------------------
+    // 车外 4 组高防护全向麦克风 (IP6K9K 级防水防尘拾音单元)
+    // 分布：车头、车尾、左后视镜、右后视镜
+    // -------------------------------------------------------------------------
+    const extMicsGroup = new THREE.Group();
+    acoustics.add(extMicsGroup);
+
+    function createExtMicBeacon(pos, label) {
+      const g = new THREE.Group();
+      g.position.copy(pos);
+
+      // 外圈呼吸光环
+      const halo = new THREE.Mesh(
+        new THREE.RingGeometry(0.035, 0.045, 24),
+        new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+      );
+      halo.rotation.x = Math.PI / 2;
+      g.add(halo);
+
+      // 中心指示信标
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.012, 12, 12),
+        new THREE.MeshBasicMaterial({ color: 0xfef3c7 })
+      );
+      g.add(dot);
+
+      const hit = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), new THREE.MeshBasicMaterial({ visible: false }));
+      hit.name = 'extMic_' + label;
+      g.add(hit);
+
+      return g;
+    }
+
+    const extFront = createExtMicBeacon(new THREE.Vector3(0, 0.45, 2.40), 'front');   // 车头前端
+    const extRear = createExtMicBeacon(new THREE.Vector3(0, 0.82, -2.42), 'rear');     // 车尾牌照区域
+    const extLeft = createExtMicBeacon(new THREE.Vector3(-1.03, 0.96, 0.68), 'left');  // 左外后视镜
+    const extRight = createExtMicBeacon(new THREE.Vector3(1.03, 0.96, 0.68), 'right'); // 右外后视镜
+    extMicsGroup.add(extFront, extRear, extLeft, extRight);
+
+    // --- 交互系统状态与射线拾取 ---
+    let currentFocus = 'overview'; // 'overview', 'front_mic', '5zone', 'ext_mic'
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    window.addEventListener('click', onCanvasClick);
+    const tooltip = document.createElement('div');
+    tooltip.className = 'mic-tooltip';
+    document.body.appendChild(tooltip);
 
-    function onCanvasClick(event) {
-      if (event.target.closest('.header-bar, .panel-left, .panel-right, .hint-bar')) return;
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(clickableDoors, true);
-
-      if (intersects.length > 0) {
-        let p = intersects[0].object;
-        while (p && !p.userData.doorKey) p = p.parent;
-        if (p && p.userData.doorKey) toggleDoor(p.userData.doorKey);
-      }
+    function showTooltip(x, y, text) {
+      tooltip.textContent = text;
+      tooltip.style.left = x + 'px';
+      tooltip.style.top = y + 'px';
+      tooltip.style.display = 'block';
     }
+    function hideTooltip() { tooltip.style.display = 'none'; }
 
-    function toggleDoor(key) {
-      const door = doors[key];
-      if (!door) return;
-      door.open = !door.open;
+    // 鼠标悬停变手型与指示文本
+    window.addEventListener('pointermove', (e) => {
+      if (e.target.closest('.header-bar, .panel-left, .panel-right, .hint-bar')) {
+        container.style.cursor = 'default';
+        hideTooltip();
+        return;
+      }
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
 
-      const sign = (key === 'fl' || key === 'rl') ? 1 : -1;
-      // 绕 Y 轴旋转：左侧门需负角度、右侧门需正角度，门才会向车外张开
-      const targetRad = door.open ? -sign * (Math.PI / 2.9) : 0;
+      const targets = [
+        frontHitBox, driverBeam,
+        rearLeftMod.getObjectByName('rearLeftMod_hit'),
+        rearRightMod.getObjectByName('rearRightMod_hit'),
+        extFront.children[2], extRear.children[2], extLeft.children[2], extRight.children[2]
+      ].filter(Boolean);
 
-      new TWEEN_ENGINE.Tween(door)
-        .to({ currentAngle: targetRad }, 650)
-        .easing(TWEEN_ENGINE.Easing.Cubic.Out)
-        .onUpdate(() => {
-          door.mesh.rotation.y = door.currentAngle;
-        })
-        .start();
+      const intersects = raycaster.intersectObjects(targets, true);
+      if (intersects.length > 0) {
+        container.style.cursor = 'pointer';
+        const hitName = intersects[0].object.name;
+        if (hitName === 'frontHitBox' || hitName === 'driverBeam') {
+          showTooltip(e.clientX, e.clientY, '📡 前排顶棚中央控制盒 (35mm基线双麦 · 正中轴线)');
+        } else if (hitName.includes('rear')) {
+          showTooltip(e.clientX, e.clientY, '🎙️ 后排座舱顶棚麦克风模组 (五音区谱能量矩阵)');
+        } else if (hitName.includes('extMic')) {
+          showTooltip(e.clientX, e.clientY, '🌐 车外高防护全向麦克风 (IP6K9K · 车外语音交互)');
+        }
+      } else {
+        container.style.cursor = 'default';
+        hideTooltip();
+      }
+    });
 
-      const btn = document.getElementById('btn-' + key);
-      const statusLabel = document.getElementById('status-' + key);
-      if (btn && statusLabel) {
-        if (door.open) {
-          btn.classList.add('open');
-          statusLabel.textContent = '已开启 (62°)';
-        } else {
-          btn.classList.remove('open');
-          statusLabel.textContent = '已关闭';
+    // 3D 场景中点击直接激活对应声学模块
+    window.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.header-bar, .panel-left, .panel-right, .hint-bar')) return;
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      const targets = [
+        frontHitBox, driverBeam,
+        rearLeftMod.getObjectByName('rearLeftMod_hit'),
+        rearRightMod.getObjectByName('rearRightMod_hit'),
+        extFront.children[2], extRear.children[2], extLeft.children[2], extRight.children[2]
+      ].filter(Boolean);
+
+      const intersects = raycaster.intersectObjects(targets, true);
+      if (intersects.length > 0) {
+        const hitName = intersects[0].object.name;
+        if (hitName === 'frontHitBox' || hitName === 'driverBeam') {
+          selectFocus('front_mic');
+        } else if (hitName.includes('rear')) {
+          selectFocus('5zone');
+        } else if (hitName.includes('extMic')) {
+          selectFocus('ext_mic');
         }
       }
-      updateHud();
+    });
+
+    // 切换聚焦声学模块
+    function selectFocus(type) {
+      currentFocus = type;
+      document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('active'));
+
+      // 自动透视以看清车内
+      const xrayChk = document.getElementById('chk-xray');
+
+      if (type === 'front_mic') {
+        if (xrayChk && !xrayChk.checked) { xrayChk.checked = true; toggleXRay(true); }
+        frontRipple.visible = true;
+
+        const p = document.getElementById('pill-mic'); if (p) p.classList.add('active');
+        const b = document.getElementById('btn-front-mic'); if (b) b.classList.add('active');
+
+        // 平滑运镜至前排中央控制盒近景（正前方微俯视看清中轴线 35mm 双麦与主驾斜向波束）
+        new TWEEN_ENGINE.Tween(camera.position)
+          .to({ x: 0, y: 1.26, z: 0.85 }, 950)
+          .easing(TWEEN_ENGINE.Easing.Cubic.InOut)
+          .start();
+        new TWEEN_ENGINE.Tween(controls.target)
+          .to({ x: -0.15, y: 1.15, z: 0.10 }, 950)
+          .easing(TWEEN_ENGINE.Easing.Cubic.InOut)
+          .start();
+
+      } else if (type === '5zone') {
+        if (xrayChk && !xrayChk.checked) { xrayChk.checked = true; toggleXRay(true); }
+        frontRipple.visible = false;
+
+        const p = document.getElementById('pill-5zone'); if (p) p.classList.add('active');
+        const b = document.getElementById('btn-5zone'); if (b) b.classList.add('active');
+
+        // 俯视鸟瞰整个车内座舱，观察前中模组与后排双模组的三角空间矩阵
+        new TWEEN_ENGINE.Tween(camera.position)
+          .to({ x: 0, y: 3.5, z: 0.2 }, 950)
+          .easing(TWEEN_ENGINE.Easing.Cubic.InOut)
+          .start();
+        new TWEEN_ENGINE.Tween(controls.target)
+          .to({ x: 0, y: 0.9, z: -0.3 }, 950)
+          .easing(TWEEN_ENGINE.Easing.Cubic.InOut)
+          .start();
+
+      } else if (type === 'ext_mic') {
+        if (xrayChk && xrayChk.checked) { xrayChk.checked = false; toggleXRay(false); }
+        frontRipple.visible = false;
+
+        const p = document.getElementById('pill-extmic'); if (p) p.classList.add('active');
+        const b = document.getElementById('btn-ext-mic'); if (b) b.classList.add('active');
+
+        // 旋转至车身左前方外观角度，同时观察车头与左后视镜车外麦克风
+        new TWEEN_ENGINE.Tween(camera.position)
+          .to({ x: -3.2, y: 1.6, z: 3.6 }, 950)
+          .easing(TWEEN_ENGINE.Easing.Cubic.InOut)
+          .start();
+        new TWEEN_ENGINE.Tween(controls.target)
+          .to({ x: 0, y: 0.7, z: 0.5 }, 950)
+          .easing(TWEEN_ENGINE.Easing.Cubic.InOut)
+          .start();
+
+      } else {
+        frontRipple.visible = false;
+      }
+
+      renderHud();
     }
 
-    function setAllDoors(openState) {
-      Object.keys(doors).forEach(key => {
-        if (doors[key].open !== openState) toggleDoor(key);
-      });
-    }
+    // --- HUD 渲染 (根据实车声学技术动态展现) ---
+    function renderHud() {
+      const hud = document.getElementById('hud-panel');
+      if (!hud) return;
 
+      if (currentFocus === 'front_mic') {
+        hud.innerHTML = `
+          <div class="acoustic-badge" style="background: rgba(2, 132, 199, 0.2); color: #0284c7; border-color: #0284c7;">
+            <div class="dot"></div> 前排顶棚中央控制盒模组 (中轴线·已激活)
+          </div>
+          <div class="data-list">
+            <div class="data-item">
+              <span class="data-label">实车安装位置</span>
+              <span class="data-val" style="color: #0284c7;">前排中央控制盒 (X=0, 顶棚内后视镜上)</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">阵列物理基线</span>
+              <span class="data-val">35.0 mm (中轴线对称 ±17.5mm)</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">ZCSC 主驾波束约束</span>
+              <span class="data-val" style="color: #16a34a;">方位角 +45° / 俯仰角 -28° (斜向锁定)</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">标定群时延差 (TDOA)</span>
+              <span class="data-val" style="color: #0284c7;">τ = 1.18 smp @ 48kHz</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">副驾音区对称覆盖</span>
+              <span class="data-val">方位角 -45° (支持独立双音区唤醒)</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">声学过载点 (AOP)</span>
+              <span class="data-val">132 dB SPL (耐高声压抗破音)</span>
+            </div>
+          </div>
+          <button class="sub-btn" style="margin-top: 14px; width: 100%; text-align: center; color: #64748b;" onclick="resetCar()">
+            返回全车总览
+          </button>
+        `;
+      } else if (currentFocus === '5zone') {
+        hud.innerHTML = `
+          <div class="acoustic-badge" style="background: rgba(16, 185, 129, 0.18); color: #10b981; border-color: #10b981;">
+            <div class="dot" style="background: #10b981;"></div> 小米自研五座五音区架构 (3模组8麦)
+          </div>
+          <div class="data-list">
+            <div class="data-item">
+              <span class="data-label">硬件拓扑</span>
+              <span class="data-val" style="color: #10b981;">车内 3 个麦克风模组合计 8 颗 MIC</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">模组空间分布</span>
+              <span class="data-val">前排顶棚中置 ×1 + 后排顶棚横梁 ×2</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">第五音区 (后排中间)</span>
+              <span class="data-val" style="color: #10b981;">谱能量矩阵独立定位 (前后左右不误唤醒)</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">座椅后仰自适应</span>
+              <span class="data-val">支持后仰幅度自适应音区边界调整</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">分区指令权限</span>
+              <span class="data-val">行车关键控制指令仅主驾生效隔离</span>
+            </div>
+          </div>
+          <button class="sub-btn" style="margin-top: 14px; width: 100%; text-align: center; color: #64748b;" onclick="resetCar()">
+            返回全车总览
+          </button>
+        `;
+      } else if (currentFocus === 'ext_mic') {
+        hud.innerHTML = `
+          <div class="acoustic-badge" style="background: rgba(245, 158, 11, 0.2); color: #d97706; border-color: #f59e0b;">
+            <div class="dot" style="background: #f59e0b;"></div> 车外四向语音交互拾音系统 (4组全向麦)
+          </div>
+          <div class="data-list">
+            <div class="data-item">
+              <span class="data-label">防护能力等级</span>
+              <span class="data-val" style="color: #d97706;">IP6K9K 工业级最高防尘防水</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">四组物理位置</span>
+              <span class="data-val">车头前杠 + 车尾牌照区 + 左右后视镜</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">支持车外功能</span>
+              <span class="data-val">后备箱/前备箱语音启闭、泊车辅助</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">户外声学算法</span>
+              <span class="data-val">全向阵列定位 + 声纹钥匙双重认证</span>
+            </div>
+          </div>
+          <button class="sub-btn" style="margin-top: 14px; width: 100%; text-align: center; color: #64748b;" onclick="resetCar()">
+            返回全车总览
+          </button>
+        `;
+      } else {
+        hud.innerHTML = `
+          <div class="acoustic-badge"><div class="dot"></div> 小米 SU7 声学数字孪生标定在线</div>
+          <div class="data-list">
+            <div class="data-item">
+              <span class="data-label">车型几何规格</span>
+              <span class="data-val">长4997mm / 轴距3000mm</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">车内语音拓扑</span>
+              <span class="data-val">3模组 / 8麦 (前排中置 + 后排两侧)</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">车外交互拓扑</span>
+              <span class="data-val">4组全向麦 (车头/车尾/双后视镜)</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">主驾 ITU-T 标定</span>
+              <span class="data-val" style="color: #0284c7;">前中控制盒 ZCSC 约束 (τ = 1.18 smp)</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">全车语音音区</span>
+              <span class="data-val" style="color: #10b981;">五座五音区独立声场</span>
+            </div>
+          </div>
+          <button class="sub-btn" style="margin-top: 14px; width: 100%; text-align: center; color: #0284c7; border-color: rgba(2, 132, 199, 0.4); background: rgba(2, 132, 199, 0.08);" onclick="selectFocus('front_mic')">
+            🎯 聚焦前排中央顶棚控制盒麦克风
+          </button>
+        `;
+      }
+    }
+    renderHud();
+
+    // --- 控制器功能 ---
     function changeColor(hex, dotElem) {
       carPaintMat.color.setHex(hex);
       document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
@@ -1161,125 +997,160 @@
     function toggleXRay(enabled) {
       if (enabled) {
         carPaintMat.transparent = true;
-        carPaintMat.opacity = 0.30;
-        carGlassMat.opacity = 0.14;
+        carPaintMat.opacity = 0.28;
+        carGlassMat.opacity = 0.12;
       } else {
         carPaintMat.transparent = false;
         carPaintMat.opacity = 1.0;
-        carGlassMat.opacity = 0.88;
+        carGlassMat.opacity = 0.75;
       }
       carPaintMat.needsUpdate = true;
+      carGlassMat.needsUpdate = true;
     }
 
     function toggleBeam(enabled) {
       driverBeam.visible = enabled;
       talkerPoint.visible = enabled;
-      micUnit.visible = enabled;
-      micL.visible = enabled;
-      micR.visible = enabled;
+      passBeam.visible = enabled;
+      frontMicGroup.visible = enabled;
     }
 
-    let soundWaveEnabled = true;
-    function toggleSoundWave(enabled) {
-      soundWaveEnabled = enabled;
-      carRoot.traverse(obj => {
-        if (obj.name === 'spk_wave') obj.visible = enabled;
-      });
+    function toggleRearZones(enabled) {
+      rearMicsGroup.visible = enabled;
+    }
+
+    function toggleExtMics(enabled) {
+      extMicsGroup.visible = enabled;
     }
 
     function toggleLights(enabled) {
-      headlightL.visible = enabled;
-      headlightR.visible = enabled;
-      taillight.visible = enabled;
+      if (glbLoadedModel) {
+        glbLoadedModel.traverse(child => {
+          if (child.isMesh && child.material) {
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach(m => {
+              if (m && m.name === 'Car_ight') {
+                if (enabled) {
+                  m.emissive = new THREE.Color(0xa5f3fc);
+                  m.emissiveIntensity = 2.0;
+                } else {
+                  m.emissive = new THREE.Color(0x000000);
+                  m.emissiveIntensity = 0.0;
+                }
+              }
+            });
+          }
+        });
+      }
     }
 
     function setPresetCamera(mode) {
+      currentFocus = 'overview';
+      frontRipple.visible = false;
       document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('active'));
       if (window.event && window.event.target && window.event.target.classList) {
         window.event.target.classList.add('active');
       }
 
       let targetPos = new THREE.Vector3();
-      let targetLook = new THREE.Vector3(0, 0.62 * KY, 0);
+      let targetLook = new THREE.Vector3(0, 0.65, 0);
 
       switch (mode) {
         case 'driver':
-          targetPos.set(0.42 * KX, 1.12 * KY, -0.02 * KZ);
-          targetLook.set(0.42 * KX, 0.92 * KY, 2.0 * KZ);
+          targetPos.set(-0.38, 1.05, -0.25);
+          targetLook.set(-0.38, 0.90, 1.8);
           break;
         case 'top':
-          targetPos.set(0, 8.9, 0.1);
+          targetPos.set(0, 7.8, 0.1);
           targetLook.set(0, 0, 0);
           break;
         case 'front':
-          targetPos.set(0, 0.72 * KY, 5.35);
-          targetLook.set(0, 0.55 * KY, 0);
+          targetPos.set(0, 0.72, 4.8);
+          targetLook.set(0, 0.55, 1.5);
           break;
         case 'wheel':
-          targetPos.set(2.35, 1.10, 2.70);
-          targetLook.set(SU7.TRACK_F / 2, SU7.TIRE_R, AXLE_Z);
+          targetPos.set(-2.0, 0.55, 1.55);
+          targetLook.set(-0.95, 0.36, 1.55);
           break;
         case 'exterior':
         default:
-          targetPos.set(6.3, 2.6, 6.7);
-          targetLook.set(0, 0.62 * KY, 0);
+          targetPos.set(5.5, 2.2, 5.8);
+          targetLook.set(0, 0.65, 0);
           break;
       }
 
       new TWEEN_ENGINE.Tween(camera.position)
-        .to(targetPos, 1000)
+        .to(targetPos, 900)
         .easing(TWEEN_ENGINE.Easing.Cubic.InOut)
         .start();
 
       new TWEEN_ENGINE.Tween(controls.target)
-        .to(targetLook, 1000)
+        .to(targetLook, 900)
         .easing(TWEEN_ENGINE.Easing.Cubic.InOut)
         .start();
+
+      renderHud();
     }
 
     function resetCar() {
-      setAllDoors(false);
-      changeColor(0x1e293b, document.querySelectorAll('.color-dot')[0]);
+      currentFocus = 'overview';
+      frontRipple.visible = false;
+      changeColor(0x0284c7, document.querySelectorAll('.color-dot')[0]);
       document.getElementById('chk-xray').checked = false;
+      document.getElementById('chk-beam').checked = true;
+      document.getElementById('chk-rearzones').checked = true;
+      document.getElementById('chk-extmics').checked = true;
+      document.getElementById('chk-lights').checked = true;
       toggleXRay(false);
+      toggleBeam(true);
+      toggleRearZones(true);
+      toggleExtMics(true);
+      toggleLights(true);
       setPresetCamera('exterior');
     }
 
-    function updateHud() {
-      const anyDoorOpen = Object.values(doors).some(d => d.open);
-      const hudStatus = document.getElementById('hud-status');
-      const hudSdr = document.getElementById('hud-sdr');
-      if (anyDoorOpen) {
-        hudStatus.textContent = 'DOOR AJAR · 舱体多径散射增强';
-        hudStatus.style.color = '#d97706';
-        hudSdr.textContent = '0.884 (开门散射补偿)';
-      } else {
-        hudStatus.textContent = 'FULL DUPLEX READY · 标定双轨在线';
-        hudStatus.style.color = '#16a34a';
-        hudSdr.textContent = '0.965 (强聚焦)';
-      }
-    }
-
-    // --- 动画循环 ---
+    // --- 动画主循环 ---
     let clock = new THREE.Clock();
     function animate() {
       requestAnimationFrame(animate);
       const elapsed = clock.getElapsedTime();
       TWEEN_ENGINE.update();
 
-      if (driverBeam.visible) {
-        driverBeam.material.opacity = 0.26 + 0.08 * Math.sin(elapsed * 4.0);
-        talkerPoint.scale.setScalar(1.0 + 0.1 * Math.sin(elapsed * 5.0));
+      // 前排中央控制盒微旋转与呼吸
+      if (frontMicGroup.visible) {
+        frontReticle.rotation.z = elapsed * 0.35;
+        const scaleVal = 1.0 + 0.10 * Math.sin(elapsed * 4.0);
+        frontMicL.scale.setScalar(scaleVal);
+        frontMicR.scale.setScalar(scaleVal);
       }
 
-      if (soundWaveEnabled) {
-        carRoot.traverse(obj => {
-          if (obj.name === 'spk_wave') {
-            const waveScale = 1.0 + (elapsed * 2.2) % 1.6;
-            obj.scale.set(waveScale, waveScale, 1.0);
-            obj.material.opacity = Math.max(0, 0.8 - (waveScale - 1.0) * 0.55);
-          }
-        });
+      // 主驾声学波束脉冲呼吸
+      if (driverBeam.visible) {
+        driverBeam.material.opacity = 0.22 + 0.12 * Math.sin(elapsed * 4.0);
+        talkerPoint.scale.setScalar(1.0 + 0.14 * Math.sin(elapsed * 5.0));
+      }
+
+      // 后排微动
+      if (rearMicsGroup.visible) {
+        rearLeftMod.children[0].rotation.z = -elapsed * 0.3;
+        rearRightMod.children[0].rotation.z = elapsed * 0.3;
+        midZoneMesh.scale.setScalar(1.0 + 0.08 * Math.sin(elapsed * 3.5));
+      }
+
+      // 车外 4 组全向麦克风脉冲
+      if (extMicsGroup.visible) {
+        const extPulse = 1.0 + 0.15 * Math.sin(elapsed * 3.0);
+        extFront.children[0].scale.setScalar(extPulse);
+        extRear.children[0].scale.setScalar(extPulse);
+        extLeft.children[0].scale.setScalar(extPulse);
+        extRight.children[0].scale.setScalar(extPulse);
+      }
+
+      // 激活状态主麦克风光环扩散
+      if (frontRipple.visible) {
+        frontRipple.scale.setScalar(1.0 + 0.22 * Math.sin(elapsed * 5.5));
+        frontRipple.material.opacity = 0.45 + 0.55 * Math.sin(elapsed * 5.5);
       }
 
       controls.update();
