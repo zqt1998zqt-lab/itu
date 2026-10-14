@@ -1,0 +1,4 @@
+{
+  global: itu_audio_*; Java_dev_itu_audio_NativeEngine_*;
+  local: *;
+};

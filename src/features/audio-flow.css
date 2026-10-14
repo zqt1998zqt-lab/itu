@@ -1,0 +1,107 @@
+.audio-flow-entry {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  color: var(--blue);
+  background: #edf3ff;
+  border: 1px solid #dce7fc;
+  border-radius: 9px;
+}
+.audio-flow-entry > div { flex: 1; }
+.audio-flow-entry strong { display: block; font-size: 0.8rem; font-weight: 600; }
+.audio-flow-entry span { display: block; margin-top: 6px; font-size: 0.73rem; line-height: 1.7; color: #536b8c; }
+.audio-flow-entry:hover { border-color: #9bb8ed; }
+.audio-flow-page {
+  --df-paper: #f6f8fb; --df-surface: #fff; --df-ink: #233248;
+  --df-muted: #65758b; --df-rule: #dce3ec; --df-rule-strong: #bdcada;
+  --df-accent: #2563eb; --df-tint: #edf3ff;
+  display: grid; gap: 20px;
+}
+.audio-flow-context { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px; background: #edf3ff; border: 1px solid #dce7fc; border-radius: 8px; }
+.audio-flow-context > svg { flex-shrink: 0; color: var(--blue); margin-top: 3px; }
+.audio-flow-context p { font-size: 12px; line-height: 1.9; color: #526782; }
+.audio-flow-context strong { color: #284c84; font-weight: 600; }
+.audio-flow-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.audio-flow-modes { display: flex; gap: 4px; padding: 4px; background: #e9eef6; border: 1px solid #dce3ec; border-radius: 8px; }
+.audio-flow-modes button { display: flex; align-items: center; gap: 8px; border: 1px solid transparent; background: transparent; padding: 10px 16px; border-radius: 5px; color: var(--muted); font-size: 12px; }
+.audio-flow-modes button span { font-variant-numeric: tabular-nums; }
+.audio-flow-modes button[aria-pressed="true"] { color: #233248; font-weight: 600; border-color: #d6dfec; background: #fff; }
+.audio-flow-toolbar > a { font-size: 12px; }
+.audio-flow-stage-nav { display: flex; align-items: center; gap: 12px 24px; flex-wrap: wrap; font-size: 12px; }
+.audio-flow-stage-nav > span { color: var(--muted); }
+.audio-flow-stage-nav button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 0; background: none; border: 0; color: #496589; font-size: 12px; }
+.audio-flow-stage-nav button:hover { color: var(--blue); }
+.audio-flow-figure, .audio-flow-detail, .audio-flow-needs { margin: 0; min-width: 0; background: #fff; border: 1px solid var(--border); border-radius: 8px; }
+.audio-flow-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px; }
+.audio-flow-heading h2, .audio-flow-detail h2 { font-size: 15px; font-weight: 600; }
+.audio-flow-heading p { color: var(--muted); font-size: 12px; line-height: 1.8; margin-top: 8px; }
+.audio-flow-count { color: var(--muted); white-space: nowrap; font-size: 12px; }
+.audio-flow-count strong { color: #354c6d; font-variant-numeric: tabular-nums; font-weight: 600; margin-left: 6px; }
+.audio-flow-recordings { display: flex; flex-wrap: wrap; gap: 12px 28px; padding: 0 24px 20px; }
+.audio-flow-recordings > span { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #516882; }
+.audio-flow-recordings > span > span { display: flex; }
+.audio-flow-recordings small { font-size: 12px; color: var(--muted); margin-left: 3px; }
+.audio-flow-recordings .has-file > span { color: var(--green); }
+.audio-flow-scroll-hint { padding: 0 24px 16px; font-size: 12px; color: var(--muted); line-height: 1.8; }
+.audio-flow-handoff { display: flex; align-items: center; gap: 12px; padding: 20px 24px; border-block: 1px solid var(--border); background: #edf3ff; color: #496589; }
+.audio-flow-handoff > svg { flex-shrink: 0; }
+.audio-flow-handoff p { font-size: 12px; line-height: 1.9; }
+.audio-flow-handoff strong, .audio-flow-handoff span { display: block; }
+.audio-flow-scroll { overflow-x: auto; overflow-y: hidden; max-width: 100%; border-block: 1px solid var(--border); background: var(--df-paper); }
+.audio-flow-board { position: relative; margin-inline: auto; }
+.audio-flow-hit { position: absolute; padding: 0; border: 0; border-radius: 6px; background: transparent; }
+.audio-flow-hit:hover { background: rgba(35,50,72,.035); }
+.audio-flow-hit:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+.audio-flow-figure figcaption { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 24px; font-size: 12px; color: var(--muted); }
+.audio-flow-figure figcaption label { display: flex; gap: 12px; align-items: center; }
+.audio-flow-figure figcaption select { font-size: 12px; padding: 7px 10px; border: 1px solid #dce3ec; border-radius: 5px; background: #fff; max-width: 220px; }
+.audio-flow-figure figcaption button { font-size: 12px; }
+.audio-flow-detail { padding: 24px; border-color: #ccdafa; scroll-margin-top: 20px; }
+.audio-flow-detail-title { display: flex; align-items: center; gap: 12px; }
+.audio-flow-detail-title > span { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 6px; color: var(--blue); background: #edf3ff; flex-shrink: 0; }
+.audio-flow-detail-title small { display: block; color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+.audio-flow-detail-title .button { margin-left: auto; font-size: 12px; }
+.audio-flow-detail-copy { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 24px; }
+.audio-flow-detail h3 { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+.audio-flow-detail-copy p { font-size: 12px; color: var(--muted); line-height: 1.95; }
+.audio-flow-detail-metrics { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; }
+.audio-flow-detail-metrics > span { color: #496589; font-size: 12px; padding: 5px 9px; background: #f2f5fa; border-radius: 3px; }
+.audio-flow-detail-metrics > span:first-child { padding-left: 0; background: none; color: var(--muted); }
+.audio-flow-selected-file { overflow-wrap: anywhere; color: var(--muted); font-size: 12px; line-height: 1.8; margin-top: 16px; }
+.audio-flow-needs-list { padding: 0 24px 24px; margin: 0; }
+.audio-flow-needs-list > div { display: grid; grid-template-columns: 1fr 1.15fr 1.8fr; gap: 24px; padding: 20px 0; border-top: 1px solid var(--border); }
+.audio-flow-needs-list dt { font-weight: 600; font-size: 12px; line-height: 1.8; }
+.audio-flow-needs-list dd { margin: 0; min-width: 0; }
+.audio-flow-needs-list dd > strong { font-size: 12px; font-weight: 400; color: var(--muted); }
+.audio-flow-needs-list p { font-size: 12px; color: #526782; line-height: 1.9; margin-top: 6px; }
+.audio-flow-needs-list small { display: block; font-size: 12px; color: var(--muted); line-height: 1.9; margin-top: 8px; }
+.audio-flow-standard-note { padding: 16px 24px; border-top: 1px solid var(--border); font-size: 12px; line-height: 1.9; color: var(--muted); }
+.audio-flow-standard-note a { display: inline-flex; align-items: center; gap: 5px; color: var(--blue); margin-left: 8px; }
+@media (max-width: 760px) {
+  .audio-flow-heading { padding: 20px 16px; align-items: flex-start; flex-direction: column; gap: 12px; }
+  .audio-flow-context { padding: 16px; }
+  .audio-flow-recordings { padding: 0 16px 16px; gap: 12px 20px; }
+  .audio-flow-scroll-hint { padding: 0 16px 16px; }
+  .audio-flow-detail { padding: 20px 16px; }
+  .audio-flow-detail-copy { grid-template-columns: 1fr; gap: 20px; }
+  .audio-flow-detail-title { flex-wrap: wrap; }
+  .audio-flow-detail-title .button { margin-left: 0; }
+  .audio-flow-needs-list { padding: 0 16px 20px; }
+  .audio-flow-needs-list > div { grid-template-columns: 1fr; gap: 12px; }
+  .audio-flow-figure figcaption, .audio-flow-standard-note { padding: 16px; }
+  .audio-flow-entry { padding: 15px; }
+  .sidebar nav { flex-wrap: wrap; justify-content: flex-start; }
+  .sidebar .nav-item { flex: 0 1 auto; padding-inline: 8px; }
+}
+@media (max-width: 450px) {
+  .audio-flow-modes { width: 100%; }
+  .audio-flow-modes button { flex: 1; justify-content: center; padding-inline: 8px; }
+  .sidebar .nav-item { padding-inline: 5px; font-size: 0.7rem; }
+}
+@media print {
+  .audio-flow-scroll { overflow: visible; }
+  .audio-flow-board { width: 100% !important; height: auto !important; }
+  .audio-flow-hit, .audio-flow-toolbar { display: none; }
+}

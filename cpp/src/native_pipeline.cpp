@@ -1,0 +1,116 @@
+#include "native_pipeline.hpp"
+#include "rate_converter.hpp"
+#include "parametric_eq.hpp"
+#include "denormal_scope.hpp"
+#include <algorithm>
+#include <cmath>
+#include <chrono>
+#include <vector>
+
+namespace itu {
+struct NativePipeline::State {
+  Config c;
+  unsigned h;
+  AudioEngine core;
+  std::unique_ptr<ParametricEq> output_eq;
+  std::vector<float> capture,channel,aec,conditioned;
+  std::array<float,480> output{},beam{},scratch{};
+  std::vector<float> render;
+  std::vector<std::unique_ptr<RateConverter>> up,aec_down,input_down,render_up;
+  RateConverter output_down,beam_down;
+  static Config core_config(Config c) {
+    if(ParametricEq::enabled(c.output_eq)) c.limiter=false;
+    c.output_eq={}; // Apply exactly once, after conversion back to the requested I/O rate.
+    const float ratio=48000.f/c.sample_rate;
+    for(float& delay:c.beam_delays_samples) delay*=ratio;
+    c.sample_rate=48000; c.frame_size=480; c.native_fullband=false;
+    return c;
+  }
+  explicit State(Config config):c(config),h(c.frame_size),core(core_config(c),12288),
+      output_eq(ParametricEq::enabled(c.output_eq) ? std::make_unique<ParametricEq>(c.output_eq,c.sample_rate) : nullptr),
+      capture(480*c.microphones),channel(h),aec(capture.size()),conditioned(capture.size()),
+      render(480*c.reference_channels),output_down(480,h),beam_down(480,h) {
+    for(unsigned ch=0;ch<c.microphones;++ch) {
+      up.emplace_back(std::make_unique<RateConverter>(h,480));
+      aec_down.emplace_back(std::make_unique<RateConverter>(480,h));
+      input_down.emplace_back(std::make_unique<RateConverter>(480,h));
+    }
+    for(unsigned ch=0;ch<c.reference_channels;++ch) render_up.emplace_back(std::make_unique<RateConverter>(h,480));
+  }
+};
+NativePipeline::NativePipeline(const Config& c):state_(std::make_unique<State>(c)) {}
+NativePipeline::~NativePipeline()=default;
+std::size_t NativePipeline::memory_bytes() const noexcept {
+  const auto& s=*state_;
+  return sizeof(State)+(s.capture.capacity()+s.channel.capacity()+s.aec.capacity()+s.conditioned.capacity()+s.render.capacity())*sizeof(float)+s.core.working_memory_bytes();
+}
+Status NativePipeline::process(const float* mic,const float* ref,float* out,FrameInfo& f,
+    float* at,float* bt,float* lt,float* it) noexcept {
+  auto& s=*state_;
+  using Clock=std::chrono::steady_clock;
+  auto mark=s.c.profile_stages ? Clock::now() : Clock::time_point{};
+  auto stage=[&](float& measurement) {
+    if(s.c.profile_stages) {
+      auto now=Clock::now();
+      measurement=std::chrono::duration<float,std::milli>(now-mark).count(); mark=now;
+    }
+  };
+  float capture_ms=0,render_ms=0;
+  for(unsigned ch=0;ch<s.c.microphones;++ch) {
+    for(unsigned i=0;i<s.h;++i) s.channel[i]=mic[i*s.c.microphones+ch];
+    if(s.up[ch]->Resample(s.channel.data(),s.h,s.output.data(),480)) return Status::backend_error;
+    for(unsigned i=0;i<480;++i) s.capture[i*s.c.microphones+ch]=s.output[i];
+  }
+  stage(capture_ms);
+  if(ref) for(unsigned ch=0;ch<s.c.reference_channels;++ch) {
+    for(unsigned i=0;i<s.h;++i) s.channel[i]=ref[i*s.c.reference_channels+ch];
+    if(s.render_up[ch]->Resample(s.channel.data(),s.h,s.scratch.data(),480)) return Status::backend_error;
+    for(unsigned i=0;i<480;++i) s.render[i*s.c.reference_channels+ch]=s.scratch[i];
+  }
+  stage(render_ms);
+  auto status=s.core.process(s.capture.data(),s.capture.size(),ref?s.render.data():nullptr,ref?s.render.size():0,
+      s.output.data(),480,f,s.aec.data(),s.beam.data(),lt,s.conditioned.data());
+  if(status!=Status::ok) return status;
+  f.native_capture_ms=capture_ms; f.native_render_ms=render_ms;
+  stage(f.native_core_ms);
+  if(s.output_down.Resample(s.output.data(),480,out,s.h)) return Status::backend_error;
+  if(s.c.diagnostic_stages) std::copy_n(out,s.h,s.c.diagnostic_stages->pre_eq.data());
+  if(s.output_eq) {DenormalScope denormals; s.output_eq->process(out,s.h);}
+  if(s.c.diagnostic_stages) std::copy_n(out,s.h,s.c.diagnostic_stages->post_eq.data());
+  for(unsigned i=0;i<s.h;++i) if(s.c.limiter && std::abs(out[i])>s.c.output_ceiling) {
+    out[i]=std::copysign(s.c.output_ceiling,out[i]); ++f.limited_samples;
+  }
+  stage(f.native_output_ms);
+  for(unsigned ch=0;ch<s.c.microphones;++ch) {
+    for(auto pair:{std::pair<float*,std::vector<float>*>(at,&s.aec),{it,&s.conditioned}}) {
+      for(unsigned i=0;i<480;++i) s.scratch[i]=(*pair.second)[i*s.c.microphones+ch];
+      auto& converter=pair.second==&s.aec ? s.aec_down[ch] : s.input_down[ch];
+      if(converter->Resample(s.scratch.data(),480,s.channel.data(),s.h)) return Status::backend_error;
+      if(pair.first) for(unsigned i=0;i<s.h;++i) pair.first[i*s.c.microphones+ch]=s.channel[i];
+    }
+  }
+  if(s.beam_down.Resample(s.beam.data(),480,s.channel.data(),s.h)) return Status::backend_error;
+  if(bt) std::copy(s.channel.begin(),s.channel.end(),bt);
+  stage(f.native_taps_ms);
+  const double ratio=double(s.c.sample_rate)/48000;
+  const unsigned conversion=unsigned(std::lround(s.up[0]->output_delay()*ratio+s.output_down.output_delay()));
+  f.latency_samples=conversion+unsigned(std::ceil(f.latency_samples*ratio));
+  f.aec_output_delay_samples=conversion+unsigned(std::lround(f.aec_output_delay_samples*ratio));
+  f.aec_input_delay_samples=conversion+unsigned(std::lround(f.aec_input_delay_samples*ratio));
+  if(s.c.aec) f.linear_aec_delay_samples+=unsigned(std::lround(s.up[0]->output_delay()/3));
+  f.low_cut_delay_samples=unsigned(std::lround(f.low_cut_delay_samples*ratio));
+  f.post_low_cut_delay_samples=unsigned(std::lround(f.post_low_cut_delay_samples*ratio));
+  f.ns_delay_samples=unsigned(std::lround(f.ns_delay_samples*ratio));
+  f.spatial_delay_samples=unsigned(std::ceil(f.spatial_delay_samples*ratio));
+  if(s.c.diagnostic_stages) {
+    auto& taps=*s.c.diagnostic_stages;
+    // The core taps also include the causal input-upsample delay.
+    taps.core_delay_samples+=s.up[0]->output_delay();
+    taps.eq_sample_rate=s.c.sample_rate; taps.eq_frame_size=s.h;
+    taps.eq_delay_samples=f.latency_samples;
+  }
+  double p=0; for(unsigned i=0;i<s.h;++i) p+=double(out[i])*out[i];
+  f.output_rms=float(std::sqrt(p/s.h));
+  return Status::ok;
+}
+}

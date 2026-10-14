@@ -1,0 +1,8 @@
+# Dataset orchestration and measurements; the processing engine is C++.
+numpy==2.4.4
+scipy==1.17.1
+soundfile==0.13.1
+pystoi==0.4.1
+rir-generator==0.3.0
+remotezip==0.12.3
+requests==2.33.1

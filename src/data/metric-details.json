@@ -1,0 +1,104 @@
+[
+  {
+    "id": "M01",
+    "test": "Round Trip Delay",
+    "method": "往返时延 D = 1000 × τ_peak / fs，τ_peak 为测试标记的返回延迟样点数。重复测试报告均值、中位数、P95、最大值。",
+    "requirements": "需要同步发送/返回记录或硬件时间戳；已知测试夹具延迟是否扣除须由测量协议明确。不能把 RTD/2 当作已测单向时延。原表有线区间 170～275 ms，无线区间 170～415 ms；NB-bt 此项缺限值。"
+  },
+  {
+    "id": "M02",
+    "test": "Loudness Rating - Sending",
+    "method": "发送响度 SLR：按确认的标准频带、发送灵敏度和响度加权模型计算，输出 dB。额外记录距上下限余量。",
+    "requirements": "原表 9～17 dB。需要人工嘴、数字参考点、灵敏度标定和准确的响度算法；不能用录音 RMS 直接代替 SLR。工程调试可暂以 13 dB 为建议目标，但这不是确认的标准目标。"
+  },
+  {
+    "id": "M03",
+    "test": "Loudness Rating - Receiving",
+    "method": "接收响度 RLR：按确认的接收灵敏度、频带及双耳规则计算。标称和最大音量分开。",
+    "requirements": "原表标称 -2～6 dB，最大 15～45 dB。需要 HATS/耳模拟器标定。标称工程目标暂取 2 dB；最大音量不能简单按“越大越好”评分，目标待确认。"
+  },
+  {
+    "id": "M04",
+    "test": "Variation of RLR, ±5 dB",
+    "method": "原表保存的偏差 v 应满足 -0.5≤v≤0.5 dB；偏差绝对值 abs(v) 越小越稳定。",
+    "requirements": "自行重算时必须确定仪器如何扣除理论 5 dB 变化：v = [RLR(level+Δ)-RLR(level)]-Δ_expected。不能直接把两个 RLR 之差当作表中偏差。"
+  },
+  {
+    "id": "M05",
+    "test": "Frequency Response",
+    "method": "频响合规最小余量 m_FR = min_f min[R(f)-L(f), U(f)-R(f)]。补充超限频点占比、最严重超限频率、有效频带宽度。",
+    "requirements": "需要完整上下限掩模、参考归一化和频率网格；m≥0 的约定仅在确认仪器采用“正值在限内”后使用。原表只有最小距离及一个频率，不能还原曲线或频点通过率。"
+  },
+  {
+    "id": "M06",
+    "test": "Idle Channel Noise - Level",
+    "method": "空闲噪声：先校准并按规定加权，在指定静音窗口计算 RMS 电平。L_N = 20 log10(q_rms/q_ref)。多个窗口同时报告最大值和P95。",
+    "requirements": "下行原表上限 -53 dB[Pa]；上行 -64 dBm0。Pa、dBm0、dBFS 不可混用；q_ref 和加权方法按仪器配置。50/100 ms 分开。原表 -200 下限是否为软件占位需确认。"
+  },
+  {
+    "id": "M07",
+    "test": "Idle Channel Noise - Spectral Peaks",
+    "method": "噪声谱峰余量 m_peak = min_f[U_N(f)-N(f)]；最严重超限量 e_peak = max_f max[N(f)-U_N(f),0]。",
+    "requirements": "曲线与掩模必须在相同量纲和频率网格下比较。原表某些单位标 Pa/V，不能擅自把结果解释为 dB。仪器距离符号未确认时仅显示记录值和“待确认”。"
+  },
+  {
+    "id": "M08",
+    "test": "One Way Speech Quality / POLQA",
+    "method": "保留算法输出的听音质量 MOS，分别报告上/下行、平均值、最差样本及低于阈值比例。",
+    "requirements": "NB/WB TMOS 原表下限 3；SWB Optional POLQA 下限 3.6。TMOS 的算法和版本须向实验室确认；POLQA 使用经确认的实现。不可用相关系数、SNR或简单线性公式冒充 MOS，也不可不经校准把 TMOS 与 POLQA 合成同一平均值。"
+  },
+  {
+    "id": "M09",
+    "test": "Out-of-Band Signal",
+    "method": "保留原表 Corrected value 和对应限值。工程排查可另算带外衰减 A_OB = L_inband-L_outband（同一校准和加权），但这是另一个指标。",
+    "requirements": "NB下行原表 45～200、WB下行 -30～10、上行 35～200；显示单位和限值方向存在解释风险。必须确认其值是绝对电平、衰减量还是修正结果，不能将工程 A_OB 直接填回原表。"
+  },
+  {
+    "id": "M10",
+    "test": "Attn. Range in SND, DT",
+    "method": "双讲期间目标类别占比 P_DT = 100×目标类别有效计数/全部有效双讲计数。报告标称与最大音量、衰减轨迹和有效样本数。",
+    "requirements": "NB表写 A1+A2，WB/SWB写 A1，不能混算。计数单位是帧、时间或句段，以及类别边界，均按仪器定义；如果按时间，应使用时长加权。原表标称下限50%，最大25%。"
+  },
+  {
+    "id": "M11",
+    "test": "Terminal Coupling Loss",
+    "method": "TCL/TCLw 的工程表达为参考接收信号电平减去上行回声电平；正式结果按确认的测量点、频带、加权及测试序列生成。",
+    "requirements": "原表下限50 dB；标称/最大音量分别报告，TCL与TCLw不直接混算。Recommended另存。ERLE可作AEC诊断，不能替代终端TCL。"
+  },
+  {
+    "id": "M12",
+    "test": "Speech Level at HATS, S/N",
+    "method": "校准后的语音与噪声电平差 SNR = L_S-L_N；语音和噪声区间由预先定义的标记决定。",
+    "requirements": "原表下限6 dB。需确认是独立语音电平还是混合电平；若测得混合功率，线性域扣除噪声后再求语音功率，不能把两个对数电平直接相减作为功率扣除。"
+  },
+  {
+    "id": "M13",
+    "test": "BGN G-MOS",
+    "method": "每个Sce保留G-MOS；补充四场景均值、最差场景、场景间差值。",
+    "requirements": "原表下限1，区分能力很弱；需另设产品目标。G-MOS使用实验室规定的模型或主观评价协议，不能用(SMOS+NMOS)/2替代。跨带宽/算法版本分组。"
+  },
+  {
+    "id": "M14",
+    "test": "BGN N-MOS",
+    "method": "噪声主观/模型质量N-MOS：各Sce分别评价，记录低于下限比例和复测变化。",
+    "requirements": "NB/WB Sce1/2下限3、Sce3/4下限2.5；SWB Sce1下限4、Sce2下限3、Sce3/4下限2.5。需要确认当前实验室算法、版本及噪声场景。"
+  },
+  {
+    "id": "M15",
+    "test": "BGN S-MOS",
+    "method": "语音主观/模型质量S-MOS：各Sce分别评价，并与N-MOS联合观察。",
+    "requirements": "下限与M14相同。识别“噪声质量提高但语音保真下降”；禁止仅用N-MOS提升宣布整体提升。"
+  },
+  {
+    "id": "M16",
+    "test": "Comfort Noise - Level Adjustment",
+    "method": "舒适噪声电平误差 ΔL_CN = L_CN-L_reference，目标0 dB；除有符号误差外报告abs(ΔL_CN)。",
+    "requirements": "原表 -5～2，单位dBm0(A)需确认是否只是软件显示模板：相对电平误差原则上是dB。参考噪声、窗口、A加权和静音切换时点须一致。"
+  },
+  {
+    "id": "M17",
+    "test": "Comfort Noise - Spectral Adjustment",
+    "method": "各频带相对参考谱偏差ΔN(f)，在规定掩模中计算最小余量m_CN；另报最严重频带和超限频点比例。",
+    "requirements": "原表给出“最小距离”、区间0～120；它不能被当作平均谱误差。掩模、归一化及距离符号确认后再启用工程判定。"
+  }
+]

@@ -1,0 +1,15 @@
+.alignment-page { min-width: 0; }
+.alignment-status { display: flex; flex-wrap: wrap; gap: 12px 24px; padding-block: 16px; border-block: 1px solid var(--border); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.alignment-status span, .alignment-note { color: var(--muted); }
+.alignment-note { font-size: .82rem; line-height: 1.8; text-wrap: pretty; }
+.alignment-page h2 { font-size: 1rem; text-wrap: balance; }
+.alignment-links { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-block: 16px; }
+.alignment-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--blue); font-size: .8rem; text-decoration: underline; text-underline-offset: 3px; }
+.alignment-failures { padding-block: 12px; border-bottom: 1px solid var(--border); }
+.alignment-failures summary { cursor: pointer; font-size: .82rem; overflow-wrap: anywhere; }
+.alignment-page .audio-table { min-width: 700px; }
+.alignment-page .audio-table td { white-space: normal; overflow-wrap: anywhere; max-width: 340px; }
+.alignment-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.alignment-filters label { display: grid; gap: 8px; color: var(--muted); font-size: .8rem; min-width: 0; }
+.alignment-filters select, .alignment-filters input { width: 100%; min-width: 0; }
+@media (max-width: 760px) { .alignment-filters { grid-template-columns: 1fr; } }

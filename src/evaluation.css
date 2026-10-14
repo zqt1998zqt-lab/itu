@@ -1,0 +1,44 @@
+.evaluation-section { margin: 24px 0; min-width: 0; }
+.evaluation-batch { display: grid; gap: 8px; max-width: 440px; margin: 20px 0; font-size: .85rem; }
+.evaluation-filters { padding: 24px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0; }
+.evaluation-filters label { display: grid; gap: 8px; color: var(--muted); font-size: .8rem; min-width: 0; }
+.evaluation-conditions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin: 0; padding: 0 24px 24px; }
+.evaluation-conditions dt { color: var(--muted); font-size: .75rem; margin-bottom: 6px; }
+.evaluation-conditions dd { margin: 0; font-size: .82rem; line-height: 1.7; font-variant-numeric: tabular-nums; }
+.evaluation-note { padding: 12px 24px; line-height: 1.9; font-size: .78rem; color: var(--muted); }
+.evaluation-audio { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 24px; }
+.evaluation-audio > div { border: 1px solid var(--border); padding: 18px; border-radius: 8px; min-width: 0; }
+.evaluation-audio h3 { font-size: .85rem; margin-bottom: 14px; }
+.evaluation-audio audio { width: 100%; display: block; }
+.evaluation-audio a, .evaluation-links a { color: var(--blue); font-size: .8rem; text-decoration: underline; text-underline-offset: 4px; }
+.evaluation-audio a { display: inline-block; margin-top: 12px; }
+.evaluation-links { display: flex; flex-wrap: wrap; gap: 18px; padding: 8px 24px 24px; }
+.evaluation-empty { padding: 28px 24px; line-height: 1.8; font-size: .85rem; }
+.evaluation-empty button { margin-top: 16px; }
+.evaluation-page table { font-variant-numeric: tabular-nums; }
+.evaluation-page .table-scroll { margin-top: 16px; }
+.evaluation-acceptance { margin: 24px 0; padding: 20px 0; border-block: 1px solid var(--border); min-width: 0; }
+.evaluation-verdict { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.evaluation-verdict h2 { font-size: 1rem; margin: 0; text-wrap: balance; }
+.evaluation-verdict span { color: var(--muted); font-size: .82rem; font-variant-numeric: tabular-nums; }
+.evaluation-verdict[data-status="fail"], .evaluation-status-fail { color: #a63232; }
+.evaluation-verdict[data-status="pass"], .evaluation-status-pass { color: #217245; }
+.evaluation-status-unavailable { color: var(--muted); }
+.evaluation-acceptance-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.evaluation-acceptance-stats dt { color: var(--muted); font-size: .75rem; margin-bottom: 6px; }
+.evaluation-acceptance-stats dd { margin: 0; font-size: .9rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.evaluation-scene-link { padding: 8px 0; background: transparent; border: 0; color: var(--blue); text-decoration: underline; text-underline-offset: 4px; font: inherit; cursor: pointer; }
+.evaluation-rules { padding: 16px 24px; min-width: 0; }
+.evaluation-rules summary { cursor: pointer; font-size: .85rem; font-weight: 600; }
+.evaluation-identities { font-size: .72rem; line-height: 1.8; }
+.evaluation-identities dt { color: var(--muted); }
+.evaluation-identities dd { margin: 0 0 10px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.evaluation-page table caption { padding: 12px 0; text-align: left; font-size: .85rem; font-weight: 600; }
+@media (max-width: 760px) {
+  .evaluation-filters, .evaluation-conditions, .evaluation-audio { grid-template-columns: 1fr; padding-left: 16px; padding-right: 16px; }
+  .evaluation-conditions { gap: 14px; }
+  .evaluation-note { padding-left: 16px; padding-right: 16px; }
+  .evaluation-section .panel-heading { align-items: flex-start; flex-direction: column; }
+  .evaluation-acceptance-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .evaluation-rules { padding-inline: 16px; }
+}

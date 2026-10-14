@@ -1,0 +1,86 @@
+.ecnr-page { min-width: 0; }
+.ecnr-toolbar, .ecnr-toolbar > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ecnr-toolbar { justify-content: space-between; margin: 20px 0; }
+.ecnr-status-panel { padding: 24px; margin-bottom: 20px; }
+.ecnr-verdict { display: flex; gap: 12px; align-items: flex-start; color: #6e5a32; }
+.ecnr-verdict[data-status="pass"] { color: #217245; }
+.ecnr-verdict[data-status="fail"] { color: #a63232; }
+.ecnr-verdict svg { flex-shrink: 0; margin-top: 2px; }
+.ecnr-verdict h2 { font-size: 1rem; margin: 0 0 8px; line-height: 1.6; }
+.ecnr-verdict p { font-size: .8rem; line-height: 1.8; color: var(--muted); margin: 0; }
+.ecnr-note { padding: 12px 24px; font-size: .78rem; line-height: 1.9; color: var(--muted); margin: 0; }
+.ecnr-status-panel .ecnr-note { padding: 16px 0 0; }
+.ecnr-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.ecnr-summary { padding: 20px; min-width: 0; }
+.ecnr-summary h3 { font-size: .78rem; color: var(--muted); margin: 0 0 12px; font-weight: 500; }
+.ecnr-summary strong { font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ecnr-summary p { font-size: .74rem; line-height: 1.8; margin: 10px 0 0; color: var(--muted); }
+.ecnr-section { margin: 24px 0; overflow: hidden; min-width: 0; }
+.ecnr-section .table-scroll { margin: 0 0 16px; }
+.ecnr-section table caption { padding: 12px 24px; font-size: .78rem; }
+.ecnr-pending { font-size: .8rem; color: var(--muted); line-height: 1.8; padding: 16px 24px; margin: 0; }
+.ecnr-change-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 4px 24px 20px; gap: 16px; }
+.ecnr-change-stats > div { display: grid; gap: 8px; }
+.ecnr-change-stats span { color: var(--muted); font-size: .75rem; }
+.ecnr-change-stats strong { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.ecnr-change-stats [data-fail="true"] strong { color: #a63232; }
+.ecnr-filter { display: grid; gap: 6px; font-size: .75rem; color: var(--muted); min-width: 190px; }
+.ecnr-filter select, .ecnr-stage-controls select { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 8px; background: white; font: inherit; color: var(--text); }
+.ecnr-id { display: block; color: var(--muted); font-size: .68rem; margin-bottom: 4px; overflow-wrap: anywhere; }
+.ecnr-stage-controls { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; padding: 0 24px; }
+.ecnr-stage-controls label { display: grid; gap: 10px; font-size: .78rem; color: var(--muted); min-width: 0; }
+.ecnr-stage-controls input { width: 100%; }
+.ecnr-stage-list { padding: 0 24px 24px; display: grid; gap: 16px; }
+.ecnr-stage { border: 1px solid var(--border); border-radius: 8px; padding: 16px; min-width: 0; }
+.ecnr-stage-title { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
+.ecnr-stage h3 { font-size: .82rem; margin: 0; }
+.ecnr-stage-title span { font-size: .72rem; color: var(--muted); }
+.ecnr-stage svg { display: block; width: 100%; margin-top: 8px; }
+.ecnr-stage audio { display: block; width: 100%; height: 38px; margin-top: 14px; }
+.ecnr-stage details { margin-top: 12px; font-size: .72rem; line-height: 1.8; color: var(--muted); overflow-wrap: anywhere; }
+.ecnr-stage summary { cursor: pointer; }
+.ecnr-stage .ecnr-pending { padding: 12px 0; }
+.ecnr-wave-axis { display: flex; justify-content: space-between; font-size: .68rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ecnr-entry { margin: 20px 0; }
+@media (max-width: 1050px) { .ecnr-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  .ecnr-toolbar { gap: 14px; }
+  .ecnr-toolbar > div { width: 100%; }
+  .ecnr-toolbar .button { font-size: .72rem; }
+  .ecnr-status-panel { padding: 16px; }
+  .ecnr-summary-grid { gap: 10px; }
+  .ecnr-summary { padding: 16px; }
+  .ecnr-summary strong { font-size: 1.25rem; }
+  .ecnr-change-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-inline: 16px; }
+  .ecnr-section .panel-heading { flex-direction: column; align-items: flex-start; }
+  .ecnr-stage-controls { grid-template-columns: 1fr; gap: 16px; padding-inline: 16px; }
+  .ecnr-stage-list { padding-inline: 16px; }
+  .ecnr-note, .ecnr-pending { padding-inline: 16px; }
+}
+
+.ecnr-tail-evidence { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 16px; }
+.ecnr-tail-heading { padding: 0 24px 16px; }
+.ecnr-tail-heading h3 { font-size: .86rem; margin: 0 0 10px; }
+.ecnr-tail-heading p { font-size: .78rem; line-height: 1.9; color: var(--muted); margin: 0; }
+@media (max-width: 760px) { .ecnr-tail-heading { padding-inline: 16px; } }
+
+.ecnr-tail-scroll-hint { display: none; }
+@media (max-width: 760px) { .ecnr-tail-scroll-hint { display: block; margin: 12px 16px 0; font-size: .72rem; color: var(--muted); line-height: 1.8; } }
+
+.ecnr-final .ecnr-summary-grid { margin-top: 20px; }
+.ecnr-final-coverage, .ecnr-final-perceptual, .ecnr-final-runtime { margin-top: 24px; }
+.ecnr-final h3 { margin-bottom: 8px; }
+.ecnr-final-artifacts { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.ecnr-final-artifacts a { display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; font-size: 13px; }
+.ecnr-final details li { overflow-wrap: anywhere; }
+.ecnr-final-error { color: #a63b36; background: #fff1ef; padding: 12px 16px; border-radius: 8px; }
+
+.ecnr-final > .ecnr-verdict { padding: 20px 24px 0; }
+.ecnr-final-coverage > h3, .ecnr-final-perceptual > h3, .ecnr-final-runtime > h3 { padding-inline: 24px; font-size: .94rem; }
+.ecnr-final-coverage > p, .ecnr-final-perceptual > p, .ecnr-final-runtime > p:not(.ecnr-note):not(.ecnr-pending) { padding-inline: 24px; font-size: .8rem; line-height: 1.85; margin-block: 8px; }
+.ecnr-final details { padding: 12px 24px; font-size: .78rem; line-height: 1.8; color: var(--muted); }
+@media (max-width: 760px) {
+  .ecnr-final > .ecnr-verdict { padding: 16px 16px 0; }
+  .ecnr-final-coverage > h3, .ecnr-final-perceptual > h3, .ecnr-final-runtime > h3,
+  .ecnr-final-coverage > p, .ecnr-final-perceptual > p, .ecnr-final-runtime > p:not(.ecnr-note):not(.ecnr-pending) { padding-inline: 16px; }
+}

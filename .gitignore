@@ -1,0 +1,38 @@
+node_modules/
+dist/
+*.log
+.playwright-mcp/
+.DS_Store
+__pycache__/
+.pytest_cache/
+itu-audio-*.png
+build/
+*.keystore
+*.idsig
+
+# --- 大体积数据与评测产物（不入库，按需本地生成）---
+datasets/
+public/evaluation/
+public/evaluation-cache/
+.backups/
+
+# --- 客户项目内部资料（不开源，仅本地保留）---
+NV200_ITUT_*
+.wiki/itut-alignment.md
+cpp/docs/ITU_ALIGNMENT_*
+cpp/evaluation/nv200-test-contract.json
+
+# --- 内部过程记录 / 设计文档（不开源）---
+docs/
+.wiki/
+cpp/docs/
+
+# --- 测试契约与指标资料（不开源）---
+cpp/evaluation/
+public/downloads/
+public/diagrams/
+
+# --- 3D 页面历史快照（仅保留当前版本）---
+public/car-3d.backup-*.html
+public/car-3d.day-*.html
+public/car-3d.su7-*.html
