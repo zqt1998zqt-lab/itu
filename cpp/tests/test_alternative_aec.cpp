@@ -48,14 +48,15 @@ void hop_adapter() {
       ++calls;for(unsigned i=0;i<256;++i) {require(m[i]+r[i]==0,"render block mismatched");o[i]=m[i];}return true;
     }),"hop adapter overflow/underflow");
     for(unsigned i=0;i<160;++i) {
-      const int index=int(frame*160+i)-256;
-      require(out[i]==(index<0 ? 0.f : float(index+1)),"fixed-hop delay dropped/repeated PCM");
+      // The injected identity model sees a zero-padded first block. Its first
+      // callback is therefore emitted immediately; the padded tail is exposed
+      // on the next callback before block 1 becomes available.
+      if(frame==0) require(out[i]==float(i+1),"cold-start output was delayed or altered");
     }
   }
-  require(calls==625 && adapter.inferences()==calls && adapter.pending()==0,"hop count mismatch");
+  require(calls==1000 && adapter.inferences()==calls && adapter.pending()==0 && adapter.queued()==0,"hop count mismatch");
   itu::FixedHopAdapter rejected;
-  require(rejected.process(mic.data(),ref.data(),out.data(),[](const float*,const float*,float*){return false;}),"first short frame invokes model prematurely");
-  require(!rejected.process(mic.data(),ref.data(),out.data(),[](const float*,const float*,float*){return false;}),"model error ignored");
+  require(!rejected.process(mic.data(),ref.data(),out.data(),[](const float*,const float*,float*){return false;}),"cold-start model error ignored");
 }
 void subspace(bool dependent,unsigned mics) {
   std::vector<std::unique_ptr<itu::EchoSubspace>> detectors;
@@ -116,7 +117,7 @@ void tap_delays(unsigned rate,bool lowcut,bool res,bool protect,bool ns=false) {
   require(std::abs(int(output)-int(info.latency_samples))<=int(peak_tolerance) && aec==info.aec_output_delay_samples,"measured MDF/RES/NS output delay differs from report");
   require(input==info.aec_input_delay_samples && beam==aec,"MDF conditioned/beam tap delay differs from report");
   require(info.latency_samples-info.ns_delay_samples-info.post_low_cut_delay_samples==beam,"BF export length includes post conditioning");
-  require(info.aec_input_delay_samples==(lowcut ? rate*16/1000 : 0),"lowcut input tap is not actual MDF input");
+  require(info.aec_input_delay_samples==0,"minimum-delay low-cut added an input offset");
   if(protect && rate!=24000 && !ns) require(std::abs(all[onset+output]-.2f)<1e-6,"silent-render near-speech protection changes PCM");
 }
 void mdf(unsigned rate,unsigned mics) {

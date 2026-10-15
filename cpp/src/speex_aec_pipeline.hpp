@@ -119,7 +119,7 @@ class SpeexAecPipeline {
         +post_.working_memory_bytes();
   }
  private:
-  static unsigned conditioning_delay(const Config& c) {return c.linear_phase_low_cut ? c.sample_rate*16/1000 : 0;}
+  static unsigned conditioning_delay(const Config&) {return 0;}
   static Config post_config(Config c) {
     // Standalone NS retains its own conditioned/fullband speech branches.
     // This second low-cut is after the AEC/BF taps, and its delay is owned by

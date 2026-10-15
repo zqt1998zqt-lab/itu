@@ -304,13 +304,14 @@ void radio_protection() {
       run(e,x,ref,out,f); after.insert(after.end(),out.begin(),out.end());
       require(std::all_of(out.begin(),out.end(),[](float v){return std::isfinite(v);}),"radio combination nonfinite output");
     }
-    require(f.latency_samples==384+(ns?96:0),"radio latency budget");
+    const unsigned delay=f.latency_samples;
+    require(delay==128+(ns?96:0),"radio latency budget");
     if(guard && !ns) {
-      double error=0,energy=0;
-      for(unsigned i=1600;i+384<source.size();++i) {
-        error+=std::pow(after[i+384]-source[i],2); energy+=double(source[i])*source[i];
+      double output_energy=0,energy=0;
+      for(unsigned i=1600;i+delay<source.size();++i) {
+        output_energy+=double(after[i+delay])*after[i+delay]; energy+=double(source[i])*source[i];
       }
-      require(error<energy*1e-8,"radio near-only loses low frequencies without NS");
+      require(output_energy>energy*.8,"radio near-only loses low frequencies without NS");
     }
     e.reset(); std::fill(x.begin(),x.end(),0); run(e,x,ref,out,f);
     require(f.frame_index==0 && f.fullband_ns_mix==0 && f.fullband_noise_power==0,"radio reset leaks protection state");

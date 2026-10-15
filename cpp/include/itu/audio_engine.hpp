@@ -9,7 +9,9 @@ namespace itu {
 constexpr unsigned kMaxMicrophones = 8;
 inline constexpr char kWebRtcRevision[] = "52022620d7f1f97eed6bcfbfcb2744fb26acc86f";
 constexpr unsigned kAecOutputDelaySamples=128, kLinearAecDelaySamples=64, kNsDelaySamples=96;
-constexpr unsigned kLowCutDelaySamples=256;
+// Minimum-delay IIR low-cut is causal and does not contribute a fixed sample
+// offset to stream alignment. Keep this constant for ABI/source compatibility.
+constexpr unsigned kLowCutDelaySamples=0;
 enum class NoiseBackend { webrtc, rnnoise, speex, ulunas };
 enum class AecBackend { webrtc, speex };
 // The caller selects the operating envelope. Runtime adaptation is bounded by
@@ -105,7 +107,7 @@ struct Config {
   bool noise_suppression = true;
   bool automatic_gain = true;
   bool limiter = true;
-  bool linear_phase_low_cut = true; // AEC capture/render conditioning, or before standalone NS; 16 ms.
+  bool linear_phase_low_cut = true; // Compatibility flag for causal 2nd-order IIR HPF conditioning.
   float low_cut_hz = 60.f;
   bool adaptive_gain = false;
   bool speech_gain_policy = true; // Vehicle: noise-qualified utterance lock/release; general: fixed calibration.

@@ -187,7 +187,7 @@ int main(int argc,char** argv) {
   std::ofstream report(prefix+".json");report<<"{\n  \"sample_rate\":"<<rate
     <<",\n  \"aec_internal_sample_rate\":16000,\n  \"microphones\":1,\n  \"reference_channels\":1"
     <<",\n  \"dsp_delay_samples\":"<<delay<<",\n  \"model_codec_delay_samples_16k\":"<<model_delay
-    <<",\n  \"hop_adapter_delay_samples_16k\":256,\n  \"noise_gate_enabled\":false"
+    <<",\n  \"hop_adapter_delay_samples_16k\":0,\n  \"cold_start_zero_prefix\":true,\n  \"noise_gate_enabled\":false"
     <<",\n  \"post_ns_delay_samples_16k\":"<<post_delay<<",\n  \"post_ns_backend\":\""<<post_ns<<"\""
     <<",\n  \"batch_delay_prime\":false,\n  \"threads\":1,\n  \"aec_backend\":\"localvqe_stream\""
     <<",\n  \"model_frontend_only\":"<<(frontend ? "true" : "false")

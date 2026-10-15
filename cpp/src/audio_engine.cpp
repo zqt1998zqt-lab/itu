@@ -278,7 +278,7 @@ struct AudioEngine::Impl {
       ns_delay(c.noise_backend==NoiseBackend::rnnoise ? 960 :
           c.hybrid_speech_ns && c.speech_preserving_low_cut && c.linear_phase_low_cut &&
           c.noise_backend==NoiseBackend::webrtc ? c.frame_size :
-          c.sample_rate==48000 ? 336 : 96),lowcut_delay(c.sample_rate*16/1000),
+          c.sample_rate==48000 ? 336 : 96),lowcut_delay(0),
       fullband_ns_output(c.frame_size),fullband_dry_history(ns_delay),
       moderate_output(c.frame_size),ns_dry_history(ns_delay),ns_dry_output(c.frame_size),
       vad_audio(c.frame_size),filtered_reference(c.frame_size*c.reference_channels),lowband_output(c.frame_size),
@@ -578,6 +578,11 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
       s.fullband_history[p]=mic[i*m+ch];
     }
     s.fullband_head=(s.fullband_head+1)%(kLowCutDelaySamples+(c.aec ? kAecOutputDelaySamples : 0));
+  } else if(!s.fullband_capture.empty()) {
+    // With the causal IIR low-cut there is no conditioning delay to align.
+    // Keep the raw frame available for the low-band restore path instead of
+    // reading the zero-length legacy history as an all-zero capture.
+    std::copy_n(mic,mic_n,s.fullband_capture.data());
   }
   for(unsigned ch=0;ch<m;++ch) for(unsigned i=0;i<h;++i) {
     const float value=mic[i*m+ch];
@@ -1294,6 +1299,8 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
   info.aec_input_delay_samples=c.aec ? info.low_cut_delay_samples : 0;
   info.aec_output_delay_samples=c.aec ? kAecOutputDelaySamples+info.aec_input_delay_samples : 0;
   info.linear_aec_delay_samples=c.aec ? (kLinearAecDelaySamples+info.aec_input_delay_samples)*16000/c.sample_rate : 0;
+  // Report the backend delay on the selected output path. The causal low-cut
+  // contributes zero fixed samples; hybrid/Speex NS keeps its frame contract.
   info.ns_delay_samples=c.noise_suppression ? (s.speex ? h : kNsDelaySamples) : 0;
   info.latency_samples=info.aec_output_delay_samples+info.ns_delay_samples+info.spatial_delay_samples+(c.aec ? 0 : info.low_cut_delay_samples)+static_cast<unsigned>(std::ceil(max_delay));
   if(c.diagnostic_stages) {

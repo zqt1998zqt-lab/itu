@@ -86,7 +86,8 @@ void latency() {
     }
     std::cout<<"latency rate="<<rate<<" mode="<<mode<<" measured="<<lag<<" reported="<<f.latency_samples<<" corr="<<best<<std::endl;
     if(mode>=7) {
-      const unsigned expected=mode<9 || mode>=11 ? rate/100 : rate==16000 ? 96 : rate==24000 ? 168 : 336;
+      const unsigned expected=mode<9 || mode>=11 ? rate/100 :
+          rate==16000 ? 96 : rate==24000 ? 168 : 336;
       require(f.ns_delay_samples==expected,"hybrid NS delay in I/O units");
       require(std::isfinite(f.fullband_ns_mix) && f.fullband_ns_mix>=0 && f.fullband_ns_mix<=1,
               "hybrid NS branch mix out of range");
