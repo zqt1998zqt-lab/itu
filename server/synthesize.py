@@ -320,19 +320,22 @@ def _demo_signals(scenario: str) -> tuple[np.ndarray, np.ndarray]:
     noise = _band(rng, length, 40.0, 1200.0, 0.025)
     # Two talkers at different pitch, so the echo is not just a delayed copy of
     # the near end and the canceller has something real to track.
+    # The gap between the first near-end burst and the far end is deliberate: a
+    # near-end burst arms a 0.5 s protection hold, and starting the far end
+    # inside that window makes the canceller hold back and leak echo.
     near = (
-        _voice(rng, length, 0.30, 2.00, 118.0, 0.28)
-        + _voice(rng, length, 2.60, 3.40, 118.0, 0.28)
-        + _voice(rng, length, 4.30, 5.70, 118.0, 0.28)
+        _voice(rng, length, 0.30, 1.60, 118.0, 0.28)
+        + _voice(rng, length, 3.40, 4.20, 118.0, 0.28)
+        + _voice(rng, length, 4.60, 5.70, 118.0, 0.28)
     )
-    far = _voice(rng, length, 2.30, 4.00, 205.0, 0.30)
+    far = _voice(rng, length, 2.50, 4.20, 205.0, 0.30)
     far_short = _voice(rng, length, 0.40, 2.00, 205.0, 0.30)
     unrelated = _voice(rng, length, 0.80, 3.40, 168.0, 0.30)
     # A 40 ms acoustic path is long enough to require real delay handling.
     echo = np.r_[np.zeros(640), far[:-640]] * 0.65
 
     if scenario == "echo_and_noise":
-        # near 0.3-2.0, far 2.3-4.0, double talk 2.6-3.4, near 4.3-5.7
+        # near 0.3-1.6, far 2.5-4.2, double talk 3.4-4.2, near 4.6-5.7
         reference, microphone = far, echo + near + noise
     elif scenario == "near_only":
         reference, microphone = np.zeros(length), near + noise
