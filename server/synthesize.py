@@ -156,3 +156,88 @@ def synthesize(
         "engine_report": engine_report,
         "wav": buffer.getvalue(),
     }
+
+
+# ------------------------------------------------------------------ demo pairs
+# Deterministic synthetic fixtures. They are diagnostic material, never claimed
+# to be real speech or real vehicle recordings.
+DEMO_RATE = 16000
+DEMO_SECONDS = 6.0
+DEMOS = (
+    {
+        "id": "echo_and_noise",
+        "label": "回声 + 车内噪声",
+        "description": "远端单讲与近端语音交替，麦克风含声学回声与稳态噪声。",
+    },
+    {
+        "id": "near_only",
+        "label": "仅近端语音",
+        "description": "参考音为数字静音，麦克风只有近端语音与车内噪声。",
+    },
+    {
+        "id": "wrong_reference",
+        "label": "参考不可靠",
+        "description": "参考音与麦克风内容不相关，用于观察参考可靠性保护。",
+    },
+    {
+        "id": "far_end_stops",
+        "label": "远端中途停止",
+        "description": "远端播放 2 秒后停止，用于观察回声尾迹与保护释放。",
+    },
+)
+DEMO_IDS = tuple(item["id"] for item in DEMOS)
+
+
+def _band(rng, length: int, low: float, high: float, gain: float) -> np.ndarray:
+    from scipy import signal as _signal
+    data = _signal.sosfilt(
+        _signal.butter(4, [low, high], fs=DEMO_RATE, btype="bandpass", output="sos"),
+        rng.normal(size=length),
+    )
+    return data / max(float(np.max(np.abs(data))), 1e-12) * gain
+
+
+def _demo_signals(scenario: str) -> tuple[np.ndarray, np.ndarray]:
+    rng = np.random.default_rng(200 + DEMO_IDS.index(scenario))
+    length = int(DEMO_SECONDS * DEMO_RATE)
+    time_axis = np.arange(length) / DEMO_RATE
+
+    def gate(signal, start, end):
+        return signal * ((time_axis >= start) & (time_axis < end))
+
+    near = gate(_band(rng, length, 200, 3400, 0.18), 0.4, 3.0)
+    near_late = gate(_band(rng, length, 200, 3400, 0.18), 3.6, 5.4)
+    far = gate(_band(rng, length, 150, 3000, 0.20), 0.6, 3.2)
+    far_short = gate(_band(rng, length, 150, 3000, 0.20), 0.6, 2.0)
+    unrelated = gate(_band(rng, length, 400, 2400, 0.20), 0.8, 3.4)
+    noise = _band(rng, length, 40, 1200, 0.02)
+    # A 40 ms acoustic path is long enough to require real delay handling.
+    echo = np.r_[np.zeros(640), far[:-640]] * 0.65
+
+    if scenario == "echo_and_noise":
+        reference, microphone = far, echo + near + near_late + noise
+    elif scenario == "near_only":
+        reference, microphone = np.zeros(length), near + near_late + noise
+    elif scenario == "wrong_reference":
+        reference = unrelated
+        microphone = echo + near + near_late + noise
+    elif scenario == "far_end_stops":
+        reference = far_short
+        echo = np.r_[np.zeros(640), far_short[:-640]] * 0.65
+        microphone = echo + near + near_late + noise
+    else:
+        raise AudioError(f"未知示例场景：{scenario}")
+    return microphone.astype(np.float32), reference.astype(np.float32)
+
+
+def demo_pair(scenario: str) -> tuple[bytes, bytes]:
+    """Return (microphone WAV, reference WAV) for a built-in scenario."""
+    if scenario not in DEMO_IDS:
+        raise AudioError(f"未知示例场景：{scenario}")
+    microphone, reference = _demo_signals(scenario)
+    payload = []
+    for channel in (microphone, reference):
+        buffer = BytesIO()
+        sf.write(buffer, channel, DEMO_RATE, format="WAV", subtype="PCM_16")
+        payload.append(buffer.getvalue())
+    return payload[0], payload[1]

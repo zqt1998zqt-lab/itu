@@ -15,6 +15,60 @@
   padding: 1px 5px;
 }
 
+.synthesize-demos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.synthesize-demos-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-right: 2px;
+}
+
+.synthesize-demo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #233248;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.synthesize-demo:hover:not(:disabled) {
+  border-color: #abc3ed;
+  color: var(--blue);
+}
+
+.synthesize-demo.active {
+  border-color: var(--blue);
+  background: #eff4ff;
+  color: var(--blue);
+}
+
+.synthesize-demo:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.synthesize-demos .config-helper {
+  flex: 1 1 220px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .synthesize-bar {
   display: flex;
   flex-wrap: wrap;

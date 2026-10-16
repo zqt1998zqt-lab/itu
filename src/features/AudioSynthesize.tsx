@@ -42,6 +42,8 @@ type Result = {
   created_at: string;
 };
 
+type Demo = { id: string; label: string; description: string };
+
 const SLOTS: { id: Slot; label: string; hint: string }[] = [
   {
     id: "microphone",
@@ -209,7 +211,44 @@ export default function AudioSynthesize() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<Result | null>(null);
+  const [demos, setDemos] = useState<Demo[]>([]);
+  const [demoBusy, setDemoBusy] = useState("");
+  const [activeDemo, setActiveDemo] = useState("");
   const ready = Boolean(files.microphone && files.reference);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/synthesize/demos", { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.scenarios)) setDemos(data.scenarios as Demo[]);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
+  async function loadDemo(demo: Demo) {
+    setDemoBusy(demo.id);
+    setError("");
+    try {
+      const fetched = await Promise.all(
+        (["microphone", "reference"] as Slot[]).map(async (slot) => {
+          const response = await fetch(`/api/synthesize/demo/${demo.id}/${slot}`);
+          if (!response.ok) throw Error("示例音频暂不可用，请检查计算服务。");
+          const label = SLOTS.find((item) => item.id === slot)?.label ?? slot;
+          const blob = await response.blob();
+          return [slot, new File([blob], `示例_${demo.label}_${label}.wav`, { type: "audio/wav" })] as const;
+        }),
+      );
+      setFiles(Object.fromEntries(fetched) as Record<Slot, File | null>);
+      setActiveDemo(demo.id);
+      setResult(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "示例加载失败");
+    } finally {
+      setDemoBusy("");
+    }
+  }
 
   async function generate() {
     if (!files.microphone || !files.reference) {
@@ -247,6 +286,28 @@ export default function AudioSynthesize() {
 
   return (
     <div className="synthesize">
+      {demos.length ? (
+        <div className="synthesize-demos">
+          <span className="synthesize-demos-label">默认示例</span>
+          {demos.map((demo) => (
+            <button
+              key={demo.id}
+              type="button"
+              className={`synthesize-demo ${activeDemo === demo.id ? "active" : ""}`}
+              disabled={busy || Boolean(demoBusy)}
+              title={demo.description}
+              onClick={() => loadDemo(demo)}
+            >
+              {demoBusy === demo.id ? <LoaderCircle size={13} className="spin" /> : null}
+              {demo.label}
+            </button>
+          ))}
+          <small className="config-helper">
+            确定性合成诊断信号，用来验证链路是否通；不是真实语音或实车录音。
+          </small>
+        </div>
+      ) : null}
+
       <div className="audio-upload-grid">
         {SLOTS.map((slot) => (
           <UploadCard

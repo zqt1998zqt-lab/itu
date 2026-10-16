@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from server.audio import AudioError, MAX_BYTES, Options, ROLES, analyze, decode, demo_wav
-from server.synthesize import SUPPORTED_RATES, synthesize
+from server.synthesize import DEMOS, DEMO_RATE, DEMO_SECONDS, SUPPORTED_RATES, demo_pair, synthesize
 
 app = FastAPI(title="ITU Audio Lab", version="2.0.0")
 
@@ -121,6 +121,24 @@ async def synthesize_pair(
     finally:
         for upload in uploads.values():
             await upload.close()
+
+
+@app.get("/api/synthesize/demos")
+def synthesize_demos():
+    return {"sample_rate": DEMO_RATE, "seconds": DEMO_SECONDS, "scenarios": DEMOS}
+
+
+@app.get("/api/synthesize/demo/{scenario}/{role}")
+def synthesize_demo(scenario: str, role: str):
+    if role not in ("microphone", "reference"):
+        raise HTTPException(404, "示例音频角色不存在")
+    try:
+        microphone, reference = demo_pair(scenario)
+    except AudioError as error:
+        raise HTTPException(404, str(error)) from error
+    payload = microphone if role == "microphone" else reference
+    return Response(payload, media_type="audio/wav",
+                    headers={"Content-Disposition": f'inline; filename="demo-{scenario}-{role}.wav"'})
 
 
 @app.get("/api/synthesize/{result_id}")
