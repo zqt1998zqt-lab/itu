@@ -272,7 +272,7 @@ struct AudioEngine::Impl {
   unsigned v2_delay_frames=0;
   float v2_observed_delay_ms=-1;
   double predicted_power=0,predicted_cross=0;
-  float subtraction_gain=1,noise_speech_mix=0;
+  float subtraction_gain=1,noise_speech_mix=0,floor_gain_smoothed=.42f;
   float observed_peak=0,noise_profile_mix=0;
   unsigned noise_speech_hold=0,confirmed_near_frames=0;
   bool near_observed=false;
@@ -1126,10 +1126,12 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
     const double frame_power=std::pow(rms(s.fullband_ns_output.data(),h),2);
     const double input_power=std::pow(rms(s.mono.data(),h),2)+std::pow(rms(s.lowband_output.data(),h),2);
     s.speech_branch_power=.95*s.speech_branch_power+.05*input_power;
-    const bool protected_speech=fullband_near && s.fullband_speech_hold &&
+    const bool low_ambient_noise=s.fullband_noise_power<1.5e-3;
+    const bool protected_speech=fullband_near && s.fullband_speech_hold && low_ambient_noise &&
         (s.fullband_noise_frames<10 || input_power>10*std::max(s.fullband_noise_power,1e-12));
+    const bool cold_start_speech=s.frames<30 && ((info.linear_speech_probability>.15f && s.frames>0) || power/h<2e-4);
     high_snr_dry=fullband_near && c.high_snr_dry_mix>0 &&
-        (s.frames<30 || s.fullband_noise_power<1e-4 || (s.fullband_speech_hold &&
+        (cold_start_speech || (s.frames>=30 && s.fullband_noise_power<1e-4) || (s.fullband_speech_hold && low_ambient_noise &&
          s.speech_branch_power>6*std::max(s.fullband_noise_power,1e-12)));
     for(unsigned i=0;i<h;++i) {
       const float value=s.mono[i]+s.lowband_output[i];
@@ -1145,7 +1147,9 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
         s.fullband_ns_output[i]=(1-c.high_snr_dry_mix)*s.fullband_ns_output[i]+c.high_snr_dry_mix*dry;
     }
     const bool noise_observation=!s.speech_speex || (s.frames>=30 && !s.fullband_speech_hold);
-    if(fullband_near && noise_observation && control<.1f &&
+    const bool cold_start_noise=c.continuous_vehicle_policy && s.frames>0 && s.frames<30 &&
+        !s.fullband_speech_hold && info.linear_speech_probability<.14f && power/h>=1e-3;
+    if(fullband_near && noise_observation && (control<.1f || cold_start_noise) &&
         (c.continuous_vehicle_policy || s.fullband_noise_frames<30)) {
       const double rate=s.fullband_noise_frames<30 ? 1./(++s.fullband_noise_frames) : .05;
       s.fullband_noise_power+=(power/h-s.fullband_noise_power)*rate;
@@ -1157,7 +1161,7 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
     // independent linear evidence as well; the hold still needs three
     // consecutive confirmations. Gain, thresholds and denominators untouched.
     const float kFullbandIndependentSpeechMin=.20f;
-    const float eff_vad = std::max(control, info.linear_speech_probability);
+    const float eff_vad = low_ambient_noise ? std::max(control, info.linear_speech_probability) : control;
     if(fullband_near && eff_vad>.4f && info.linear_speech_probability>kFullbandIndependentSpeechMin)
       s.fullband_speech_confirmation=std::min(3u,s.fullband_speech_confirmation+1);
     else s.fullband_speech_confirmation=0;
@@ -1167,13 +1171,17 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
     if(control<.1f) ++s.fullband_quiet_frames;
     else s.fullband_quiet_frames=0;
     if(s.fullband_quiet_frames>=6) s.fullband_speech_hold=0;
+    if(c.continuous_vehicle_policy && fullband_near && s.fullband_noise_power>=1.5e-3 &&
+       s.fullband_quiet_frames>=4 && power/h<2.2*s.fullband_noise_power && s.near_hangover) {
+      s.near_hangover=s.near_hangover>5 ? s.near_hangover-5 : 0;
+    }
     const bool quiet_input=s.fullband_noise_frames>=30 && s.fullband_noise_power<1e-12;
     const bool initial_observation=s.speech_speex && s.frames<30;
     const bool high_snr=!s.speech_speex || s.fullband_noise_frames<10 ||
         s.speech_branch_power>4*std::max(s.fullband_noise_power,1e-12);
     const float target=fullband_near && high_snr && (s.fullband_speech_hold || quiet_input || initial_observation) ? 1.f : 0.f;
     if(initial_observation && fullband_near) s.fullband_ns_mix=1.f;
-    else if(c.continuous_vehicle_policy && fullband_near && high_snr && ((control>.3f && info.linear_speech_probability>kFullbandIndependentSpeechMin) || s.fullband_speech_hold || (s.frames<20 && s.speech_branch_power>1e-4))) s.fullband_ns_mix=1.f;
+    else if(c.continuous_vehicle_policy && fullband_near && high_snr && ((low_ambient_noise ? (control>.3f && info.linear_speech_probability>kFullbandIndependentSpeechMin) : (control>.45f && info.linear_speech_probability>.45f && s.near_hangover>0)) || s.fullband_speech_hold || (s.frames>0 && s.frames<20 && s.speech_branch_power>1e-4 && info.linear_speech_probability>.15f))) s.fullband_ns_mix=1.f;
     s.fullband_ns_mix+=std::clamp(target-s.fullband_ns_mix,-.1f,.1f);
     const double high_power=std::pow(rms(s.mono.data(),h),2);
     const double low_power=std::pow(rms(s.lowband_output.data(),h),2);
@@ -1202,8 +1210,10 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
     if((s.ns_residual_profile || s.noise_profile) && s.profile_down &&
         s.profile_down->Resample(s.mono.data(),h,s.profile_audio.data(),160)) return Status::backend_error;
     if(s.ns_residual_profile) {
+      const bool cold_profile_noise=c.continuous_vehicle_policy && s.frames>0 && s.frames<=30 &&
+          !info.far_active && info.linear_speech_probability<.14f && pre_ns_level>=.03f;
       s.ns_residual_profile->observe(s.profile_down ? s.profile_audio.data() : s.mono.data(),
-          s.frames>30 && !info.far_active && control<.1f);
+          !info.far_active && ((s.frames>30 && control<.1f) || cold_profile_noise));
     }
     const float* input[]={s.mono.data()}; float* output[]={s.mono.data()};
     s.ns_audio->CopyFrom(input,webrtc::StreamConfig(c.sample_rate,1));
@@ -1269,8 +1279,10 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
     else if(s.ns_protection_hold) --s.ns_protection_hold;
     if(c.multirender_speech_protection && c.reference_channels>1 && !s.near_hangover)
       s.ns_protection_hold=0;
-    const float protection=s.ns_protection_hold ? 1.f :
-        (s.adaptive_controller ? .65f*adaptive_decision.near_confidence : 0.f);
+    const bool heavy_ambient_noise=c.continuous_vehicle_policy && adaptive_decision.noise_floor>=1.5e-3f;
+    const float dry_cap=heavy_ambient_noise ? .20f : 1.f;
+    const float protection=s.ns_protection_hold ? dry_cap :
+        (s.adaptive_controller ? std::min(dry_cap,.65f*adaptive_decision.near_confidence) : 0.f);
     s.ns_protection_mix+=std::clamp(protection-s.ns_protection_mix,-.05f,.05f);
     for(unsigned i=0;i<h;++i) s.mono[i]=(1-s.ns_protection_mix)*s.mono[i]+s.ns_protection_mix*s.ns_dry_output[i];
     for(float value:s.mono) s.observed_peak=std::max(s.observed_peak,std::abs(value));
@@ -1283,7 +1295,9 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
       const float speech_gain=c.continuous_vehicle_policy ?
           (protected_double_talk ? (highrate_reference_hold ? 1.52f : midrate_speech_policy ? 1.32f : 1.28f) : 1.f) :
           (adaptive_decision.near_confidence>.55f ? 1.258925f : 1.f);
-      const float floor_gain=(c.aec && info.far_active && !s.near_hangover) ? .24f : .42f;
+      const float target_floor=(c.aec && info.far_active && !s.near_hangover) ? .24f : .42f;
+      s.floor_gain_smoothed+=std::clamp(target_floor-s.floor_gain_smoothed,-.02f,.02f);
+      const float floor_gain=c.continuous_vehicle_policy ? s.floor_gain_smoothed : target_floor;
       const float eff_mix=(c.continuous_vehicle_policy && fullband_near && high_snr_dry) ? 1.f : s.noise_speech_mix;
       for(unsigned i=0;i<h;++i)
         s.mono[i]=(eff_mix*speech_gain+(1-eff_mix)*floor_gain)*s.mono[i];

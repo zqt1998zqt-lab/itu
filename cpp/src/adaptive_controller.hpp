@@ -88,7 +88,15 @@ class AdaptiveController {
     // raise the adaptive speech mix. This rejects isolated linear/spectral
     // spikes riding on the persistent nonlinear road-noise tail while keeping
     // far-end and already-confirmed near-end frames responsive.
-    const bool independent_speech=input.spectral_excess>=.20f || input.linear_speech>=.35f;
+    const bool heavy_ambient_noise=noise_floor_>=1.5e-3;
+    const double ratio = power / std::max(noise_floor_, 1e-12);
+    if (heavy_ambient_noise && input.far_active && !input.near_hold &&
+        ratio < 2.2 && input.linear_speech < .45f) {
+      speech = std::min(speech, .15f);
+    }
+    const bool independent_speech=heavy_ambient_noise
+        ? (input.spectral_excess>=.20f && input.linear_speech>=.25f)
+        : (input.spectral_excess>=.20f || input.linear_speech>=.35f);
     if (!input.far_active && !input.near_hold) {
       independent_speech_frames_=independent_speech ?
           std::min(4u,independent_speech_frames_+1) : 0;
@@ -96,8 +104,10 @@ class AdaptiveController {
     } else {
       independent_speech_frames_=0;
     }
-    const bool quiet_candidate = !input.far_active && !input.near_hold && speech < .18f;
-    const double ratio = power / std::max(noise_floor_, 1e-12);
+    const bool cold_start_noise = frames_ > 1 && frames_ < 30 && !input.far_active &&
+        !input.near_hold && input.linear_speech < .14f && power >= 1e-3;
+    const bool quiet_candidate = (!input.far_active && !input.near_hold && speech < .18f) || cold_start_noise;
+
     if (quiet_candidate) {
       if (frames_ > 12 && ratio > 4.) {
         step_hold_ = std::min(50u, step_hold_ + 1);
@@ -114,8 +124,12 @@ class AdaptiveController {
             std::max(1.f, policy_.snr_full_db - policy_.snr_start_db),
         0., 1.));
     float near = std::clamp(.82f * speech + .18f * snr_conf, 0.f, 1.f);
-    if (frames_ < 30) near *= .35f; // Do not mistake cold-start noise for speech.
-    if (input.near_hold) near = 1.0f;
+    if (cold_start_noise) near = 0.f;
+    else if (frames_ < 30) near *= .35f; // Do not mistake cold-start noise for speech.
+    const bool heavy_noise_tail = noise_floor_ >= 1.5e-3 &&
+        input.spectral_excess < .08f && ratio < 2.2 &&
+        (!input.far_active || (!input.near_hold && input.linear_speech < .50f));
+    if (input.near_hold && !heavy_noise_tail) near = 1.0f;
 
     float far = input.far_active ? (input.reference_reliable ? .82f : .55f) : 0.f;
     if (input.far_active && input.reference_reliable)
@@ -128,7 +142,8 @@ class AdaptiveController {
         policy_.double_talk_boost * double_talk - policy_.far_only_penalty * far_only - wind_penalty;
     if (double_talk > .10f) target = std::max(target, .98f);
     target = std::clamp(target, 0.f, 1.f);
-    const float step = target >= preserve_mix_ ? policy_.attack_step : policy_.release_step;
+    const float release_step = heavy_noise_tail ? .10f : policy_.release_step;
+    const float step = target >= preserve_mix_ ? policy_.attack_step : release_step;
     preserve_mix_ += std::clamp(target - preserve_mix_, -step, step);
 
     const float noise_penalty = std::clamp((snr_conf - .2f) * policy_.noise_gain_penalty, 0.f, policy_.noise_gain_penalty);
