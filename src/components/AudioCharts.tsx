@@ -30,6 +30,10 @@ export function Waveform({
       </div>
       <svg
         viewBox="0 0 800 100"
+        // The box is width:100% x height:48px, which is much wider than the
+        // 8:1 viewBox. The default "meet" scaling would letterbox the trace
+        // into the middle third, so stretch it across the full strip instead.
+        preserveAspectRatio="none"
         role="img"
         aria-label={`${title}完整文件波形，纵轴幅度正负1 FS`}
       >
