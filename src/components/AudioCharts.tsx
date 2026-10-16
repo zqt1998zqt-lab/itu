@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { ROLE_COLOR, ROLE_LABEL } from "../domain/audio";
 import type { AudioDescription, AudioReport } from "../domain/audio";
-export function Waveform({ file }: { file: AudioDescription }) {
+export function Waveform({
+  file,
+  label,
+}: {
+  file: AudioDescription;
+  // The workbench uses the offline role vocabulary; other pages pass their own
+  // wording while keeping the same role-based colour.
+  label?: string;
+}) {
+  const title = label ?? ROLE_LABEL[file.role];
   const n = file.waveform.min.length;
   const top = file.waveform.max.map(
     (v, i) => `${(i * 800) / Math.max(1, n - 1)},${50 - v * 46}`,
@@ -13,7 +22,7 @@ export function Waveform({ file }: { file: AudioDescription }) {
     <div className="waveform-row">
       <div className="waveform-label">
         <span style={{ background: ROLE_COLOR[file.role] }} />
-        <strong>{ROLE_LABEL[file.role]}</strong>
+        <strong>{title}</strong>
         <small>
           {file.duration.toFixed(2)} s / {file.sample_rate / 1000} kHz / Ch{" "}
           {file.selected_channel}
@@ -22,7 +31,7 @@ export function Waveform({ file }: { file: AudioDescription }) {
       <svg
         viewBox="0 0 800 100"
         role="img"
-        aria-label={`${ROLE_LABEL[file.role]}完整文件波形，纵轴幅度正负1 FS`}
+        aria-label={`${title}完整文件波形，纵轴幅度正负1 FS`}
       >
         <line x1="0" y1="50" x2="800" y2="50" stroke="#dfe5ee" />
         <polygon

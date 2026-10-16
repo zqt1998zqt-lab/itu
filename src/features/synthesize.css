@@ -142,6 +142,26 @@
   width: 100%;
 }
 
+.synthesize-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.synthesize-chart h4 {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #233248;
+}
+
+.synthesize-chart-note {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
 .synthesize-levels {
   overflow-x: auto;
 }

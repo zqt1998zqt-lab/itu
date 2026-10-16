@@ -7,6 +7,7 @@ processed output plus the engine's own report.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -19,7 +20,7 @@ import numpy as np
 import soundfile as sf
 from scipy import signal
 
-from server.audio import MAX_SECONDS, AudioError, db, decode, power
+from server.audio import MAX_SECONDS, Audio, AudioError, db, decode, describe, power
 
 ROOT = Path(__file__).resolve().parents[1]
 # The engine takes its rate from the microphone WAV and only implements 10 ms
@@ -54,6 +55,41 @@ def _resample(x: np.ndarray, source: int, target: int) -> np.ndarray:
         return x
     common = math.gcd(source, target)
     return signal.resample_poly(x, target // common, source // common)
+
+
+def _chart(role: str, name: str, data: np.ndarray, rate: int, channels: int,
+           digest: str, byte_count: int) -> dict:
+    """Reuse the offline description so the plots match the rest of the app.
+
+    `describe` also returns the per-file levels, so the page can label the
+    charts without a second round trip. Values are rounded because the payload
+    is JSON: the waveform is 640 min/max pairs and the spectrum about 400 bins
+    per signal.
+    """
+    entry = describe(Audio(role=role, name=name, data=np.asarray(data, dtype=np.float64),
+                           rate=rate, original_channels=channels, channel=0,
+                           format="WAV", sha256=digest, byte_count=byte_count))
+    spectrum = entry["spectrum"]
+    return {
+        "role": entry["role"], "name": entry["name"],
+        "sample_rate": entry["sample_rate"], "channels": entry["channels"],
+        "selected_channel": entry["selected_channel"], "format": entry["format"],
+        "duration": round(entry["duration"], 6),
+        "rms_dbfs": round(entry["rms_dbfs"], 4),
+        "peak_dbfs": round(entry["peak_dbfs"], 4),
+        "dc_offset": round(entry["dc_offset"], 8),
+        "clipping_percent": round(entry["clipping_percent"], 5),
+        "silent": entry["silent"], "sha256": digest, "bytes": byte_count,
+        "waveform": {
+            "min": [round(v, 5) for v in entry["waveform"]["min"]],
+            "max": [round(v, 5) for v in entry["waveform"]["max"]],
+        },
+        "spectrum": {
+            "frequency": [round(v, 1) for v in spectrum["frequency"]],
+            "dbfs_hz": [round(v, 2) for v in spectrum["dbfs_hz"]],
+            "peak_hz": None if spectrum["peak_hz"] is None else round(spectrum["peak_hz"], 1),
+        },
+    }
 
 
 def _levels(x: np.ndarray) -> dict:
@@ -154,6 +190,16 @@ def synthesize(
             "samples": int(len(output)), **_levels(output),
         },
         "engine_report": engine_report,
+        # Waveform and spectrum for the two inputs and the generated output, so
+        # the page can plot them without decoding audio in the browser.
+        "charts": [
+            _chart("before", microphone.name, mic, target, microphone.original_channels,
+                   microphone.sha256, microphone.byte_count),
+            _chart("echo", reference.name, ref, target, reference.original_channels,
+                   reference.sha256, reference.byte_count),
+            _chart("after", "processed.wav", output, output_rate, 1,
+                   hashlib.sha256(buffer.getvalue()).hexdigest(), len(buffer.getvalue())),
+        ],
         "wav": buffer.getvalue(),
     }
 

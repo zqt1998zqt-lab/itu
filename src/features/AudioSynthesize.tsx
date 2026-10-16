@@ -10,6 +10,9 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { SpectrumPlot, Waveform } from "../components/AudioCharts";
+import { ROLE_COLOR } from "../domain/audio";
+import type { AudioDescription } from "../domain/audio";
 import "./synthesize.css";
 
 type Slot = "microphone" | "reference";
@@ -38,11 +41,19 @@ type Result = {
   inputs: { microphone: Side; reference: Side };
   output: Side & { samples: number };
   engine_report: Record<string, number | string | boolean | null>;
+  charts: AudioDescription[];
   download_url: string;
   created_at: string;
 };
 
 type Demo = { id: string; label: string; description: string };
+
+// The engine's role vocabulary, relabelled for this page.
+const CHART_LABEL: Record<string, string> = {
+  before: "麦克音",
+  echo: "参考音",
+  after: "输出",
+};
 
 const SLOTS: { id: Slot; label: string; hint: string }[] = [
   {
@@ -398,6 +409,36 @@ export default function AudioSynthesize() {
               </tbody>
             </table>
           </div>
+
+          {result.charts?.length ? (
+            <>
+              <section className="synthesize-chart">
+                <h4>波形</h4>
+                <span className="synthesize-chart-note">
+                  完整文件 · 引擎实际处理的采样率与声道 · 纵轴 ±1 FS
+                </span>
+                <div className="waveform-list">
+                  {result.charts.map((chart) => (
+                    <Waveform key={chart.role} file={chart} label={CHART_LABEL[chart.role] ?? chart.role} />
+                  ))}
+                </div>
+              </section>
+              <section className="synthesize-chart">
+                <h4>功率谱密度</h4>
+                <span className="synthesize-chart-note">Welch PSD · dBFS/Hz · 按频段保留峰值用于绘图</span>
+                <SpectrumPlot
+                  unit="dBFS/Hz"
+                  label="麦克音、参考音与输出的功率谱密度对比"
+                  series={result.charts.map((chart) => ({
+                    label: CHART_LABEL[chart.role] ?? chart.role,
+                    color: ROLE_COLOR[chart.role],
+                    x: chart.spectrum.frequency,
+                    y: chart.spectrum.dbfs_hz,
+                  }))}
+                />
+              </section>
+            </>
+          ) : null}
 
           <div className="audio-provenance">
             <Cpu size={15} />
