@@ -257,6 +257,14 @@ struct AudioEngine::Impl {
   std::vector<float> linear_bf_history,linear_mono;
   unsigned linear_head=0,near_hangover=0,render_hangover=0;
   unsigned near_candidate_frames=0,reference_near_candidate_frames=0;
+  // Single-microphone low-band wind evidence. `wind_tilt_db` is the smoothed
+  // 60-300 Hz / sub-60 Hz energy ratio in dB; speech is positive, low-frequency
+  // noise is negative. `wind_lowband_gain` is the soft gain applied to the low
+  // band (1 = untouched, 0 = removed).
+  struct WindLowPass {double z1=0,z2=0;};
+  WindLowPass wind_lowpass;
+  double wind_lp_b0=1,wind_lp_b1=0,wind_lp_b2=0,wind_lp_a1=0,wind_lp_a2=0;
+  float wind_tilt_db=0,wind_envelope=0,wind_envelope_deviation=0,wind_lowband_gain=1;
   double residual_smoothed=0,echo_smoothed=0,echo_floor_ratio=1;
   float nearend_mix=0;
   unsigned startup_echo_confirmation=0,v2_near_confirmation=0;
@@ -361,6 +369,18 @@ struct AudioEngine::Impl {
       subspace_reference.resize(160*c.reference_channels);
       if(c.sample_rate==48000) for(unsigned ch=0;ch<c.reference_channels;++ch)
         subspace_down.emplace_back(std::make_unique<RateConverter>(480,160));
+    }
+    {
+      constexpr double pi=3.14159265358979323846;
+      constexpr double q=0.7071067811865475244;
+      const double omega=2.*pi*300./static_cast<double>(c.sample_rate);
+      const double cosine=std::cos(omega),sine=std::sin(omega);
+      const double alpha=sine/(2.*q),a0=1.+alpha;
+      wind_lp_b0=(1.-cosine)/(2.*a0);
+      wind_lp_b1=(1.-cosine)/a0;
+      wind_lp_b2=(1.-cosine)/(2.*a0);
+      wind_lp_a1=-2.*cosine/a0;
+      wind_lp_a2=(1.-alpha)/a0;
     }
     if(c.linear_phase_low_cut && (c.aec || c.noise_suppression))
       low_cut=std::make_unique<LinearPhaseLowCut>(c.aec ? c.microphones+c.reference_channels : 1,c.low_cut_hz,c.sample_rate);
@@ -1005,8 +1025,34 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
         std::min(4u,s.reference_near_candidate_frames+1) : 0;
     if(s.reference_near_candidate_frames>=3) s.near_hangover=50;
   }
+  constexpr float kWindLowbandFloor=.25f;
   const float pre_ns_level=rms(s.mono.data(),h);
   info.pre_ns_rms=pre_ns_level;
+  if(c.continuous_vehicle_policy && m==1 && !s.lowband_bf_history.empty()) {
+    // 300 Hz second-order Butterworth low pass over the already high-passed
+    // mono signal isolates the 60-300 Hz band. The filter is causal and adds
+    // no delay to the alignment contract.
+    double band_power=0;
+    for(unsigned i=0;i<h;++i) {
+      const double y=s.wind_lp_b0*s.mono[i]+s.wind_lowpass.z1;
+      s.wind_lowpass.z1=s.wind_lp_b1*s.mono[i]-s.wind_lp_a1*y+s.wind_lowpass.z2;
+      s.wind_lowpass.z2=s.wind_lp_b2*s.mono[i]-s.wind_lp_a2*y;
+      band_power+=y*y/h;
+    }
+    const double low_power=std::pow(rms(s.lowband_output.data(),h),2);
+    const float tilt=10.f*std::log10(std::max(band_power,1e-20)/std::max(low_power,1e-20));
+    s.wind_tilt_db=.95f*s.wind_tilt_db+.05f*tilt;
+    s.wind_envelope+=.002f*(pre_ns_level-s.wind_envelope);
+    const float envelope_ratio=pre_ns_level/std::max(s.wind_envelope,1e-9f);
+    s.wind_envelope_deviation=.95f*s.wind_envelope_deviation+.05f*std::abs(envelope_ratio-1.f);
+    // Speech is mid-band dominant with a syllabic envelope; low-frequency wind
+    // and rumble are not. Only the physical contrast is used, so no speech or
+    // noise decision changes.
+    const bool wind_band=s.wind_tilt_db<0.f;
+    const bool steady_envelope=s.wind_envelope_deviation<=.45f;
+    const bool lowband_quiet=wind_band && steady_envelope && !info.far_active;
+    s.wind_lowband_gain+=std::clamp((lowband_quiet?kWindLowbandFloor:1.f)-s.wind_lowband_gain,-.05f,.05f);
+  }
   if(!s.lowband_bf_history.empty()) {
     const double lowband_power=std::pow(rms(s.lowband_output.data(),h),2);
     if(!info.far_active && !s.near_hangover && control<.1f && s.lowband_noise_frames<30) {
@@ -1058,7 +1104,7 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
   }
   if(s.fullband_ns || s.speech_speex) {
     // Both NS histories advance continuously and share the same synthesis delay.
-    for(unsigned i=0;i<h;++i) s.fullband_ns_output[i]=s.mono[i]+s.lowband_output[i];
+    for(unsigned i=0;i<h;++i) s.fullband_ns_output[i]=s.mono[i]+s.wind_lowband_gain*s.lowband_output[i];
     const float* input[]={s.fullband_ns_output.data()}; float* output[]={s.fullband_ns_output.data()};
     if(s.speech_speex) s.speech_speex->process(s.fullband_ns_output.data());
     else {
@@ -1248,7 +1294,7 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
       for(unsigned i=0;i<h;++i) s.mono[i]=(s.noise_speech_mix*speech_gain+(1-s.noise_speech_mix)*.42f)*s.mono[i];
     }
   }
-  if(fullband_near && !s.ns) for(unsigned i=0;i<h;++i) s.mono[i]+=s.lowband_output[i];
+  if(fullband_near && !s.ns) for(unsigned i=0;i<h;++i) s.mono[i]+=s.wind_lowband_gain*s.lowband_output[i];
   if(s.speex) {
     if(c.speex_speech_policy) s.speex->suppression(!info.far_active && control>.5f ? -6 : c.speex_suppression_db);
     s.speex->process(s.mono.data());
@@ -1281,7 +1327,7 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
   if(!s.speex && !s.lowband_bf_history.empty()) {
     const float speech_gain=c.noise_suppression && c.adaptive_noise_policy ?
         s.noise_speech_mix*(s.reference_state==2 || s.observed_peak>.65f ? 1.f : 1.258925f)+(1-s.noise_speech_mix)*.42f : 1.f;
-    for(unsigned i=0;i<h;++i) s.mono[i]+=(1-s.fullband_ns_mix)*s.lowband_restore_mix*speech_gain*s.lowband_output[i];
+    for(unsigned i=0;i<h;++i) s.mono[i]+=s.wind_lowband_gain*(1-s.fullband_ns_mix)*s.lowband_restore_mix*speech_gain*s.lowband_output[i];
   }
   if(!s.transition_history.empty()) for(unsigned i=0;i<h;++i)
     s.mono[i]=(1-info.startup_dry_mix)*s.mono[i]+info.startup_dry_mix*s.transition_dry[i];
