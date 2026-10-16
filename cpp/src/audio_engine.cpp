@@ -443,7 +443,14 @@ struct AudioEngine::Impl {
         }
       }
       if(c.very_transparent_nearend) for(auto* cfg:{&mono_config,&multi_config}) {
-        cfg->suppressor.dominant_nearend_detection.enr_threshold=10.f;
+        // The entry threshold must stay below enr_exit_threshold (10.f).
+        // Setting them equal removes the detector's hysteresis; a loud voiced
+        // far-end burst then raises the linear residual so that
+        // echo_sum/ne_sum (~0.6-1.2 on a strong onset) clears a 10.f entry
+        // threshold with no near-end present, latching transparent mode for the
+        // whole 50-block hold and letting the residual echo through.
+        // 1.0f was chosen by sweeping this knob against the 16/24/48 kHz streams.
+        cfg->suppressor.dominant_nearend_detection.enr_threshold=1.0f;
         cfg->suppressor.dominant_nearend_detection.snr_threshold=1.f;
         cfg->suppressor.dominant_nearend_detection.trigger_threshold=2;
         cfg->suppressor.nearend_tuning.mask_lf={10.f,11.f,10.f};
