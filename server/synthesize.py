@@ -208,30 +208,103 @@ def synthesize(
 # Deterministic synthetic fixtures. They are diagnostic material, never claimed
 # to be real speech or real vehicle recordings.
 DEMO_RATE = 16000
-DEMO_SECONDS = 6.0
+DEMO_SECONDS = 8.0
 DEMOS = (
     {
         "id": "echo_and_noise",
-        "label": "回声 + 车内噪声",
-        "description": "近端单讲、远端单讲与双讲依次出现，麦克风含声学回声与稳态噪声。",
+        "label": "回声 + 车噪风噪",
+        "description": "近端单讲、远端单讲与双讲依次出现，麦克风含声学回声、车内路噪与车窗阵风噪声。",
     },
     {
         "id": "near_only",
-        "label": "仅近端语音",
-        "description": "参考音为数字静音，麦克风只有近端语音与车内噪声。",
+        "label": "仅近端 + 车噪风噪",
+        "description": "参考音为数字静音，麦克风含近端语音、车内路噪与车窗风噪。",
     },
     {
         "id": "wrong_reference",
         "label": "参考不可靠",
-        "description": "参考音与麦克风内容不相关，用于观察参考可靠性保护。",
+        "description": "参考音与麦克风内容不相关，用于观察车噪风噪与回声共存时的参考可靠性保护。",
     },
     {
         "id": "far_end_stops",
         "label": "远端中途停止",
-        "description": "远端播放 2 秒后停止，用于观察回声尾迹与保护释放。",
+        "description": "远端播放至 2.6 秒停止，用于观察车噪风噪底噪下的回声尾迹与保护释放。",
     },
 )
 DEMO_IDS = tuple(item["id"] for item in DEMOS)
+_NOISE_DIR = ROOT / "datasets" / "itu-eval-current" / "sources" / "noise"
+_NOISE_CACHE: dict[str, np.ndarray] = {}
+
+
+def _rms_scale(x: np.ndarray, target_dbfs: float) -> np.ndarray:
+    p = max(float(np.mean(x * x)), 1e-12)
+    return x * math.sqrt((10.0 ** (target_dbfs / 10.0)) / p)
+
+
+def _source_slice(filename: str, offset: int, length: int) -> np.ndarray | None:
+    if filename not in _NOISE_CACHE:
+        path = _NOISE_DIR / filename
+        if not path.is_file():
+            return None
+        audio, rate = sf.read(path, dtype="float64", always_2d=True)
+        mono = audio[:, 0]
+        if rate != DEMO_RATE:
+            mono = _resample(mono, rate, DEMO_RATE)
+        _NOISE_CACHE[filename] = mono
+    source = _NOISE_CACHE[filename]
+    if len(source) < length:
+        return None
+    start = offset % max(len(source) - length, 1)
+    return source[start : start + length].copy()
+
+
+def _cabin_and_wind_noise(rng, index: int, length: int) -> np.ndarray:
+    """Build audible cabin road rumble + HVAC airflow + modulated window wind gusts."""
+    t = np.arange(length) / DEMO_RATE
+    road_raw = _source_slice("TCAR-ch01.wav", 160000 + index * 48000, length)
+    if road_raw is not None:
+        road = signal.sosfilt(
+            signal.butter(2, 45.0, fs=DEMO_RATE, btype="highpass", output="sos"),
+            road_raw,
+        )
+    else:
+        road = signal.sosfilt(
+            signal.butter(2, [45.0, 320.0], fs=DEMO_RATE, btype="bandpass", output="sos"),
+            rng.normal(size=length),
+        )
+    air_raw = _source_slice("MS-SNSD-AirConditioner_3.wav", 32000 + index * 24000, length)
+    if air_raw is not None:
+        air = signal.sosfilt(
+            signal.butter(2, 70.0, fs=DEMO_RATE, btype="highpass", output="sos"),
+            air_raw,
+        )
+    else:
+        air = signal.sosfilt(
+            signal.butter(2, [90.0, 1800.0], fs=DEMO_RATE, btype="bandpass", output="sos"),
+            rng.normal(size=length),
+        )
+    gust_env = 0.55 + 0.45 * np.sin(2.0 * np.pi * 0.45 * t + 0.3 + 0.5 * index) ** 2
+    wind_low = (
+        signal.sosfilt(
+            signal.butter(2, [45.0, 260.0], fs=DEMO_RATE, btype="bandpass", output="sos"),
+            rng.normal(size=length),
+        )
+        * gust_env
+    )
+    wind_mid = (
+        signal.sosfilt(
+            signal.butter(2, [200.0, 1500.0], fs=DEMO_RATE, btype="bandpass", output="sos"),
+            rng.normal(size=length),
+        )
+        * (0.60 + 0.40 * gust_env)
+    )
+    combined = (
+        _rms_scale(road, -26.5)
+        + _rms_scale(air, -28.0)
+        + _rms_scale(wind_low, -26.5)
+        + _rms_scale(wind_mid, -27.5)
+    )
+    return _rms_scale(combined, -24.5)
 
 
 def _band(rng, length: int, low: float, high: float, gain: float) -> np.ndarray:
@@ -314,28 +387,29 @@ def _voice(rng, length: int, start: float, end: float, f0: float, gain: float) -
 
 
 def _demo_signals(scenario: str) -> tuple[np.ndarray, np.ndarray]:
-    rng = np.random.default_rng(200 + DEMO_IDS.index(scenario))
+    index = DEMO_IDS.index(scenario)
+    rng = np.random.default_rng(200 + index)
     length = int(DEMO_SECONDS * DEMO_RATE)
 
-    noise = _band(rng, length, 40.0, 1200.0, 0.025)
+    noise = _cabin_and_wind_noise(rng, index, length)
     # Two talkers at different pitch, so the echo is not just a delayed copy of
     # the near end and the canceller has something real to track.
-    # The gap between the first near-end burst and the far end is deliberate: a
-    # near-end burst arms a 0.5 s protection hold, and starting the far end
-    # inside that window makes the canceller hold back and leak echo.
+    # Leading/mid/trailing noise-only windows (0-0.85s, 2.0-3.3s, 6.8-8.0s)
+    # give the noise estimator and hangover clean windows so both cabin/wind
+    # noise and its suppression are clearly visible and audible.
     near = (
-        _voice(rng, length, 0.30, 1.60, 118.0, 0.28)
-        + _voice(rng, length, 3.40, 4.20, 118.0, 0.28)
-        + _voice(rng, length, 4.60, 5.70, 118.0, 0.28)
+        _voice(rng, length, 0.85, 2.00, 118.0, 0.38)
+        + _voice(rng, length, 4.35, 5.30, 118.0, 0.38)
+        + _voice(rng, length, 5.70, 6.80, 118.0, 0.38)
     )
-    far = _voice(rng, length, 2.50, 4.20, 205.0, 0.30)
-    far_short = _voice(rng, length, 0.40, 2.00, 205.0, 0.30)
-    unrelated = _voice(rng, length, 0.80, 3.40, 168.0, 0.30)
+    far = _voice(rng, length, 3.30, 5.30, 205.0, 0.34)
+    far_short = _voice(rng, length, 0.85, 2.60, 205.0, 0.34)
+    unrelated = _voice(rng, length, 1.20, 4.80, 168.0, 0.34)
     # A 40 ms acoustic path is long enough to require real delay handling.
     echo = np.r_[np.zeros(640), far[:-640]] * 0.65
 
     if scenario == "echo_and_noise":
-        # near 0.3-1.6, far 2.5-4.2, double talk 3.4-4.2, near 4.6-5.7
+        # near 0.85-2.0, far 3.3-5.3, double talk 4.35-5.3, near 5.7-6.8
         reference, microphone = far, echo + near + noise
     elif scenario == "near_only":
         reference, microphone = np.zeros(length), near + noise
@@ -343,9 +417,9 @@ def _demo_signals(scenario: str) -> tuple[np.ndarray, np.ndarray]:
         reference = unrelated
         microphone = echo + near + noise
     elif scenario == "far_end_stops":
-        # The far end stops at 2 s and the near end only starts afterwards, so
+        # The far end stops at 2.6 s and the near end only starts at 3.4 s, so
         # the echo tail and the protection release are easy to hear alone.
-        near_after = _voice(rng, length, 2.40, 5.60, 118.0, 0.28)
+        near_after = _voice(rng, length, 3.40, 6.60, 118.0, 0.38)
         echo_short = np.r_[np.zeros(640), far_short[:-640]] * 0.65
         reference = far_short
         microphone = echo_short + near_after + noise
