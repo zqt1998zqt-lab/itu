@@ -254,9 +254,13 @@ def main():
                 row["segments"][name] = dict(before=qb, after=qa,
                     stoi_improvement=None if qa["stoi"] is None or qb["stoi"] is None else qa["stoi"] - qb["stoi"])
             else:
+                window_before = ev.window(before_io, limits, args.sample_rate)
+                window_after = ev.window(after_io, limits, args.sample_rate)
                 row["segments"][name] = ev.attenuation_measurement(
-                    ev.window(before_io, limits, args.sample_rate),
-                    ev.window(after_io, limits, args.sample_rate), pcm16=True)
+                    window_before, window_after, pcm16=True)
+                # Diagnostic provenance for this window; no gate consumes it.
+                row.setdefault("applicability", {})[name] = ev.measurement_applicability(
+                    window_before, window_after, args.sample_rate)
                 if name.startswith("far") and linear is not None and segment["scene"]["noise"] == "none":
                     p, q = ev.power(ev.window(conditioned, limits)), ev.power(ev.window(linear, limits))
                     row["segments"][name]["linear_erle_engineering_db"] = ev.db(p / q) if p > 1e-12 and q > 1e-12 else None

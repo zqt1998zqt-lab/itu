@@ -10,7 +10,13 @@ struct AudioTimestamp {
 };
 struct ClockInfo {
   bool locked=false;
+  // Ratio actually programmed into the ASRC, i.e. the correction that is in
+  // force. Kept separate from the raw frequency-offset estimate below so a
+  // rate-limited or stale loop is visible instead of looking converged.
   double drift_ppm=0;
+  double capture_rate_hz=0,render_rate_hz=0; // Fitted rates behind the estimate.
+  double desired_ppm=0; // render/capture rate ratio offset, before rate limiting.
+  bool capture_valid=false,render_valid=false;
   std::size_t queued_samples=0;
   std::uint64_t rejected_timestamps=0,underruns=0,overruns=0;
 };

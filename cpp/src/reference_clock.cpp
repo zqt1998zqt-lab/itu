@@ -95,6 +95,19 @@ bool ReferenceClock::pull(float* pcm,std::size_t n) noexcept {
 }
 ClockInfo ReferenceClock::info() const noexcept {
   const auto& s=*state_;
-  return {s.capture.valid && s.render.valid,(s.ratio-1)*1e6,s.size,s.rejected,s.underruns,s.overruns};
+  const bool both=s.capture.valid && s.render.valid;
+  ClockInfo out;
+  out.locked=both;
+  out.drift_ppm=(s.ratio-1)*1e6;
+  out.capture_rate_hz=s.capture.valid ? s.capture.rate : 0;
+  out.render_rate_hz=s.render.valid ? s.render.rate : 0;
+  out.desired_ppm=(both && s.capture.rate>0) ? (s.render.rate/s.capture.rate-1)*1e6 : 0;
+  out.capture_valid=s.capture.valid;
+  out.render_valid=s.render.valid;
+  out.queued_samples=s.size;
+  out.rejected_timestamps=s.rejected;
+  out.underruns=s.underruns;
+  out.overruns=s.overruns;
+  return out;
 }
 }

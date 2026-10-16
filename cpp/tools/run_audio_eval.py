@@ -458,6 +458,42 @@ def attenuation_measurement(before, after, pcm16=False):
                 output_quantization_upper_bound_dbfs=upper_level)
 
 
+def measurement_applicability(before, after, rate=RATE, edge_ms=1.0):
+    """Report whether a window actually excites its measurement.
+
+    Diagnostics only: no threshold, denominator or gate reads these fields.
+    `before_edge_*` / `after_edge_*` count non-zero samples inside the first and
+    last millisecond of the window. A silent window whose edge count is not
+    zero is contaminated by the adjacent scene: the harness resamples the whole
+    continuous stream in one polyphase pass, so a scene onset leaks backwards
+    into the preceding samples and a far-end tail leaks forwards.
+    """
+    edge = max(1, int(round(rate * edge_ms / 1000.0)))
+
+    def nz(x):
+        return int(np.count_nonzero(x))
+
+    before_dbfs, after_dbfs = db(power(before)), db(power(after))
+    before_nz, before_edge_nz = nz(before), nz(before[-edge:])
+    return dict(sample_rate=rate, samples=int(len(before)), edge_samples=edge,
+                before_nonzero_samples=before_nz, after_nonzero_samples=nz(after),
+                before_head_nonzero_samples=nz(before[:edge]),
+                before_edge_nonzero_samples=before_edge_nz,
+                after_head_nonzero_samples=nz(after[:edge]),
+                after_edge_nonzero_samples=nz(after[-edge:]),
+                before_peak=float(np.max(np.abs(before))) if len(before) else 0.0,
+                after_peak=float(np.max(np.abs(after))) if len(after) else 0.0,
+                before_dbfs=before_dbfs, after_dbfs=after_dbfs,
+                # A window whose entire non-zero content fits inside one
+                # millisecond at its trailing edge is not excited: those samples
+                # are backward leakage from the next scene's onset through the
+                # harness polyphase resampler, not input excitation. Such a
+                # window cannot support an attenuation claim in either
+                # direction. Diagnostic only; no gate consumes it.
+                edge_leakage_only=bool(0 < before_nz <= edge and before_edge_nz == before_nz),
+                measurable_excitation=bool(before_dbfs > -120.0))
+
+
 def quality(target, observed):
     target = target - np.mean(target)
     observed = observed - np.mean(observed)
