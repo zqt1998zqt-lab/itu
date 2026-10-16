@@ -7,14 +7,16 @@ import {
   FlaskConical,
   FileAudio,
   ListFilter,
+  Sparkles,
   Upload,
   Workflow,
 } from "lucide-react";
 
-export type View = "workbench" | "workflow" | "car3d" | "results" | "compare" | "metrics" | "evaluation" | "alignment";
+export type View = "workbench" | "synthesize" | "workflow" | "car3d" | "results" | "compare" | "metrics" | "evaluation" | "alignment";
 
 export const NAV = [
   { id: "workbench", label: "音频工作台", icon: Upload },
+  { id: "synthesize", label: "生成输出", icon: Sparkles },
   { id: "workflow", label: "流程图", icon: Workflow },
   { id: "car3d", label: "3D 智能座舱", icon: Car },
   { id: "results", label: "计算结果", icon: ListFilter },

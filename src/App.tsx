@@ -23,6 +23,7 @@ import AudioFlow from "./features/AudioFlow";
 import AudioEvaluation from "./features/AudioEvaluation";
 import EcnrEvaluation from "./features/EcnrEvaluation";
 import ItuAlignment from "./features/ItuAlignment";
+import AudioSynthesize from "./features/AudioSynthesize";
 import {
   AUDIO_ROLES,
   EMPTY_FILES,
@@ -56,6 +57,10 @@ const COPY = {
   results: [
     "音频计算结果",
     "查看实际计算值、完整波形与频谱，以及每项指标的有效条件。",
+  ],
+  synthesize: [
+    "用现有算法生成输出",
+    "上传一路参考音与一路麦克音，直接调用仓库里同一个 itu_audio_cli 引擎生成处理后音频；不经过离线指标计算，也不做任何重打分。",
   ],
   workflow: ["音频从哪里来，指标如何得到", "沿着信号路径，查看录音位置、处理节点与计算条件。"],
   car3d: ["智能座舱与车载声学", "探索高保真座舱 3D 数字孪生、原厂车漆定制与主驾顶棚双麦拾音波束透视。"],
@@ -712,6 +717,8 @@ export default function App() {
                 和合规曲线需要专用算法、测试配置或标定；在“指标与方法”中查看对应条件。
               </div>
             </>
+          ) : view === "synthesize" ? (
+            <AudioSynthesize />
           ) : view === "car3d" ? (
             <div style={{ width: "100%", height: "calc(100vh - 140px)", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", background: "#07090e" }}>
               <iframe src="/car-3d.html" style={{ width: "100%", height: "100%", border: "none" }} title="3D 智能座舱与车门交互" />
