@@ -155,6 +155,9 @@ struct Config {
   bool eq_before_agc = false; // Barrot VCP topology: BF -> AEC -> NR -> EQ -> AGC/DRC
   bool rx_processing = false; // Barrot VCP Downlink processing: NR -> EQ -> DRC -> Speaker & AEC Reference
   DownlinkConfig rx_config{};
+  // NativePipeline keeps this outer I/O rate when its core runs at 48 kHz.
+  // Zero means the configuration is already at its processing rate.
+  unsigned policy_sample_rate = 0;
 };
 Config barrot_vcp_config();
 Config referenced_radio_config();

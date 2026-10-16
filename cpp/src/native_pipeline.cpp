@@ -19,8 +19,10 @@ struct NativePipeline::State {
   std::vector<std::unique_ptr<RateConverter>> up,aec_down,input_down,render_up;
   RateConverter output_down,beam_down;
   static Config core_config(Config c) {
+    const unsigned io_rate=c.sample_rate;
     if(ParametricEq::enabled(c.output_eq)) c.limiter=false;
     c.output_eq={}; // Apply exactly once, after conversion back to the requested I/O rate.
+    c.policy_sample_rate=io_rate;
     const float ratio=48000.f/c.sample_rate;
     for(float& delay:c.beam_delays_samples) delay*=ratio;
     c.sample_rate=48000; c.frame_size=480; c.native_fullband=false;
@@ -79,6 +81,20 @@ Status NativePipeline::process(const float* mic,const float* ref,float* out,Fram
   if(s.c.diagnostic_stages) std::copy_n(out,s.h,s.c.diagnostic_stages->post_eq.data());
   for(unsigned i=0;i<s.h;++i) if(s.c.limiter && std::abs(out[i])>s.c.output_ceiling) {
     out[i]=std::copysign(s.c.output_ceiling,out[i]); ++f.limited_samples;
+  }
+  double render_power=0;
+  if(ref) for(unsigned i=0;i<s.h*s.c.reference_channels;++i)
+    render_power+=double(ref[i])*ref[i];
+  const bool render_quiet=!ref || render_power/std::max(1u,s.h*s.c.reference_channels)<=s.c.activity_floor;
+  const bool quiet_boundary=f.pre_ns_rms<1.5e-4f && render_quiet &&
+      f.near_protection_hold_frames==0 && f.input_excess_score<.05f &&
+      f.speech_probability<.05f && f.linear_speech_probability<.05f &&
+      f.nonlinear_speech_probability<.05f;
+  if(quiet_boundary) {
+    float quiet_peak=0;
+    for(unsigned i=0;i<s.h;++i) quiet_peak=std::max(quiet_peak,std::abs(out[i]));
+    if(quiet_peak<5e-4f) std::fill_n(out,s.h,0.f);
+    else for(unsigned i=0;i<s.h;++i) if(std::abs(out[i])<1.5e-4f) out[i]=0.f;
   }
   stage(f.native_output_ms);
   for(unsigned ch=0;ch<s.c.microphones;++ch) {

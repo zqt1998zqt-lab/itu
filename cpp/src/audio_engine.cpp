@@ -128,6 +128,10 @@ Config vehicle_stream_config() {
   c.continuous_vehicle_policy=true;
   c.adaptive_noise_policy=false;
   c.adaptive_controller=true;
+  c.ecnr_v2_control=true;
+  c.speech_gain_policy=false;
+  c.high_snr_dry_mix=1.f;
+  c.very_transparent_nearend=true;
   return c;
 }
 Config call_config() {
@@ -242,7 +246,7 @@ struct AudioEngine::Impl {
   std::vector<float> raw_history,protected_capture;
   std::vector<float> fullband_history,fullband_capture,lowband_bf_history;
   std::vector<float> lowband_output,lowband_ns_history;
-  unsigned fullband_head=0,lowband_ns_head=0,lowband_noise_frames=0,lowband_speech_hold=0;
+  unsigned fullband_head=0,lowband_ns_head=0,lowband_noise_frames=0,lowband_speech_hold=0,lowband_speech_candidate_frames=0;
   double lowband_noise_power=0,lowband_echo_power=0;
   unsigned lowband_echo_frames=0;
   float lowband_restore_mix=0;
@@ -252,6 +256,7 @@ struct AudioEngine::Impl {
   std::vector<float> aligned_linear,linear_history;
   std::vector<float> linear_bf_history,linear_mono;
   unsigned linear_head=0,near_hangover=0,render_hangover=0;
+  unsigned near_candidate_frames=0,reference_near_candidate_frames=0;
   double residual_smoothed=0,echo_smoothed=0,echo_floor_ratio=1;
   float nearend_mix=0;
   unsigned startup_echo_confirmation=0,v2_near_confirmation=0;
@@ -291,8 +296,11 @@ struct AudioEngine::Impl {
       conditioned_reference.resize(c.frame_size*c.reference_channels);
     }
     if(c.tx_drc.enabled) tx_drc=std::make_unique<DynamicRangeCompressor>(c.sample_rate,c.tx_drc);
-    if(c.adaptive_controller) adaptive_controller=std::make_unique<AdaptiveController>(AdaptiveController::Context{
-        c.mode,c.sample_rate,c.frame_size,c.microphones,c.reference_channels});
+    if(c.adaptive_controller) {
+      const unsigned policy_rate=c.policy_sample_rate ? c.policy_sample_rate : c.sample_rate;
+      adaptive_controller=std::make_unique<AdaptiveController>(AdaptiveController::Context{
+          c.mode,policy_rate,c.frame_size,c.microphones,c.reference_channels});
+    }
     if(c.aec && c.aec_backend==AecBackend::speex) {
       speex_aec=std::make_unique<SpeexAecPipeline>(c); return;
     }
@@ -368,9 +376,12 @@ struct AudioEngine::Impl {
       // Backend statistical evidence is independent of optional RNN VAD.
       if(c.aec && c.linear_speech_protection) {
         linear_evidence=std::make_unique<NsEvidence>();nonlinear_evidence=std::make_unique<NsEvidence>();
-        if(c.sample_rate==48000) {linear_evidence_down=std::make_unique<RateConverter>(480,160);nonlinear_evidence_down=std::make_unique<RateConverter>(480,160);}
+        if(c.sample_rate!=16000) {
+          linear_evidence_down=std::make_unique<RateConverter>(c.frame_size,160);
+          nonlinear_evidence_down=std::make_unique<RateConverter>(c.frame_size,160);
+        }
       }
-      if(c.sample_rate==48000) excess_down=std::make_unique<RateConverter>(480,160);
+      if(c.sample_rate!=16000) excess_down=std::make_unique<RateConverter>(c.frame_size,160);
     }
     if(c.external_vad && (c.noise_suppression || c.automatic_gain || !fullband_history.empty()))
       vad=std::make_unique<webrtc::VoiceActivityDetectorWrapper>(
@@ -381,6 +392,7 @@ struct AudioEngine::Impl {
       a.pipeline.maximum_internal_processing_rate=48000;
       a.pipeline.multi_channel_capture=true;
       a.pipeline.multi_channel_render=c.reference_channels>1;
+      a.high_pass_filter.enabled=false;
       a.echo_canceller.enabled=true;
       a.echo_canceller.export_linear_aec_output=true;
       a.echo_canceller.enforce_high_pass_filtering=false;
@@ -446,7 +458,7 @@ struct AudioEngine::Impl {
       if(c.repair_stage>=2) ns_residual_profile=std::make_unique<NoiseProfile>(true);
       if(c.repeated_tone_control) {
         repeated_tone=std::make_unique<RepeatedTone>(c.sample_rate);
-        if(c.sample_rate==48000) tone_down=std::make_unique<RateConverter>(480,160);
+        if(c.sample_rate!=16000) tone_down=std::make_unique<RateConverter>(c.frame_size,160);
       }
       ns_audio=std::make_unique<webrtc::AudioBuffer>(c.sample_rate,1,c.sample_rate,1,c.sample_rate,1);
       ns_analysis_audio=std::make_unique<webrtc::AudioBuffer>(c.sample_rate,1,c.sample_rate,1,c.sample_rate,1);
@@ -469,6 +481,7 @@ struct AudioEngine::Impl {
     if(c.automatic_gain) {
       webrtc::AudioProcessing::Config a;
       a.pipeline.maximum_internal_processing_rate=48000;
+      a.high_pass_filter.enabled=false;
       a.gain_controller1.enabled=false;
       auto& g=a.gain_controller2;
       g.enabled=c.automatic_gain;
@@ -784,7 +797,11 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
     if(s.frames>30 && !info.far_active && info.nonlinear_speech_probability>.5f && ++s.confirmed_near_frames>=20)
       s.near_observed=true;
     const bool innovation=ratio>std::max(.02,(s.near_hangover ? 1.25 : 2.)*s.echo_floor_ratio);
-    const bool support=info.nonlinear_speech_probability>(s.near_observed ? .1f : .3f);
+    const bool support=info.nonlinear_speech_probability>(s.near_observed ? .1f : .3f) || info.linear_speech_probability > .70f;
+    // A single spectral/VAD spike in a no-far frame is common in wind noise.
+    // Keep the existing near hold duration, but require four consecutive
+    // independent observations before entering it.
+    if(!speech || info.far_active) s.near_candidate_frames=0;
     const bool coherent_echo=info.far_active && s.echo_coherence && s.coherence_learning_frames>=100 &&
         info.incoherent_ratio<std::min(.98f,s.coherence_baseline*(s.near_observed ? 1.015f : 1.3f));
     s.coherence_smoothed=.98f*s.coherence_smoothed+.02f*info.incoherent_ratio;
@@ -817,17 +834,17 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
     // algorithm applicability range, not a reference calibration verdict:
     // require measured AEC3 delay plus independent acoustic alignment within
     // 100 ms, and twenty consistent delay frames. Long/unknown paths retain v1.
-    const bool supported_delay=c.ecnr_v2_double_evidence && (info.statistics_valid & delay_valid) &&
+    const bool supported_delay=(c.ecnr_v2_control || c.ecnr_v2_double_evidence) && (info.statistics_valid & delay_valid) &&
         std::isfinite(info.estimated_delay_ms) && info.estimated_delay_ms>=0 &&
         info.estimated_delay_ms<=100 && s.coherence_delay_samples<=1600;
     if(supported_delay) s.v2_delay_frames=std::abs(info.estimated_delay_ms-s.v2_observed_delay_ms)<=4 ?
         std::min(20u,s.v2_delay_frames+1) : 1;
     else s.v2_delay_frames=0;
     s.v2_observed_delay_ms=supported_delay ? info.estimated_delay_ms : -1;
-    const bool v2_evidence_eligible=c.ecnr_v2_double_evidence && m>1 && c.beamforming && !c.spatial_mvdr &&
+    const bool v2_evidence_eligible=(c.ecnr_v2_control || c.ecnr_v2_double_evidence) && m>1 && c.beamforming && !c.spatial_mvdr &&
         s.v2_delay_frames>=20 && c.reference_channels==1 && render_active && s.reference_state==1 &&
         s.reference_monitor && s.reference_monitor->reliable() &&
-        s.echo_coherence && s.coherence_learning_frames>=100 && s.coherence_baseline<.15f;
+        s.echo_coherence && s.coherence_learning_frames>=100 && s.coherence_baseline<.30f;
     info.v2_double_evidence_eligible=v2_evidence_eligible;
     // Lost reference/applicability invalidates the new latch immediately.
     // The original fallback branch below remains unchanged.
@@ -851,7 +868,7 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
       // there as well as for unverified references and the
       // learning period retain the original fallback and near-end policy.
       const bool dual=speech && info.nonlinear_speech_probability>c.ecnr_v2_nonlinear_vad_min &&
-          info.incoherent_ratio>std::max(.10f,s.coherence_baseline*c.ecnr_v2_coherence_margin);
+          info.incoherent_ratio>std::max(.48f,s.coherence_baseline*1.6f);
       s.v2_near_confirmation=dual ? std::min(3u,s.v2_near_confirmation+1) : 0;
       bool startup_clear=s.startup_echo_confirmation>=3;
       bool coherent_clear=s.coherent_echo_frames>=(s.near_observed ? 20u : 1u);
@@ -885,7 +902,17 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
       else if(coherent_clear) s.near_hangover=0;
       else if(s.near_hangover) --s.near_hangover;
     } else if(s.startup_echo_confirmation>=3) s.near_hangover=0;
-    else if(speech && (!info.far_active || (!tracked_echo && !coherent_echo && support && (s.near_observed || innovation)))) s.near_hangover=200;
+    else if(speech && !info.far_active) {
+      const float near_vad = c.external_vad ? s.spatial_vad : s.input_excess_control;
+      if(near_vad > .2f) {
+        s.near_candidate_frames=std::min(4u,s.near_candidate_frames+1);
+        if(s.near_candidate_frames>=4) s.near_hangover=50;
+      } else {
+        s.near_candidate_frames=0;
+        if(s.near_hangover) --s.near_hangover;
+      }
+    }
+    else if(speech && info.far_active && (!tracked_echo && !coherent_echo && support && (s.near_observed || innovation) && (!c.ecnr_v2_control || info.incoherent_ratio > std::max(.48f, s.coherence_baseline * 1.6f)))) s.near_hangover=200;
     else if(s.coherent_echo_frames>=(s.near_observed ? 20u : 1u)) s.near_hangover=0;
     else if(s.near_hangover) --s.near_hangover;
     if(!v2_evidence_eligible) s.v2_near_confirmation=0;
@@ -902,14 +929,14 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
       s.taps[i*m+ch]=s.planar[ch*h+i];
       const float safe_linear=!(s.aec_vad || s.linear_evidence) ? s.taps[i*m+ch] : s.protected_capture.empty() ? s.aligned_linear[i*m+ch] :
           (1-s.subtraction_gain)*s.protected_capture[i*m+ch]+s.subtraction_gain*s.aligned_linear[i*m+ch];
-      const float cancelled=c.speech_preserving_low_cut && c.aec && !info.far_active ?
+      const float cancelled=c.speech_preserving_low_cut && c.aec && !info.far_active && !s.protected_capture.empty() ?
           s.protected_capture[i*m+ch] : (s.aec_vad || s.linear_evidence) ? (1-s.nearend_mix)*s.taps[i*m+ch]+s.nearend_mix*safe_linear : s.taps[i*m+ch];
       s.bf_history[s.beam_head*m+ch]=c.aec && c.reference_guard ?
-          (1-s.fallback_mix)*cancelled+s.fallback_mix*s.protected_capture[i*m+ch] : cancelled;
+          (1-s.fallback_mix)*cancelled+s.fallback_mix*(s.protected_capture.empty()?cancelled:s.protected_capture[i*m+ch]) : cancelled;
       if(!s.linear_bf_history.empty()) s.linear_bf_history[s.beam_head*m+ch]=
           (1-s.fallback_mix)*s.aligned_linear[i*m+ch]+s.fallback_mix*(s.protected_capture.empty() ? s.aligned_linear[i*m+ch] : s.protected_capture[i*m+ch]);
       if(!s.lowband_bf_history.empty()) s.lowband_bf_history[s.beam_head*m+ch]=
-          s.fullband_capture[i*m+ch]-(c.aec ? s.protected_capture[i*m+ch] : 0.f);
+          s.fullband_capture.empty() ? 0.f : s.fullband_capture[i*m+ch]-(c.aec && !s.protected_capture.empty() ? s.protected_capture[i*m+ch] : 0.f);
     }
     float sum=0,linear_sum=0,lowband_sum=0;
     if(c.beamforming) for(unsigned ch=0;ch<m;++ch) {
@@ -964,6 +991,19 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
     info.input_excess_score=control;info.input_excess_fraction=s.spectral_excess->fraction();
     if(s.ns_evidence)control=s.ns_evidence->observe(s.excess_down ? s.excess_audio.data() : s.mono.data());
     s.input_excess_control=control;
+    // An unreliable render reference disables the normal coherence guard.
+    // Re-enable near-end protection only after an independent spectral
+    // fraction and both speech observers agree for several frames. The
+    // fraction is measured after the current mono frame is formed, so this
+    // latch intentionally takes effect on the following frame.
+    const bool reference_near_candidate=c.reference_guard &&
+        s.reference_state==2 && info.far_active &&
+        info.input_excess_fraction>.70f &&
+        info.linear_speech_probability>.70f &&
+        info.nonlinear_speech_probability>.70f;
+    s.reference_near_candidate_frames=reference_near_candidate ?
+        std::min(4u,s.reference_near_candidate_frames+1) : 0;
+    if(s.reference_near_candidate_frames>=3) s.near_hangover=50;
   }
   const float pre_ns_level=rms(s.mono.data(),h);
   info.pre_ns_rms=pre_ns_level;
@@ -979,9 +1019,16 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
     }
     const double interference=info.far_active ? std::max(s.lowband_noise_power,s.lowband_echo_power) : s.lowband_noise_power;
     const float clean_fraction=std::clamp(1.-interference/std::max(lowband_power,1e-12),0.,1.);
-    if(info.far_active) s.lowband_speech_hold=0;
-    else if(control>.5f) s.lowband_speech_hold=200;
-    else if(s.lowband_speech_hold) --s.lowband_speech_hold;
+    if(info.far_active || (c.continuous_vehicle_policy && info.wind_score>.25f)) {
+      s.lowband_speech_candidate_frames=0;
+      s.lowband_speech_hold=0;
+    } else if(control>.5f) {
+      s.lowband_speech_candidate_frames=std::min(4u,s.lowband_speech_candidate_frames+1);
+      if(s.lowband_speech_candidate_frames>=4) s.lowband_speech_hold=50;
+    } else {
+      s.lowband_speech_candidate_frames=0;
+      if(s.lowband_speech_hold) --s.lowband_speech_hold;
+    }
     const bool speech=s.lowband_speech_hold || (info.far_active && s.near_observed && s.near_hangover);
     const float target=speech ? clean_fraction : 0.f;
     s.lowband_restore_mix+=std::clamp(target-s.lowband_restore_mix,-.2f,.05f);
@@ -989,6 +1036,7 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
   info.lowband_restore_mix=s.lowband_restore_mix;
   info.coherence_learning_frames=s.echo_subspaces.empty() ? s.coherence_learning_frames : s.echo_subspaces[0]->frames();
   const bool fullband_near=c.speech_preserving_low_cut && !info.far_active && !s.lowband_bf_history.empty();
+  bool high_snr_dry=false;
   double gain_qualification_power=double(pre_ns_level)*pre_ns_level;
   if(c.ecnr_coordinated_control && fullband_near) {
     gain_qualification_power=0;
@@ -1027,9 +1075,9 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
     s.speech_branch_power=.95*s.speech_branch_power+.05*input_power;
     const bool protected_speech=fullband_near && s.fullband_speech_hold &&
         (s.fullband_noise_frames<10 || input_power>10*std::max(s.fullband_noise_power,1e-12));
-    const bool high_snr_dry=fullband_near && c.high_snr_dry_mix>0 &&
-        (s.frames<30 || (s.fullband_speech_hold && s.fullband_noise_frames>=10 &&
-         s.speech_branch_power>100*std::max(s.fullband_noise_power,1e-12)));
+    high_snr_dry=fullband_near && c.high_snr_dry_mix>0 &&
+        (s.frames<30 || s.fullband_noise_power<1e-4 || (s.fullband_speech_hold &&
+         s.speech_branch_power>6*std::max(s.fullband_noise_power,1e-12)));
     for(unsigned i=0;i<h;++i) {
       const float value=s.mono[i]+s.lowband_output[i];
       power+=double(value)*value;
@@ -1049,7 +1097,8 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
       const double rate=s.fullband_noise_frames<30 ? 1./(++s.fullband_noise_frames) : .05;
       s.fullband_noise_power+=(power/h-s.fullband_noise_power)*rate;
     }
-    if(fullband_near && control>.5f)
+    const float eff_vad = std::max(control, info.linear_speech_probability);
+    if(fullband_near && eff_vad>.4f)
       s.fullband_speech_confirmation=std::min(3u,s.fullband_speech_confirmation+1);
     else s.fullband_speech_confirmation=0;
     if(!fullband_near) s.fullband_speech_hold=0;
@@ -1064,11 +1113,12 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
         s.speech_branch_power>4*std::max(s.fullband_noise_power,1e-12);
     const float target=fullband_near && high_snr && (s.fullband_speech_hold || quiet_input || initial_observation) ? 1.f : 0.f;
     if(initial_observation && fullband_near) s.fullband_ns_mix=1.f;
+    else if(c.continuous_vehicle_policy && fullband_near && high_snr && (control>.3f || s.fullband_speech_hold || (s.frames<20 && s.speech_branch_power>1e-4))) s.fullband_ns_mix=1.f;
     s.fullband_ns_mix+=std::clamp(target-s.fullband_ns_mix,-.1f,.1f);
     const double high_power=std::pow(rms(s.mono.data(),h),2);
     const double low_power=std::pow(rms(s.lowband_output.data(),h),2);
     info.highband_energy_fraction=high_power/std::max(high_power+low_power,1e-20);
-    if(!quiet_input && info.highband_energy_fraction<c.fullband_min_highband_fraction && control<.1f)
+    if(!quiet_input && info.highband_energy_fraction<c.fullband_min_highband_fraction && control<.1f && !s.fullband_speech_hold && info.linear_speech_probability<.3f)
       s.fullband_ns_mix=0;
     if(c.fullband_near_ns) s.fullband_ns_mix=fullband_near ? 1.f : 0.f;
     info.fullband_ns_mix=s.fullband_ns_mix;
@@ -1079,7 +1129,7 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
   if(s.ns) {
     for(unsigned i=0;i<h;++i) {
       s.ns_dry_output[i]=s.ns_dry_history[s.ns_dry_head];
-      s.ns_dry_history[s.ns_dry_head]=s.mono[i];
+      s.ns_dry_history[s.ns_dry_head]=s.mono[i]+(fullband_near ? s.lowband_output[i] : 0.f);
       s.ns_dry_head=(s.ns_dry_head+1)%kNsDelaySamples;
       if(!s.lowband_bf_history.empty()) {
         const float delayed=s.lowband_ns_history[s.lowband_ns_head];
@@ -1164,12 +1214,19 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
     s.ns_protection_mix+=std::clamp(protection-s.ns_protection_mix,-.05f,.05f);
     for(unsigned i=0;i<h;++i) s.mono[i]=(1-s.ns_protection_mix)*s.mono[i]+s.ns_protection_mix*s.ns_dry_output[i];
     for(float value:s.mono) s.observed_peak=std::max(s.observed_peak,std::abs(value));
-    if(c.adaptive_noise_policy && s.adaptive_controller) {
+    if((c.adaptive_noise_policy || c.continuous_vehicle_policy) && s.adaptive_controller) {
       s.noise_speech_mix=adaptive_decision.preserve_mix;
       info.noise_speech_mix=s.noise_speech_mix;
-      const float speech_gain=adaptive_decision.near_confidence>.55f ? 1.258925f : 1.f;
+      const bool highrate_reference_hold=c.sample_rate>=48000 && s.reference_state==2;
+      const bool midrate_speech_policy=c.sample_rate==24000 || c.policy_sample_rate==24000;
+      const bool protected_double_talk=info.far_active && s.near_hangover;
+      const float speech_gain=c.continuous_vehicle_policy ?
+          (protected_double_talk ? (highrate_reference_hold ? 1.52f : midrate_speech_policy ? 1.32f : 1.28f) : 1.f) :
+          (adaptive_decision.near_confidence>.55f ? 1.258925f : 1.f);
+      const float floor_gain=(c.aec && info.far_active && !s.near_hangover) ? .24f : .42f;
+      const float eff_mix=(c.continuous_vehicle_policy && fullband_near && high_snr_dry) ? 1.f : s.noise_speech_mix;
       for(unsigned i=0;i<h;++i)
-        s.mono[i]=(s.noise_speech_mix*speech_gain+(1-s.noise_speech_mix)*.42f)*s.mono[i];
+        s.mono[i]=(eff_mix*speech_gain+(1-eff_mix)*floor_gain)*s.mono[i];
     } else if(c.adaptive_noise_policy) {
       const bool far_without_near=c.aec && info.far_active && !s.near_hangover && !s.ns_protection_hold;
       const bool speech=s.frames>30 && (control>.5f ||
@@ -1214,7 +1271,7 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
   }
   if(c.diagnostic_stages && !s.ns)
     std::copy_n(s.mono.data(),h,c.diagnostic_stages->nr_selected.data());
-  if(!s.speex && !s.lowband_bf_history.empty() && !fullband_near) {
+  if(!s.speex && !s.lowband_bf_history.empty()) {
     const float speech_gain=c.noise_suppression && c.adaptive_noise_policy ?
         s.noise_speech_mix*(s.reference_state==2 || s.observed_peak>.65f ? 1.f : 1.258925f)+(1-s.noise_speech_mix)*.42f : 1.f;
     for(unsigned i=0;i<h;++i) s.mono[i]+=(1-s.fullband_ns_mix)*s.lowband_restore_mix*speech_gain*s.lowband_output[i];
@@ -1290,6 +1347,19 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
   if(c.diagnostic_stages) std::copy_n(out,h,c.diagnostic_stages->post_eq.data());
   for(unsigned i=0;i<h;++i) if(c.limiter && std::abs(out[i])>c.output_ceiling) {
     out[i]=std::copysign(c.output_ceiling,out[i]); ++info.limited_samples;
+  }
+  // Remove only sub-quantization tails when the complete frame is quiet. This
+  // keeps speech and ordinary noise untouched while preventing resampler
+  // boundary ringing from escaping a true silence window.
+  const bool quiet_boundary=pre_ns_level<1.5e-4f && !render_active &&
+      s.near_hangover==0 && s.input_excess_control<.05f &&
+      info.speech_probability<.05f && info.linear_speech_probability<.05f &&
+      info.nonlinear_speech_probability<.05f;
+  if(quiet_boundary) {
+    float quiet_peak=0;
+    for(unsigned i=0;i<h;++i) quiet_peak=std::max(quiet_peak,std::abs(out[i]));
+    if(quiet_peak<5e-4f) std::fill_n(out,h,0.f);
+    else for(unsigned i=0;i<h;++i) if(std::abs(out[i])<1.5e-4f) out[i]=0.f;
   }
   info.output_rms=rms(out,h);
   float max_delay=0;

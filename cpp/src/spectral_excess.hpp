@@ -31,9 +31,10 @@ class SpectralExcess {
       minima_[head_]=block_min_;head_=(head_+1)%10;blocks_=std::min(10u,blocks_+1);
       const unsigned valid_blocks=std::clamp(blocks_,1u,10u);
       for(unsigned b=0;b<16;++b) {
-        std::array<float,10> sorted{};
+        std::array<float,10> sorted;
+        sorted.fill(std::numeric_limits<float>::max());
         for(unsigned j=0;j<valid_blocks;++j) sorted[j]=minima_[j][b];
-        std::sort(sorted.begin(),sorted.begin()+valid_blocks);
+        std::sort(sorted.begin(),sorted.end());
         const float estimated=std::max(1e-18f,2.f*sorted[valid_blocks/3]);
         floor_[b]+=.2f*(estimated-floor_[b]);
       }

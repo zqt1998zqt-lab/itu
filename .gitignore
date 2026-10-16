@@ -35,4 +35,4 @@ public/diagrams/
 # --- 3D 页面历史快照（仅保留当前版本）---
 public/car-3d.backup-*.html
 public/car-3d.day-*.html
-public/car-3d.su7-*.html
+public/car-3d.snap-*.html

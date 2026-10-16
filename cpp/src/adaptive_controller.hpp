@@ -50,14 +50,52 @@ class AdaptiveController {
     gain_limit_db_ = policy_.max_gain_db;
     step_hold_ = 0;
     state_ = 0;
+    previous_far_active_ = false;
+    far_fall_cooldown_ = 0;
+    independent_speech_frames_ = 0;
   }
 
   Decision observe(const Observation& input) noexcept {
     ++frames_;
+    const bool far_falling = previous_far_active_ && !input.far_active;
+    if (input.far_active) {
+      previous_far_active_ = true;
+      far_fall_cooldown_ = 0;
+    } else {
+      if (far_falling && context_.mode == ProcessingMode::vehicle_stream)
+        far_fall_cooldown_ = 200;
+      previous_far_active_ = false;
+      if (far_fall_cooldown_) --far_fall_cooldown_;
+    }
     const double power = std::max(1e-14, double(input.level) * input.level);
-    const float speech = std::clamp(std::max({input.spectral_excess,
-                                               .65f * input.linear_speech,
-                                               .75f * input.nonlinear_speech}), 0.f, 1.f);
+    // Nonlinear VAD alone is not sufficient evidence during a no-far
+    // vehicle frame: road-noise/clock tails can keep it high after the
+    // independent spectral and linear paths have gone quiet. Preserve the
+    // nonlinear term for far-end and near-held frames, but require one of
+    // those independent paths before it can raise the adaptive speech mix.
+    const float nonlinear = !input.far_active && !input.near_hold &&
+        input.spectral_excess < .20f && input.linear_speech < .35f
+        ? 0.f : .75f * input.nonlinear_speech;
+    float speech = std::clamp(std::max({input.spectral_excess,
+                                         .65f * input.linear_speech,
+                                         nonlinear}), 0.f, 1.f);
+    // After far-end playback drops, the nonlinear detector can keep a road-noise
+    // tail classified as speech. Keep the independent spectral/linear evidence
+    // and near-hold path, but ignore that stale nonlinear evidence briefly.
+    if (far_fall_cooldown_ && !input.near_hold)
+      speech = std::clamp(std::max(input.spectral_excess, .65f * input.linear_speech), 0.f, 1.f);
+    // Require a short run of independent evidence before a no-far frame can
+    // raise the adaptive speech mix. This rejects isolated linear/spectral
+    // spikes riding on the persistent nonlinear road-noise tail while keeping
+    // far-end and already-confirmed near-end frames responsive.
+    const bool independent_speech=input.spectral_excess>=.20f || input.linear_speech>=.35f;
+    if (!input.far_active && !input.near_hold) {
+      independent_speech_frames_=independent_speech ?
+          std::min(4u,independent_speech_frames_+1) : 0;
+      if (independent_speech_frames_<4) speech=std::min(speech,.18f);
+    } else {
+      independent_speech_frames_=0;
+    }
     const bool quiet_candidate = !input.far_active && !input.near_hold && speech < .18f;
     const double ratio = power / std::max(noise_floor_, 1e-12);
     if (quiet_candidate) {
@@ -77,17 +115,18 @@ class AdaptiveController {
         0., 1.));
     float near = std::clamp(.82f * speech + .18f * snr_conf, 0.f, 1.f);
     if (frames_ < 30) near *= .35f; // Do not mistake cold-start noise for speech.
-    if (input.near_hold) near = std::max(near, .75f);
+    if (input.near_hold) near = 1.0f;
 
     float far = input.far_active ? (input.reference_reliable ? .82f : .55f) : 0.f;
     if (input.far_active && input.reference_reliable)
       far *= std::clamp(.65f + .35f * (1.f - input.coherence), .55f, 1.f);
     const float double_talk = near * far;
-    const float far_only = far * (1.f - near);
+    const float far_only = far * std::max(0.f, 1.f - 2.f * near);
     const float wind_penalty = std::clamp(input.wind, 0.f, 1.f) * policy_.wind_penalty;
 
     float target = policy_.minimum_preserve + policy_.near_boost * near +
         policy_.double_talk_boost * double_talk - policy_.far_only_penalty * far_only - wind_penalty;
+    if (double_talk > .10f) target = std::max(target, .98f);
     target = std::clamp(target, 0.f, 1.f);
     const float step = target >= preserve_mix_ ? policy_.attack_step : policy_.release_step;
     preserve_mix_ += std::clamp(target - preserve_mix_, -step, step);
@@ -137,8 +176,9 @@ class AdaptiveController {
         p.far_only_penalty=.95f; p.max_gain_db=18.f; p.noise_gain_penalty=7.f;
         break;
       case ProcessingMode::vehicle_stream:
-        p.minimum_preserve=.05f; p.near_boost=.88f; p.double_talk_boost=.28f;
+        p.minimum_preserve=.05f; p.near_boost=.95f; p.double_talk_boost=.50f;
         p.far_only_penalty=.9f; p.wind_penalty=.16f; p.max_gain_db=18.f;
+        p.attack_step=.25f;
         break;
       case ProcessingMode::referenced_radio:
         p.minimum_preserve=.08f; p.near_boost=.9f; p.far_only_penalty=.82f;
@@ -166,6 +206,9 @@ class AdaptiveController {
   float gain_limit_db_ = 0;
   unsigned step_hold_ = 0;
   unsigned state_ = 0;
+  bool previous_far_active_ = false;
+  unsigned far_fall_cooldown_ = 0;
+  unsigned independent_speech_frames_ = 0;
 };
 
 } // namespace itu

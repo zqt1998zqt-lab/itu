@@ -89,9 +89,15 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
 endif()
 add_library(itu_webrtc STATIC ${wr_sources})
 target_compile_features(itu_webrtc PUBLIC cxx_std_20)
-target_include_directories(itu_webrtc PUBLIC "${wr}" "${wr}/third_party/abseil-cpp"
+# The pinned WebRTC/Abseil snapshot is third-party code. Mark its include
+# roots as SYSTEM so its vendor-only pragma/pedantic diagnostics do not hide
+# warnings from the vehicle engine sources.
+target_include_directories(itu_webrtc SYSTEM PUBLIC "${wr}" "${wr}/third_party/abseil-cpp"
   "${CMAKE_BINARY_DIR}/webrtc-generated")
 target_compile_definitions(itu_webrtc PUBLIC WEBRTC_POSIX WEBRTC_LINUX WEBRTC_APM_DEBUG_DUMP=0 ${wr_arch})
+# The pinned upstream sources contain intentional fallthrough/deprecation
+# compatibility paths. Keep these suppressions scoped to that target only.
+target_compile_options(itu_webrtc PRIVATE -Wno-return-type -Wno-deprecated-declarations)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
   foreach(path IN LISTS wr_x86_sse2)
     set_source_files_properties("${wr}/${path}" PROPERTIES COMPILE_OPTIONS "-msse2")
