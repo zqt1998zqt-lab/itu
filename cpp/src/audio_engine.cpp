@@ -1097,8 +1097,15 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
       const double rate=s.fullband_noise_frames<30 ? 1./(++s.fullband_noise_frames) : .05;
       s.fullband_noise_power+=(power/h-s.fullband_noise_power)*rate;
     }
+    // The fullband near-preservation path re-injects the low band and the
+    // fullband NS output. `control` is NS-derived evidence, which wind noise
+    // raises while the independent linear observer stays low, so a
+    // control-only confirmation latches the path on wind. Require the
+    // independent linear evidence as well; the hold still needs three
+    // consecutive confirmations. Gain, thresholds and denominators untouched.
+    const float kFullbandIndependentSpeechMin=.20f;
     const float eff_vad = std::max(control, info.linear_speech_probability);
-    if(fullband_near && eff_vad>.4f)
+    if(fullband_near && eff_vad>.4f && info.linear_speech_probability>kFullbandIndependentSpeechMin)
       s.fullband_speech_confirmation=std::min(3u,s.fullband_speech_confirmation+1);
     else s.fullband_speech_confirmation=0;
     if(!fullband_near) s.fullband_speech_hold=0;
@@ -1113,7 +1120,7 @@ Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,
         s.speech_branch_power>4*std::max(s.fullband_noise_power,1e-12);
     const float target=fullband_near && high_snr && (s.fullband_speech_hold || quiet_input || initial_observation) ? 1.f : 0.f;
     if(initial_observation && fullband_near) s.fullband_ns_mix=1.f;
-    else if(c.continuous_vehicle_policy && fullband_near && high_snr && (control>.3f || s.fullband_speech_hold || (s.frames<20 && s.speech_branch_power>1e-4))) s.fullband_ns_mix=1.f;
+    else if(c.continuous_vehicle_policy && fullband_near && high_snr && ((control>.3f && info.linear_speech_probability>kFullbandIndependentSpeechMin) || s.fullband_speech_hold || (s.frames<20 && s.speech_branch_power>1e-4))) s.fullband_ns_mix=1.f;
     s.fullband_ns_mix+=std::clamp(target-s.fullband_ns_mix,-.1f,.1f);
     const double high_power=std::pow(rms(s.mono.data(),h),2);
     const double low_power=std::pow(rms(s.lowband_output.data(),h),2);
