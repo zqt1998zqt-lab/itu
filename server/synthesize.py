@@ -213,7 +213,7 @@ DEMOS = (
     {
         "id": "echo_and_noise",
         "label": "回声 + 车内噪声",
-        "description": "远端单讲与近端语音交替，麦克风含声学回声与稳态噪声。",
+        "description": "近端单讲、远端单讲与双讲依次出现，麦克风含声学回声与稳态噪声。",
     },
     {
         "id": "near_only",
@@ -235,6 +235,7 @@ DEMO_IDS = tuple(item["id"] for item in DEMOS)
 
 
 def _band(rng, length: int, low: float, high: float, gain: float) -> np.ndarray:
+    """Band-limited noise. Used for the cabin noise floor, never for speech."""
     from scipy import signal as _signal
     data = _signal.sosfilt(
         _signal.butter(4, [low, high], fs=DEMO_RATE, btype="bandpass", output="sos"),
@@ -243,34 +244,108 @@ def _band(rng, length: int, low: float, high: float, gain: float) -> np.ndarray:
     return data / max(float(np.max(np.abs(data))), 1e-12) * gain
 
 
+# Formant triples (F1, F2, F3) in Hz for five cardinal vowels. The usual
+# measured adult-male values; a diagnostic fixture does not need more than this.
+_VOWELS = (
+    ("a", 730.0, 1090.0, 2440.0),
+    ("e", 530.0, 1840.0, 2480.0),
+    ("i", 270.0, 2290.0, 3010.0),
+    ("o", 570.0, 840.0, 2410.0),
+    ("u", 300.0, 870.0, 2240.0),
+)
+
+
+def _resonator(freq: float, bandwidth: float = 90.0):
+    """One two-pole resonator normalised to unity gain at DC."""
+    r = math.exp(-math.pi * bandwidth / DEMO_RATE)
+    theta = 2.0 * math.pi * freq / DEMO_RATE
+    a1 = -2.0 * r * math.cos(theta)
+    a2 = r * r
+    return 1.0 + a1 + a2, (1.0, a1, a2)
+
+
+def _syllable(rng, seconds: float, f0: float, gain: float) -> np.ndarray:
+    """One voiced syllable: a glottal pulse train shaped by three formants."""
+    from scipy import signal as _signal
+    n = max(int(seconds * DEMO_RATE), 1)
+    t = np.arange(n) / DEMO_RATE
+
+    # Pitch falls slightly across the syllable and drifts, so the result is a
+    # voice rather than a flat buzz.
+    drift = np.convolve(rng.normal(size=n), np.ones(64) / 64.0, mode="same")
+    contour = f0 * (1.0 - 0.10 * t / max(seconds, 1e-6)) * (1.0 + 0.03 * drift)
+    phase = np.cumsum(2.0 * np.pi * contour / DEMO_RATE)
+    pulses = np.zeros(n)
+    pulses[np.flatnonzero(np.diff(np.floor(phase / (2.0 * np.pi))) >= 1) + 1] = 1.0
+
+    vowel = _VOWELS[int(rng.integers(0, len(_VOWELS)))]
+    voiced = pulses
+    for freq in vowel[1:]:
+        b, a = _resonator(freq)
+        voiced = _signal.lfilter([b], a, voiced)
+    voiced = voiced / max(float(np.max(np.abs(voiced))), 1e-12)
+
+    # A decaying noise burst stands in for the consonant that opens a syllable.
+    onset = _band(rng, n, 1800.0, 6500.0, 1.0) * np.exp(-t / 0.035) * 0.35
+
+    envelope = np.minimum(1.0, t / 0.020) * np.minimum(1.0, (seconds - t) / 0.045)
+    syllable = (voiced + onset) * np.clip(envelope, 0.0, 1.0)
+    level = gain * float(rng.uniform(0.70, 1.0))
+    return syllable / max(float(np.max(np.abs(syllable))), 1e-12) * level
+
+
+def _voice(rng, length: int, start: float, end: float, f0: float, gain: float) -> np.ndarray:
+    """Fill [start, end) with deterministic voiced syllables separated by gaps."""
+    out = np.zeros(length)
+    cursor = float(start)
+    while True:
+        seconds = float(rng.uniform(0.14, 0.26))
+        if cursor + seconds > end - 0.02:
+            seconds = end - 0.02 - cursor
+        if seconds < 0.09:
+            break
+        piece = _syllable(rng, seconds, f0, gain)
+        head = int(round(cursor * DEMO_RATE))
+        stop = min(head + len(piece), length)
+        if stop > head:
+            out[head:stop] += piece[: stop - head]
+        cursor += seconds + float(rng.uniform(0.02, 0.07))
+    return out
+
+
 def _demo_signals(scenario: str) -> tuple[np.ndarray, np.ndarray]:
     rng = np.random.default_rng(200 + DEMO_IDS.index(scenario))
     length = int(DEMO_SECONDS * DEMO_RATE)
-    time_axis = np.arange(length) / DEMO_RATE
 
-    def gate(signal, start, end):
-        return signal * ((time_axis >= start) & (time_axis < end))
-
-    near = gate(_band(rng, length, 200, 3400, 0.18), 0.4, 3.0)
-    near_late = gate(_band(rng, length, 200, 3400, 0.18), 3.6, 5.4)
-    far = gate(_band(rng, length, 150, 3000, 0.20), 0.6, 3.2)
-    far_short = gate(_band(rng, length, 150, 3000, 0.20), 0.6, 2.0)
-    unrelated = gate(_band(rng, length, 400, 2400, 0.20), 0.8, 3.4)
-    noise = _band(rng, length, 40, 1200, 0.02)
+    noise = _band(rng, length, 40.0, 1200.0, 0.025)
+    # Two talkers at different pitch, so the echo is not just a delayed copy of
+    # the near end and the canceller has something real to track.
+    near = (
+        _voice(rng, length, 0.30, 2.00, 118.0, 0.28)
+        + _voice(rng, length, 2.60, 3.40, 118.0, 0.28)
+        + _voice(rng, length, 4.30, 5.70, 118.0, 0.28)
+    )
+    far = _voice(rng, length, 2.30, 4.00, 205.0, 0.30)
+    far_short = _voice(rng, length, 0.40, 2.00, 205.0, 0.30)
+    unrelated = _voice(rng, length, 0.80, 3.40, 168.0, 0.30)
     # A 40 ms acoustic path is long enough to require real delay handling.
     echo = np.r_[np.zeros(640), far[:-640]] * 0.65
 
     if scenario == "echo_and_noise":
-        reference, microphone = far, echo + near + near_late + noise
+        # near 0.3-2.0, far 2.3-4.0, double talk 2.6-3.4, near 4.3-5.7
+        reference, microphone = far, echo + near + noise
     elif scenario == "near_only":
-        reference, microphone = np.zeros(length), near + near_late + noise
+        reference, microphone = np.zeros(length), near + noise
     elif scenario == "wrong_reference":
         reference = unrelated
-        microphone = echo + near + near_late + noise
+        microphone = echo + near + noise
     elif scenario == "far_end_stops":
+        # The far end stops at 2 s and the near end only starts afterwards, so
+        # the echo tail and the protection release are easy to hear alone.
+        near_after = _voice(rng, length, 2.40, 5.60, 118.0, 0.28)
+        echo_short = np.r_[np.zeros(640), far_short[:-640]] * 0.65
         reference = far_short
-        echo = np.r_[np.zeros(640), far_short[:-640]] * 0.65
-        microphone = echo + near + near_late + noise
+        microphone = echo_short + near_after + noise
     else:
         raise AudioError(f"未知示例场景：{scenario}")
     return microphone.astype(np.float32), reference.astype(np.float32)
