@@ -36,6 +36,8 @@ class ParametricEq {
     for(unsigned i=0;i<count;++i) pcm[i]*=gain_;
     filter_.Process(std::span<float>(pcm,count));
   }
+  unsigned delay() const noexcept {return 0;}
+  std::size_t memory_bytes() const noexcept {return sizeof(*this);}
  private:
   using Coefficients=webrtc::CascadedBiQuadFilter::BiQuadCoefficients;
   static std::vector<Coefficients> coefficients(const EqConfig& c,unsigned rate) {

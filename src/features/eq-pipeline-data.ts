@@ -1,0 +1,845 @@
+import type {
+  Algorithm,
+  AlgorithmFlow,
+  EdgeKind,
+  FlowNode,
+} from "./ns-pipeline-data";
+import type {
+  PipelineCaseAudio,
+  PipelineCaseGroup,
+  PipelineEvaluationData,
+} from "./PipelineEvaluation";
+
+export type EqAlgorithm = Algorithm & { evaluation: PipelineEvaluationData };
+
+const ASSET = "/evaluation/pipeline-cases";
+const MATRIX = "build/eq-algorithm-matrix-linear-20261022-r1/report.json";
+const RUN_ROOT = "build/eq-algorithm-matrix-linear-20261022-r1";
+const PASS_KEY =
+  "controlled-native-full-20261017__vehicle-16000-holdout-m2-11__tbus";
+const FAIL_KEY =
+  "controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus";
+const LOW_SHELF_KEY =
+  "controlled-native-full-20261017__vehicle-16000-holdout-m1-10__tbus";
+const STRAFFIC_KEY =
+  "controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic";
+
+const caseWav = (variant: string, key: string) =>
+  `${RUN_ROOT}/${variant}/cases/${key}/runs/full/result.after.wav`;
+
+const node = (
+  id: string,
+  col: number,
+  title: string,
+  sub: string,
+  kind: FlowNode["kind"],
+  tag: string,
+  body: string,
+  where: string,
+  condition: string,
+  fields: string[],
+  formula: string,
+): FlowNode => ({
+  id,
+  col,
+  row: 0,
+  title,
+  sub,
+  kind,
+  tag,
+  body,
+  where,
+  condition,
+  fields,
+  formula,
+});
+
+const flow = (
+  title: string,
+  description: string,
+  nodes: FlowNode[],
+  edges: Array<[string, string, EdgeKind]>,
+): AlgorithmFlow => ({
+  eyebrow: "VCP · UPLINK EQ",
+  title,
+  description,
+  lanes: ["音频", "控制 / 证据"],
+  nodes,
+  edges,
+});
+
+function cascadeFlow(
+  title: string,
+  description: string,
+  mode: string,
+  details: string,
+  controlTag = "参数",
+): AlgorithmFlow {
+  return flow(
+    title,
+    description,
+    [
+      node(
+        "protected",
+        0,
+        "protected NR",
+        "AEC / NR 之后",
+        "input",
+        "INPUT",
+        "EQ 接收已受保护的近端 PCM。当前 VCP 拓扑把 EQ 放在 AGC 与 TX DRC 之前，因此频响整形会改变后续 AGC 所看到的信号。",
+        "AudioEngine::process()",
+        "uplink EQ 关闭时平直直通；显式配置频带后才启用。",
+        ["sample_rate", "pre_eq"],
+        "x[n]",
+      ),
+      node(
+        "preamp",
+        1,
+        "预增益",
+        "逐样本线性缩放",
+        "control",
+        "CONTROL",
+        "所有频带之前先应用一个 dB 预增益。正 boost 必须由负 preamp 留出数字余量，峰值超限会被参数校验拒绝。",
+        "ParametricEq::process()",
+        "preamp_db 被限制在 -24…0 dB；band boost 由 preamp 抵消。",
+        ["output_eq_preamp_db", "peak_dbfs"],
+        "p = 10^(preamp_db/20)",
+      ),
+      node(
+        "bands",
+        2,
+        mode,
+        details,
+        "core",
+        "EQ CORE",
+        "每个频带是一个 Audio EQ Cookbook 二阶节，按配置顺序级联。IIR 保持因果相位，不引入额外固定块缓存。",
+        "ParametricEq · WebRTC Biquad",
+        "peak / low_shelf / high_shelf；最多 8 段，频率必须低于 Nyquist。",
+        ["output_eq_bands", "eq_delay_samples"],
+        "y(z) = Π H_b(z) · p · x(z)",
+      ),
+      node(
+        "agc",
+        3,
+        "AGC / DRC",
+        "按整形后信号工作",
+        "output",
+        "TAIL",
+        "EQ 输出继续进入 AGC 与 TX DRC。矩阵只为所有变体关闭 AGC/DRC/limiter 的低切，保留同一 VCP 上下文并配对 bypass。",
+        "--eq-before-agc / VCP profile",
+        "后置 EQ 模式仍可选；VCP 默认用 EQ 前置于 AGC。",
+        ["output_eq_scope", "dsp_delay_samples"],
+        "y = agc(eq(x))",
+      ),
+      node(
+        "evidence",
+        2,
+        "同案例门控",
+        "SI-SDR 与 STOI",
+        "control",
+        controlTag,
+        "当前 EQ 门限比较同一案例的 EQ 输出与 bypass 输出；不使用跨案例均值代替准入。",
+        "run_eq_algorithm_matrix.py",
+        "SI-SDR 相对差 ≥ -0.1 dB 且 STOI 相对差 ≥ -0.02。",
+        ["sisdr_delta", "stoi_delta"],
+        "pass = ΔSI-SDR ≥ -0.1 ∧ ΔSTOI ≥ -0.02",
+      ),
+    ],
+    [
+      ["protected", "preamp", "audio"],
+      ["preamp", "bands", "audio"],
+      ["bands", "agc", "audio"],
+      ["evidence", "bands", "control"],
+      ["evidence", "agc", "control"],
+    ],
+  );
+}
+
+function researchFlow(
+  title: string,
+  description: string,
+  method: string,
+  cost: string,
+  risk: string,
+): AlgorithmFlow {
+  return flow(
+    title,
+    description,
+    [
+      node(
+        "input",
+        0,
+        "语音 / 噪声",
+        "或播放信号",
+        "input",
+        "INPUT",
+        "研究路线的输入依技术而异；反馈 notch 需要扬声器参考，动态 EQ 需要电平包络，响应反演需要可信的测量或 RIR。",
+        "无生产入口",
+        "本轮没有统一冻结输入与准入结果。",
+        ["input_level", "reference_role"],
+        "x[n]",
+      ),
+      node(
+        "estimator",
+        1,
+        "状态估计",
+        "包络 / 响应 / 模型",
+        "control",
+        method,
+        `估计器保存的关键状态是：${description} 当前这项只在技术调研层。`,
+        "尚未接入 VCP",
+        cost,
+        ["state", "confidence"],
+        "θ[t] = E(x[t])",
+      ),
+      node(
+        "processor",
+        2,
+        "频响处理",
+        "时变或离线整形",
+        "optional",
+        "RESEARCH",
+        risk,
+        "尚无生产实现",
+        "必须先定义冻结目标曲线、稳定性和失败门限。",
+        ["gain_db", "response_db"],
+        "H(z,t)",
+      ),
+      node(
+        "gate",
+        3,
+        "待建评测",
+        "不可伪造通过率",
+        "output",
+        "PENDING",
+        "没有真实实现和冻结矩阵时，状态保持待测。不能借用参数 EQ 的通过数。",
+        "none",
+        "按相同 108 案例与配对 bypass 门限评测后才可准入。",
+        ["engineering_pass_cases"],
+        "status = unmeasured",
+      ),
+    ],
+    [
+      ["input", "estimator", "control"],
+      ["input", "processor", "audio"],
+      ["estimator", "processor", "optional"],
+      ["processor", "gate", "optional"],
+    ],
+  );
+}
+
+const caseAudio = (
+  name: string,
+  values: Omit<PipelineCaseAudio, "waveformSrc" | "melSrc">,
+): PipelineCaseAudio => ({
+  ...values,
+  waveformSrc: `${ASSET}/${name}-waveform.svg`,
+  melSrc: `${ASSET}/${name}-mel.svg`,
+});
+
+const failCase = (
+  name: string,
+  variant: string,
+  key: string,
+  detail: string,
+  analysis: string,
+  sampleRate: number,
+  delaySamples: number,
+) => ({
+  id: "fail" as const,
+  status: "失败" as const,
+  headline: "本门限下无通过案例",
+  note: "108 个案例逐一与 bypass 配对，没有任何案例同时满足 SI-SDR 与 STOI 门限。",
+  caseAudio: caseAudio(name, {
+    id: `${sampleRate / 1000} kHz paired failure representative`,
+    detail,
+    sampleRate,
+    windowSeconds: [13, 21],
+    delaySamples,
+    beforeLabel: "EQ bypass",
+    afterLabel: "EQ 输出",
+    beforeFile: caseWav("bypass", key),
+    afterFile: caseWav(variant, key),
+    analysis,
+  }),
+});
+
+const threeBandCases: PipelineCaseGroup[] = [
+  {
+    id: "pass" as const,
+    status: "通过" as const,
+    headline: "16 kHz · 低电平 · tbus · +0.316 dB",
+    note: "SI-SDR 相对 bypass +0.3157 dB，STOI −0.000197；这是 9 个通过案例之一。",
+    caseAudio: caseAudio("eq-three-pass", {
+      id: "controlled-native-full-20261017 / vehicle-16000-holdout-m2-11 / tbus",
+      detail: "16 kHz；近端 −45 dBFS；同输入、同 VCP、同门限；三段形状成功改善配对 SI-SDR",
+      sampleRate: 16000,
+      windowSeconds: [13, 21],
+      delaySamples: 98,
+      beforeLabel: "EQ bypass",
+      afterLabel: "三段 EQ",
+      beforeFile: caseWav("bypass", PASS_KEY),
+      afterFile: caseWav("three_band", PASS_KEY),
+      analysis: "通过：ΔSI-SDR +0.3157 dB；ΔSTOI −0.000197",
+    }),
+  },
+  {
+    id: "fail" as const,
+    status: "失败" as const,
+    headline: "48 kHz · −30 dBFS · tbus · −14.022 dB",
+    note: "高采样率、−30 dBFS 近端出现严重 SI-SDR 回归；STOI 几乎不变，不能把语音清晰度近似当成唯一质量结论。",
+    caseAudio: caseAudio("eq-three-fail", {
+      id: "controlled-native-full-20261017 / vehicle-48000-holdout-m4-12 / tbus",
+      detail: "48 kHz；近端 −30 dBFS；同一冻结场景；三段固定形状在 99/108 案例失败",
+      sampleRate: 48000,
+      windowSeconds: [13, 21],
+      delaySamples: 341,
+      beforeLabel: "EQ bypass",
+      afterLabel: "三段 EQ",
+      beforeFile: caseWav("bypass", FAIL_KEY),
+      afterFile: caseWav("three_band", FAIL_KEY),
+      analysis: "失败：ΔSI-SDR −14.0221 dB；STOI 未提供豁免",
+    }),
+  },
+];
+
+export const eqAlgorithms: EqAlgorithm[] = [
+  {
+    id: "vcp-cascade",
+    title: "VCP 参数 EQ 级联",
+    short: "运行时 · peak / shelf · 16/24/48 kHz",
+    category: "runtime",
+    status: "默认可执行路径",
+    rate: "16 / 24 / 48 kHz",
+    entry: "AudioEngine · ParametricEq",
+    cli: "--eq-band; --eq-preamp-db",
+    summary:
+      "项目当前唯一生产可配置 EQ 执行器：Audio EQ Cookbook 峰值与搁架滤波器顺序级联，整条路径在 VCP 中位于 protected NR 之后、AGC/DRC 之前。",
+    boundary:
+      "执行器存在且真实改变 PCM，不等于任意 EQ 形状都适合语音上行。参数限制与 preamp 余量应结合响应和同案例质量门限一起验收。",
+    evaluation: {
+      tone: "warning",
+      status: "当前源码 · 108 案例配对",
+      headline: "形状决定 0–9 / 108",
+      scope: "五种真实 EQ 形状；16/24/48 kHz；同案例与 bypass 配对",
+      source: MATRIX,
+      note:
+        "五种 EQ 形状在 540/540 个输出中都改变 PCM 且无削波；低架、双峰、校准反演和线性相位 FIR 分别为 0/108 通过，三段 9/108 通过。实现有效，固定目标形状尚未达到通用准入。",
+      metrics: [
+        { label: "输出改变", value: "540 / 540", detail: "五种 EQ 形状均真实改变 PCM" },
+        { label: "削波", value: "0", detail: "全部真实语音案例" },
+        { label: "标准符合性", value: "false", detail: "工程诊断，不是 ITU 认证" },
+      ],
+      caseGroups: threeBandCases,
+    },
+    flow: cascadeFlow(
+      "VCP 参数 EQ · 级联路径",
+      "所有形状共享同一个因果 biquad 执行器；差异来自频带数量和目标频响。",
+      "峰值 / 搁架级联",
+      "最多 8 段，支持 peak、low_shelf、high_shelf。",
+    ),
+  },
+  {
+    id: "three-band",
+    title: "三段目标形状",
+    short: "低架 +2 · 1 kHz −2 · 高架 +1",
+    category: "runtime",
+    status: "9 / 108 通过",
+    rate: "16 / 24 / 48 kHz",
+    entry: "ParametricEq",
+    cli: "preamp −3 dB; low_shelf,180,+2; peak,1000,−2; high_shelf,3500,+1",
+    summary:
+      "三段固定语音整形：抬高 180 Hz 低架、压低 1 kHz 中频、轻微抬高 3.5 kHz。它真实执行并在 9 个 16 kHz 案例通过，但对 48 kHz 的多数场景仍有显著回归。",
+    boundary:
+      "9/108 不是生产准入。通过案例全部在 16 kHz，且只来自 6 个场景：tbus 5、VW CAVEMOVE 3、Alfa CAVEMOVE 1；同一形状在 48 kHz 失真的原因尚未被本矩阵解释。",
+    evaluation: {
+      tone: "warning",
+      status: "工程门限 · 当前源码",
+      headline: "9 / 108 通过",
+      scope: "同一冻结 AGC 语音 108 案例；EQ 相对 bypass 配对",
+      source: MATRIX,
+      note:
+        "均值 ΔSI-SDR −3.910 dB、中位数 −3.496 dB；99 个案例低于 −0.1 dB 门限。STOI 没有低于 −0.02 的案例。9 个通过案例都在 16 kHz，不是跨采样率泛化证据。",
+      metrics: [
+        { label: "通过", value: "9 / 108", detail: "全部为 16 kHz" },
+        { label: "SI-SDR 回归", value: "99 / 108", detail: "低于 −0.1 dB" },
+        { label: "平均 Δ SI-SDR", value: "−3.910 dB", detail: "相对 bypass" },
+      ],
+      caseGroups: threeBandCases,
+    },
+    flow: cascadeFlow(
+      "三段 EQ · 固定目标形状",
+      "三段一起工作；真正执行的是三个独立二阶段级联，而不是理想频域掩膜。",
+      "三段级联",
+      "low_shelf(180,+2) → peak(1000,−2) → high_shelf(3500,+1)。",
+    ),
+  },
+  {
+    id: "low-shelf",
+    title: "固定低架削减",
+    short: "160 Hz · −3 dB · Q 0.707",
+    category: "runtime",
+    status: "0 / 108 通过",
+    rate: "16 / 24 / 48 kHz",
+    entry: "ParametricEq",
+    cli: "--eq-band low_shelf,160,-3,0.7071",
+    summary:
+      "最简单的真实 EQ 对照：仅降低 160 Hz 附近低频。它改变全部输出并几乎不改变 STOI，但每一例都超过 SI-SDR 损失门限。",
+    boundary:
+      "最佳案例仍为 −0.588 dB，说明问题不是偶发最差值；该形状不适合作为当前语音语料的默认 EQ。",
+    evaluation: {
+      tone: "warning",
+      status: "当前源码 · 同案例配对",
+      headline: "0 / 108 通过",
+      scope: "16/24/48 kHz；近端 −45/−30/−15 dBFS",
+      source: MATRIX,
+      note:
+        "平均 ΔSI-SDR −3.387 dB、中位数 −2.512 dB；108 个案例均低于 −0.1 dB。STOI 回归低于 −0.02 的案例为 0。",
+      metrics: [
+        { label: "通过", value: "0 / 108", detail: "无一对满足门限" },
+        { label: "108 个 SI-SDR 损失", value: "全部", detail: "最佳仍为 −0.588 dB" },
+        { label: "STOI 大回归", value: "0", detail: "但没有豁免 SI-SDR" },
+      ],
+      caseGroups: [failCase(
+        "eq-low-shelf-fail",
+        "low_shelf",
+        LOW_SHELF_KEY,
+        "controlled-native-full-20261017；16 kHz；−45 dBFS；tbus；这是低架损失最小的代表，而非挑选最差案例",
+        "失败：ΔSI-SDR −0.5881 dB；ΔSTOI −0.000336",
+        16000,
+        96,
+      )],
+    },
+    flow: cascadeFlow(
+      "低架 EQ · 单一滤波段",
+      "只有一个低架项；结果用来验证低频整形是否改善语音配对、还是仅改变频谱。",
+      "single low shelf",
+      "160 Hz、−3 dB、Q 0.7071。",
+    ),
+  },
+  {
+    id: "parametric-peak",
+    title: "双峰参数 EQ",
+    short: "250 Hz +3 · 1 kHz −3 · 3 dB preamp",
+    category: "runtime",
+    status: "0 / 108 通过",
+    rate: "16 / 24 / 48 kHz",
+    entry: "ParametricEq",
+    cli: "preamp −3 dB; peak,250,+3,1; peak,1000,−3,1",
+    summary:
+      "把 250 Hz 提高 3 dB、1 kHz 降低 3 dB，并用 −3 dB preamp 抵消峰值 boost。它展示最高统计回归：每一例都超过 SI-SDR 损失门限。",
+    boundary:
+      "无削波不代表无失真；线性频响改变仍会降低与 clean 的投影 SI-SDR。",
+    evaluation: {
+      tone: "warning",
+      status: "当前源码 · 同案例配对",
+      headline: "0 / 108 通过",
+      scope: "两段参数峰与 −3 dB preamp；同案例配对",
+      source: MATRIX,
+      note:
+        "平均 ΔSI-SDR −5.454 dB、中位数 −3.821 dB；最佳 −0.910 dB，仍未达到 −0.1 dB 门限。",
+      metrics: [
+        { label: "通过", value: "0 / 108", detail: "全案例失败" },
+        { label: "平均 Δ SI-SDR", value: "−5.454 dB", detail: "五条路径中较差" },
+        { label: "削波", value: "0", detail: "preamp 保留数字余量" },
+      ],
+      caseGroups: [failCase(
+        "eq-parametric-fail",
+        "parametric_peak",
+        STRAFFIC_KEY,
+        "controlled-native-full-20261017；48 kHz；−15 dBFS；straffic；这是双峰损失最小案例，仍失败",
+        "失败：ΔSI-SDR −0.9098 dB；ΔSTOI −0.000600",
+        48000,
+        341,
+      )],
+    },
+    flow: cascadeFlow(
+      "双峰参数 EQ · 峰谷组合",
+      "boost 与 cut 在时域级联；preamp 只控制余量，不补偿频响目标。",
+      "two parametric peaks",
+      "250 Hz +3 dB 与 1 kHz −3 dB。",
+    ),
+  },
+  {
+    id: "calibrated-inverse",
+    title: "校准反演控制面",
+    short: "合成 250 Hz 共振 · 离线拟合 · 不随案例自适应",
+    category: "composite",
+    status: "校准通过 · 语音失败",
+    rate: "16 kHz calibration; matrix 16/24/48",
+    entry: "tune_calibrated_eq.py → ParametricEq",
+    cli: "preamp −0.049 dB; 7 peak bands; online_adaptive_eq=false",
+    summary:
+      "离线读取归一化测量响应，拟合反滤波器并输出参数 EQ CLI。当前拟合在 −5.985 dB/250 Hz 附近形成主反演段。校准闭环成功不等于自然语音语料准入。",
+    boundary:
+      "校准输入是合成数字共振，不是车舱声场；拟合是一次性控制面，matrix 把冻结参数应用到语音只是反演参数的泛化测试。",
+    evaluation: {
+      tone: "warning",
+      status: "合成校准通过 · 108 语音 0/108",
+      headline: "响应通过；质量未准入",
+      scope: "校准：16 kHz 合成数字掩膜；质量：108 语音配对",
+      source: "build/itut-eq-calibration-20261010/16000 + " + MATRIX,
+      note:
+        "校准掩膜余量由 −5.3334 dB 改善至预拟合 +0.2259 dB、重测 +0.2405 dB；同一冻结反演形状在语音矩阵为 0/108，因为目标共振不是这些语音场景的真实声学响应。",
+      metrics: [
+        { label: "校准余量", value: "+0.2405 dB", detail: "合成数字重测" },
+        { label: "语音通过", value: "0 / 108", detail: "固定反演参数泛化失败" },
+        { label: "在线自适应", value: "false", detail: "未实现" },
+      ],
+      caseGroups: [failCase(
+        "eq-calibrated-fail",
+        "calibrated_inverse",
+        STRAFFIC_KEY,
+        "controlled-native-full-20261017；48 kHz；−15 dBFS；straffic；反演形状泛化中损失最小案例仍失败",
+        "失败：ΔSI-SDR −3.7123 dB；ΔSTOI −0.001564",
+        48000,
+        341,
+      )],
+    },
+    flow: cascadeFlow(
+      "校准反演 · 控制面",
+      "测量 → 目标响应 → 参数拟合 → Biquad 级联；不是运行时测量与逐帧重拟合。",
+      "fitted inverse biquads",
+      "七个峰值项表达反演形状，主段为 250 Hz。",
+      "离线拟合",
+    ),
+  },
+  {
+    id: "eq-position",
+    title: "EQ / AGC 顺序",
+    short: "VCP 前置；legacy 后置；显式切换",
+    category: "composite",
+    status: "路径已核验",
+    rate: "core rate or I/O rate",
+    entry: "AudioEngine · eq_before_agc",
+    cli: "--eq-before-agc / --no-eq-before-agc",
+    summary:
+      "VCP 默认 EQ 在 AGC 前执行；legacy 后置模式保留。顺序改变 AGC 所见信号与诊断 tap 的采样率，必须作为组合路径单独评测。",
+    boundary:
+      "当前 108 矩阵主要使用 VCP 前置路径；不能把前置结果直接外推到后置或硬件音量控制。",
+    evaluation: {
+      tone: "pending",
+      status: "顺序与字段已核验 · 配对质量待补齐",
+      headline: "路径成立，顺序对照待测",
+      scope: "前置/后置；核心率/I/O 率；AGC 与 DRC 状态",
+      source: "cpp/src/audio_engine.cpp; cpp/src/native_pipeline.cpp",
+      note:
+        "源码确认两种位置与诊断字段均存在，但本轮没有用同一冻结语料逐形状比较前置与后置。",
+      metrics: [
+        { label: "VCP 位置", value: "EQ → AGC", detail: "前置" },
+        { label: "legacy 位置", value: "AGC → EQ", detail: "显式保留" },
+        { label: "顺序准入", value: "待补", detail: "不引用前置结果" },
+      ],
+    },
+    flow: cascadeFlow(
+      "EQ 位置 · 组合边界",
+      "相同频带在不同位置改变后续 AGC 观测及采样率，必须分开评测。",
+      "位置选择",
+      "eq_before_agc 选择核心率前置或 legacy I/O 率后置。",
+      "位置开关",
+    ),
+  },
+  {
+    id: "graphic-eq",
+    title: "固定分数倍频程图形均衡",
+    short: "31/15 段 · 固定中心频率 · 未实测",
+    category: "research",
+    status: "调研",
+    rate: "待定义",
+    entry: "当前未实现",
+    cli: "no runtime flag",
+    summary:
+      "用对数分布的固定中心频率和频带增益提供可操作界面。与现有参数 EQ 的主要区别是频带位置固定、数量更多。",
+    boundary:
+      "尚未实现为本项目 biquad 组，也没有 108 案例评测；不能引用参数 EQ 结果。",
+    evaluation: {
+      tone: "pending",
+      status: "未实测",
+      headline: "待建",
+      scope: "固定 31/15 段；频率响应与语音配对",
+      source: "研究路线",
+      note: "必须先实现参数到 IIR 的级联，再定义 preamp 与逐案例门限。",
+      metrics: [
+        { label: "实现", value: "无", detail: "仅技术路线" },
+        { label: "案例", value: "0", detail: "未评测" },
+        { label: "标准符合性", value: "false", detail: "不可用" },
+      ],
+    },
+    flow: researchFlow(
+      "图形均衡 · 研究路线",
+      "固定频带、用户/自动设定每段增益。",
+      "图形滤波器组",
+      "需约束最大总 boost 与 preamp。",
+      "频带之间相互耦合；若直接搬用理想滤波器曲线会低估实现差异。",
+    ),
+  },
+  {
+    id: "dynamic-eq",
+    title: "动态 EQ / 多段压缩",
+    short: "按频带包络改变增益 · 未实测",
+    category: "research",
+    status: "调研",
+    rate: "待定义",
+    entry: "当前未实现",
+    cli: "no runtime flag",
+    summary:
+      "按每个频带瞬态与包络动态调整增益，可抑制窄带强噪声，也可在语音瞬态出现时释放增益。",
+    boundary:
+      "时变滤波器会引入泵动、攻击/释放与瞬态失真；没有实现与冻结案例。",
+    evaluation: {
+      tone: "pending",
+      status: "未实测",
+      headline: "待建",
+      scope: "attack/release/threshold/ratio；逐帧状态",
+      source: "研究路线",
+      note: "适合与现有 AGC 分开评估，避免把频带动态误归因给全局增益。",
+      metrics: [
+        { label: "时变状态", value: "无实现", detail: "未来需冻结" },
+        { label: "案例", value: "0", detail: "当前不可比较" },
+        { label: "实时性", value: "待测", detail: "含包络与滤波" },
+      ],
+    },
+    flow: researchFlow(
+      "动态 EQ · 研究路线",
+      "频带电平驱动时变增益。",
+      "频带包络 + 增益律",
+      "额外 attack/release 状态与旁路一致性。",
+      "泵动与近端瞬态是最主要风险。",
+    ),
+  },
+  {
+    id: "linear-phase-fir",
+    title: "线性相位 FIR",
+    short: "对称 FIR · 321/481/961 taps · 当前源码",
+    category: "experiment",
+    status: "0 / 108 通过",
+    rate: "16 / 24 / 48 kHz",
+    entry: "LinearPhaseEq · AudioEngine / NativePipeline",
+    cli: "--eq-phase linear [--eq-linear-taps 321|481|961]",
+    summary:
+      "新增可执行对称 FIR：默认约 20 ms、固定群延迟 160/240/480 样本；与最小相位三段 EQ 共用同一目标频带与 preamp，默认关闭时保持原路径。",
+    boundary:
+      "同一三段形状在 108 个冻结语音案例中改变全部输出但 0 个通过；平均 ΔSI-SDR −1.908 dB。固定群延迟和 321–961 taps 的卷积成本必须单独计入实时预算。",
+    evaluation: {
+      tone: "warning",
+      status: "当前源码 · 108 案例配对",
+      headline: "0 / 108 通过",
+      scope: "同一三段目标形状；minimum/linear 配对；16/24/48 kHz",
+      source: MATRIX,
+      note:
+        "输出改变 108/108、削波 0；均值 ΔSI-SDR −1.9078 dB、ΔSTOI −0.000159。相对最小相位三段，线性相位没有改善语音质量，也没有解决固定形状泛化失败。",
+      metrics: [
+        { label: "通过", value: "0 / 108", detail: "相对 bypass 配对" },
+        { label: "群延迟", value: "160 / 240 / 480", detail: "I/O 率样本" },
+        { label: "FIR taps", value: "321 / 481 / 961", detail: "默认约 20 ms" },
+      ],
+      caseGroups: [failCase(
+        "eq-linear-fail",
+        "linear_phase_three_band",
+        FAIL_KEY,
+        "48 kHz；三段形状；FIR 固定 480 样本群延迟；失败门为 ΔSI-SDR −0.1 dB 与 ΔSTOI −0.02",
+        "失败：ΔSI-SDR −8.5733 dB；ΔSTOI −0.000135；输出真实改变且无削波",
+        48000,
+        829,
+      )],
+    },
+    flow: cascadeFlow(
+      "线性相位 FIR · 当前源码",
+      "目标频响在控制线程拟合成对称冲激响应；音频回调只做有界卷积，群延迟显式发布。",
+      "对称 FIR",
+      "minimum 默认；linear 显式 opt-in；奇数 taps 33..2049。",
+    ),
+  },
+  {
+    id: "adaptive-notch",
+    title: "自适应反馈 notch",
+    short: "追踪窄带啸叫 · 未实测",
+    category: "research",
+    status: "调研",
+    rate: "待定义",
+    entry: "当前未实现",
+    cli: "no runtime flag",
+    summary:
+      "检测稳定窄带峰并移动 notch，典型用于扬声器—麦克风反馈。它不同于固定 EQ，需要频率跟踪与失锁保护。",
+    boundary:
+      "本项目上行 EQ 没有扬声器反馈参考与稳定性冻结案例；不能用它替代通用语音 EQ。",
+    evaluation: {
+      tone: "pending",
+      status: "未实测",
+      headline: "待建",
+      scope: "notch 频率/Q；反馈检测；失锁保护",
+      source: "研究路线",
+      note: "需要专门构造反馈路径，现有噪声语料不足以验证。",
+      metrics: [
+        { label: "输入", value: "需参考", detail: "扬声器反馈" },
+        { label: "状态", value: "频率跟踪", detail: "未实现" },
+        { label: "案例", value: "0", detail: "不可比较" },
+      ],
+    },
+    flow: researchFlow(
+      "自适应 notch · 研究路线",
+      "检测窄带反馈并动态移动 notch。",
+      "峰值检测 / 频率跟踪",
+      "低阶滤波但需要检测与稳定控制。",
+      "误触发 notch 会伤害语音共振峰。",
+    ),
+  },
+  {
+    id: "acoustic-inverse",
+    title: "车舱响应反卷积",
+    short: "RIR / transfer function · 目标曲线 · 未实测",
+    category: "research",
+    status: "调研",
+    rate: "待定义",
+    entry: "未来控制面",
+    cli: "no runtime flag",
+    summary:
+      "从实测 RIR 或传递函数求逆，并用目标曲线限制 boost、平滑正则化与滤波器长度。它比一次性参数拟合更接近声学校准。",
+    boundary:
+      "现有 calibration 仅用合成数字共振；未接入座椅/车型 RIR、扬声器、麦克风和混响。",
+    evaluation: {
+      tone: "pending",
+      status: "未实测",
+      headline: "待建",
+      scope: "RIR / transfer function；regularization；target curve",
+      source: "研究路线",
+      note: "需先建立可重复声学采集与留出车型验证，再考虑 108 语音矩阵。",
+      metrics: [
+        { label: "现有证据", value: "合成", detail: "非车舱实采" },
+        { label: "反卷积", value: "未实现", detail: "路线" },
+        { label: "标准符合性", value: "false", detail: "不可宣称" },
+      ],
+    },
+    flow: researchFlow(
+      "车舱响应反卷积 · 研究路线",
+      "测量响应、约束目标与正则化，再生成稳定滤波。",
+      "RIR / transfer function",
+      "需测量数据、正则化与离线设计；可复用参数级联。",
+      "过深反演会提升窄带噪声和鲁棒性风险。",
+    ),
+  },
+  {
+    id: "neural-eq",
+    title: "神经 / 感知 EQ",
+    short: "预测时变频响 · 可懂度目标 · 未实测",
+    category: "research",
+    status: "调研",
+    rate: "待定义",
+    entry: "当前未实现",
+    cli: "no runtime flag",
+    summary:
+      "用神经网络或感知模型预测时变频响，以可懂度、响度与自然度为联合目标；需要训练、设备推理和失败保护。",
+    boundary:
+      "没有模型、冻结权重与实时性测量。不能把现有 NS 神经后端作为 EQ 证据。",
+    evaluation: {
+      tone: "pending",
+      status: "未实测",
+      headline: "待建",
+      scope: "感知目标 / 模型推理 / fallback",
+      source: "研究路线",
+      note: "应和规则 EQ 用同一案例门限评测，并额外报告推理时延与内存。",
+      metrics: [
+        { label: "模型", value: "无", detail: "仅路线" },
+        { label: "实时性", value: "待测", detail: "aarch64 未知" },
+        { label: "失败保护", value: "待建", detail: "需要 fallback" },
+      ],
+    },
+    flow: researchFlow(
+      "神经 / 感知 EQ · 研究路线",
+      "从语音特征预测频响控制，而非直接取代 biquad。",
+      "感知模型 + 频响控制",
+      "推理时延、内存、能耗和回退。",
+      "模型不可解释与漂移需要严格隔离。",
+    ),
+  },
+];
+
+export const eqMatrix = {
+  source: MATRIX,
+  cliSha256: "e1558f1e98d0849fee29742bef7d29d90e342f53dd5264a8b846914b155b3fca",
+  resultsSha256: "b4e5fa04a8fbd1f2e4961fd2e358b5c0103e693c8e2eca1e4a7b268c689210a6",
+  caseCount: 108,
+  gate: "near_late ΔSI-SDR ≥ −0.1 dB 且 ΔSTOI ≥ −0.02",
+  variants: [
+    {
+      id: "bypass",
+      label: "Bypass",
+      configuration: "配对控制",
+      pass: 108,
+      meanSisdr: 0,
+      medianSisdr: 0,
+      meanStoi: 0,
+      changed: 0,
+      clipped: 0,
+    },
+    {
+      id: "low_shelf",
+      label: "低架削减",
+      configuration: "160 Hz −3 dB",
+      pass: 0,
+      meanSisdr: -3.3869589916354106,
+      medianSisdr: -2.511957699537108,
+      meanStoi: -0.000010518855496888863,
+      changed: 108,
+      clipped: 0,
+    },
+    {
+      id: "parametric_peak",
+      label: "双参数峰",
+      configuration: "250 +3 / 1k −3",
+      pass: 0,
+      meanSisdr: -5.4537266818203145,
+      medianSisdr: -3.8212206350030398,
+      meanStoi: -0.0004809590346664394,
+      changed: 108,
+      clipped: 0,
+    },
+    {
+      id: "three_band",
+      label: "三段目标形状",
+      configuration: "低架 + 峰 + 高架",
+      pass: 9,
+      meanSisdr: -3.9096893129891943,
+      medianSisdr: -3.4964984318649037,
+      meanStoi: -0.0003818705866723601,
+      changed: 108,
+      clipped: 0,
+    },
+    {
+      id: "calibrated_inverse",
+      label: "校准反演",
+      configuration: "合成 250 Hz 共振拟合",
+      pass: 0,
+      meanSisdr: -8.404452867189478,
+      medianSisdr: -7.848805665218124,
+      meanStoi: -0.002231978542146603,
+      changed: 108,
+      clipped: 0,
+    },
+    {
+      id: "linear_phase_three_band",
+      label: "线性相位三段",
+      configuration: "961 taps · 480 样本群延迟",
+      pass: 0,
+      meanSisdr: -1.907777,
+      medianSisdr: -1.3435048656088444,
+      meanStoi: -0.00015876,
+      changed: 108,
+      clipped: 0,
+    },
+  ],
+  targetResponse: [
+    { label: "Bypass", rms: 1.5086, max: 3.99999, boost: 0, cut: 0 },
+    { label: "低架削减", rms: 2.1697, max: 4.44691, boost: 0, cut: 2.9881 },
+    { label: "双参数峰", rms: 3.02916, max: 4.2018, boost: 0, cut: 5.79819 },
+    { label: "三段目标", rms: 3.09635, max: 6.71529, boost: 0, cut: 4.99168 },
+    { label: "线性相位三段", rms: 3.07036, max: 6.68074, boost: 0, cut: 4.965 },
+  ],
+  calibration: {
+    beforeMargin: -5.333397313026059,
+    predictedMargin: 0.22584999424232627,
+    remeasuredMargin: 0.24048162520836414,
+    scope: "16 kHz synthetic digital resonance; ±0.25 dB diagnostic mask",
+    standardCompliance: false,
+  },
+} as const;

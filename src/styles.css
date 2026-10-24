@@ -164,10 +164,27 @@ p {
 .sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
+.sidebar-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.nav-toggle { display: none; }
+.page-loading { display: flex; align-items: center; gap: 10px; padding-block: 32px; color: var(--muted); }
+.audio-flow-entry { display: flex; align-items: center; gap: 13px; padding: 16px 20px; margin-bottom: 20px; color: var(--blue); background: #edf3ff; border: 1px solid #dce7fc; border-radius: 9px; }
+.audio-flow-entry > div { flex: 1; }
+.audio-flow-entry strong { display: block; font-size: .8rem; font-weight: 600; }
+.audio-flow-entry span { display: block; margin-top: 6px; font-size: .73rem; line-height: 1.7; color: #536b8c; }
+.audio-flow-entry:hover { border-color: #9bb8ed; }
+.nav-group { display: grid; gap: 4px; }
+.nav-group + .nav-group { margin-top: 12px; }
+.nav-group h2 { padding: 8px 14px; color: var(--muted); font-size: .72rem; font-weight: 500; }
 .nav-item {
   height: 45px;
+  flex: 0 0 45px;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -194,6 +211,7 @@ p {
 }
 .sidebar-bottom {
   margin-top: auto;
+  flex: 0 0 auto;
 }
 .workspace-marker {
   display: flex;
@@ -1939,14 +1957,24 @@ tbody tr:hover {
     display: none;
   }
   .sidebar nav {
-    flex-direction: row;
+    display: none;
+    flex-direction: column;
+    flex: 0 0 auto;
     margin-top: 16px;
     gap: 3px;
-    justify-content: space-between;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: auto;
+    max-height: 60dvh;
   }
+  .sidebar nav.mobile-open { display: flex; }
+  .nav-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; color: var(--blue); background: #fff; font-size: .8rem; }
+  .nav-group { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nav-group h2 { grid-column: 1 / -1; padding-inline: 8px; }
   .nav-item {
-    flex: 1;
-    justify-content: center;
+    flex: 0 0 auto;
+    justify-content: flex-start;
     font-size: 0.75rem;
     padding-inline: 5px;
     height: 37px;

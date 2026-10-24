@@ -1,0 +1,24 @@
+{
+  "variant": "conv_gru32",
+  "models": {
+    "16000": {
+      "file": "student-16000.bin",
+      "sha256": "d75af756569002aa03c451e343c3bc1c9a5e299fc06b71b0d789bd98317258e9",
+      "bytes": 128504
+    },
+    "24000": {
+      "file": "student-24000.bin",
+      "sha256": "a60dd9bab92ac8fb945d7a1d7e6017caf26d44d147aeaa6429ced2e08bc9f2a4",
+      "bytes": 128504
+    },
+    "48000": {
+      "file": "student-48000.bin",
+      "sha256": "235942c38d30a392a1a34f3d89896f6aa53a94d7a268ac36a16cb406d0929888",
+      "bytes": 128504
+    }
+  },
+  "seed": 20261018,
+  "experimental": true,
+  "default_enabled": false,
+  "protocol_sha256": "756c3293d6081e74857c81f84512ea360c80696656ac8da723a0ca399dda1b9b"
+}

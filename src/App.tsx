@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   ArrowDownToLine,
   ArrowRight,
@@ -16,14 +16,8 @@ import Sidebar, { NAV } from "./components/Sidebar";
 import type { View } from "./components/Sidebar";
 import AudioUpload from "./components/AudioUpload";
 import { EmptyState } from "./components/Shared";
-import AudioResults, { Highlights } from "./features/AudioResults";
-import AudioCompare from "./features/AudioCompare";
-import MetricLibrary from "./features/MetricLibrary";
-import AudioFlow from "./features/AudioFlow";
-import AudioEvaluation from "./features/AudioEvaluation";
-import EcnrEvaluation from "./features/EcnrEvaluation";
-import ItuAlignment from "./features/ItuAlignment";
-import AudioSynthesize from "./features/AudioSynthesize";
+import { Highlights } from "./components/AudioHighlights";
+import { PageBoundary } from "./components/PageBoundary";
 import {
   AUDIO_ROLES,
   EMPTY_FILES,
@@ -42,6 +36,24 @@ import type {
 import { downloadFile } from "./lib/files";
 import "./audio.css";
 
+const AudioResults = lazy(() => import("./features/AudioResults"));
+const AudioCompare = lazy(() => import("./features/AudioCompare"));
+const MetricLibrary = lazy(() => import("./features/MetricLibrary"));
+const AudioFlow = lazy(() => import("./features/AudioFlow"));
+const NsPipeline = lazy(() => import("./features/NsPipeline"));
+const AecPipeline = lazy(() => import("./features/AecPipeline"));
+const BfPipeline = lazy(() => import("./features/BfPipeline"));
+const DrcPipeline = lazy(() => import("./features/DrcPipeline"));
+const AgcPipeline = lazy(() => import("./features/AgcPipeline"));
+const EqPipeline = lazy(() => import("./features/EqPipeline"));
+const EnhancementPipeline = lazy(() => import("./features/EnhancementPipeline"));
+const AudioEvaluation = lazy(() => import("./features/AudioEvaluation"));
+const EcnrEvaluation = lazy(() => import("./features/EcnrEvaluation"));
+const ItuAlignment = lazy(() => import("./features/ItuAlignment"));
+const AudioSynthesize = lazy(() => import("./features/AudioSynthesize"));
+const AudioGraphEngine = lazy(() => import("./features/AudioGraphEngine"));
+const AcousticQualification = lazy(() => import("./features/AcousticQualification").then(module => ({ default: module.AcousticQualification })));
+
 type AppView = View | "ecnr-v2";
 function viewFromHash(): AppView {
   const value = window.location.hash.slice(1);
@@ -59,15 +71,27 @@ const COPY = {
     "查看实际计算值、完整波形与频谱，以及每项指标的有效条件。",
   ],
   synthesize: [
-    "用现有算法生成输出",
-    "上传一路参考音与一路麦克音，直接调用仓库里同一个 itu_audio_cli 引擎生成处理后音频；不经过离线指标计算，也不做任何重打分。",
+    "音频输出与失败样本试听",
+    "逐项试听共同失败样本的输入与降噪结果，查看失败指标；也可上传自己的音频，调用现有引擎生成输出。",
+  ],
+  graphs: [
+    "音频图形引擎",
+    "上传单文件或处理前后音频，自动生成波形、对数 STFT、频谱差分、LTAS、ERB、短时能量和瞬态分析图。",
   ],
   workflow: ["音频从哪里来，指标如何得到", "沿着信号路径，查看录音位置、处理节点与计算条件。"],
+  enhancement: ["综合语音增强链路", "按流程图串联 BF、AEC、降噪、EQ、AGC 与 DRC，查看同一配置的整链评测与案例。"],
+  denoise: ["降噪算法与处理链路", "查看项目内的传统、神经、混合和离线对照算法，以及每个算法从 PCM 输入到增强输出的实际工作流。"],
+  aec: ["回声消除链路", "查看 AEC3、Speex MDF、前置波束和多参考保护从麦克风与播放参考到残差输出的实际路径。"],
+  bf: ["多麦波束形成链路", "对比延迟求和、MVDR、连续 MPDR 与低频风压控制的配对结果和空间场边界。"],
+  drc: ["动态范围控制链路", "对比 TX DRC 曲线、软饱和、终级限幅器与未接入的多段、前瞻和 true-peak 技术。"],
+  agc: ["自动增益控制链路", "查看默认语句增益、AGC2 执行、协调上限、动态范围保护与未接入的响度技术，以及各自的评测边界。"],
   car3d: ["智能座舱与车载声学", "探索高保真座舱 3D 数字孪生、原厂车漆定制与主驾顶棚双麦拾音波束透视。"],
   compare: ["处理前后对比", "把噪声变化与语音保真放在一起，看清优化的代价。"],
   metrics: ["指标与计算方法", "音频工程计算与原表 17 类实验室指标的对应关系。"],
   evaluation: ["多维音频仿真评测", "浏览真实语音素材的配对数据集，比较不同场景与处理模式。"],
+  eq: ["EQ 链路", "频响形状、校准反演与语音质量的同案例配对证据。"],
   alignment: ["ITU-T 对齐验收", "车载连续流、工程门限与正式声学测项。"],
+  acoustic: ["声学测试系统", "P.1100 / P.1110 / P.1120 标定、测量与证据门禁。"],
 };
 type RangeState = { start: string; end: string };
 function RangeInputs({
@@ -356,7 +380,7 @@ export default function App() {
               <p>{COPY[view][1]}</p>
             </div>
             <div className="header-actions">
-              {report ? (
+              {report && ["workbench", "results", "compare"].includes(view) ? (
                 <>
                   <button
                     className="button secondary"
@@ -390,6 +414,8 @@ export default function App() {
               )}
             </div>
           </div>
+          <PageBoundary key={view}>
+          <Suspense fallback={<p className="page-loading" role="status"><LoaderCircle size={18} className="spin" />正在加载页面…</p>}>
           {view === "workbench" ? (
             <>
               <a href="#car3d" className="audio-flow-entry" style={{ borderColor: "rgba(56, 189, 248, 0.4)", background: "rgba(14, 165, 233, 0.08)", marginBottom: 12 }}>
@@ -719,12 +745,28 @@ export default function App() {
             </>
           ) : view === "synthesize" ? (
             <AudioSynthesize />
+          ) : view === "graphs" ? (
+            <AudioGraphEngine />
           ) : view === "car3d" ? (
             <div style={{ width: "100%", height: "calc(100vh - 140px)", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", background: "#07090e" }}>
               <iframe src="/car-3d.html" style={{ width: "100%", height: "100%", border: "none" }} title="3D 智能座舱与车门交互" />
             </div>
           ) : view === "workflow" ? (
             <AudioFlow files={files} />
+          ) : view === "enhancement" ? (
+            <EnhancementPipeline />
+          ) : view === "denoise" ? (
+            <NsPipeline />
+          ) : view === "aec" ? (
+            <AecPipeline />
+          ) : view === "bf" ? (
+            <BfPipeline />
+          ) : view === "drc" ? (
+            <DrcPipeline />
+          ) : view === "eq" ? (
+            <EqPipeline />
+          ) : view === "agc" ? (
+            <AgcPipeline />
           ) : view === "ecnr-v2" ? (
             <EcnrEvaluation />
           ) : view === "evaluation" ? (
@@ -734,6 +776,8 @@ export default function App() {
             </>
           ) : view === "alignment" ? (
             <ItuAlignment />
+          ) : view === "acoustic" ? (
+            <AcousticQualification />
           ) : view === "metrics" ? (
             <MetricLibrary />
           ) : report ? (
@@ -756,6 +800,8 @@ export default function App() {
               />
             </section>
           )}
+          </Suspense>
+          </PageBoundary>
           {report && (view === "results" || view === "compare") ? (
             <div className="audio-report-notices">
               {report.notices.map((note) => (

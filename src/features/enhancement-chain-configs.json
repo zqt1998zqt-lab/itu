@@ -1,0 +1,601 @@
+{
+  "schema_version": 1,
+  "stages": [
+    {
+      "id": "bf",
+      "label": "BF 波束形成",
+      "tab": "bf",
+      "description": "同步阵列先形成单路波束，再送入 AEC；多麦必须提供逐通道标定延迟。",
+      "source": "cpp/src/pre_aec_pipeline.hpp",
+      "options": [
+        {
+          "id": "das",
+          "label": "DAS · 标定延迟求和",
+          "flags": [],
+          "note": "固定几何延迟补偿，保留因果延迟。"
+        },
+        {
+          "id": "mvdr",
+          "label": "MVDR · 观测导向",
+          "flags": [
+            "--spatial-mvdr"
+          ],
+          "note": "噪声训练协方差、对角加载与 DAS 回退。"
+        },
+        {
+          "id": "mvdr_fixed",
+          "label": "MVDR · 固定导向",
+          "flags": [
+            "--spatial-mvdr",
+            "--spatial-fixed-steering"
+          ],
+          "note": "使用标定导向的 distortionless 约束。",
+          "candidate": true
+        },
+        {
+          "id": "mpdr",
+          "label": "MPDR · 连续协方差",
+          "flags": [
+            "--spatial-mvdr",
+            "--spatial-fixed-steering",
+            "--spatial-continuous-covariance"
+          ],
+          "note": "连续混合信号训练；语音泄漏风险需单独检查。",
+          "candidate": true
+        },
+        {
+          "id": "das_wind",
+          "label": "DAS + 风压权重",
+          "flags": [
+            "--wind-control"
+          ],
+          "note": "低频空间风压控制，不等同于单通道降噪。"
+        },
+        {
+          "id": "mvdr_wind",
+          "label": "MVDR + 风压权重",
+          "flags": [
+            "--spatial-mvdr",
+            "--wind-control"
+          ],
+          "note": "观测 MVDR 与低频风压控制组合。"
+        },
+        {
+          "id": "off",
+          "label": "旁路 · 显式选择通道 0",
+          "flags": [
+            "--no-bf"
+          ],
+          "note": "旁路不做声道平均，使用麦克风通道 0。"
+        }
+      ]
+    },
+    {
+      "id": "aec",
+      "label": "AEC 回声消除",
+      "tab": "aec",
+      "description": "接收 BF 波束与实际播放参考。DTD、参考可靠性与语音保护属于控制支路。",
+      "source": "cpp/src/speex_aec_pipeline.hpp · cpp/src/audio_engine.cpp",
+      "options": [
+        {
+          "id": "speex",
+          "label": "Speex MDF + Coherence RES · 500 ms",
+          "flags": [
+            "--aec-backend",
+            "speex",
+            "--speex-coherence-residual"
+          ],
+          "note": "VCP 默认 MDF、原生 conditioning、相干残差门控与 live post-AEC context；VCP 默认多参考回退未门控 MDF；联合方案使用多参考上下文。"
+        },
+        {
+          "id": "aec3",
+          "label": "WebRTC AEC3 · 组合候选",
+          "flags": [
+            "--aec-backend",
+            "webrtc"
+          ],
+          "note": "真实 AEC3 执行路径；切换后重新评测组合，不继承 MDF 结果。",
+          "candidate": true
+        },
+        {
+          "id": "off",
+          "label": "旁路 AEC",
+          "flags": [
+            "--no-aec"
+          ],
+          "note": "仍需保持输入时间轴；含回声场景通常会失去回声消除贡献。"
+        }
+      ]
+    },
+    {
+      "id": "ns",
+      "label": "NS 语音降噪",
+      "tab": "denoise",
+      "description": "从 AEC 残差进入单路降噪；每个选项只替换本级，保留后级 EQ 与增益控制。",
+      "source": "cpp/src/audio_engine.cpp · cpp/src/vehicle_ns.cpp",
+      "options": [
+        {
+          "id": "webrtc",
+          "label": "WebRTC NS",
+          "flags": [
+            "--ns-backend",
+            "webrtc"
+          ],
+          "note": "WebRTC 频谱降噪，VCP 的默认后端。"
+        },
+        {
+          "id": "speex",
+          "label": "Speex NS · −12 dB",
+          "flags": [
+            "--ns-backend",
+            "speex",
+            "--speex-suppression-db",
+            "-12"
+          ],
+          "note": "Speex 谱降噪；−12 dB 是配置值，不是实测衰减。"
+        },
+        {
+          "id": "rnnoise",
+          "label": "RNNoise",
+          "flags": [
+            "--ns-backend",
+            "rnnoise"
+          ],
+          "note": "通过引擎采样率桥接执行神经降噪。"
+        },
+        {
+          "id": "omlsa",
+          "label": "OM-LSA / IMCRA",
+          "flags": [
+            "--ns-backend",
+            "omlsa_imcra"
+          ],
+          "note": "统计噪声估计与对数谱幅度增益。"
+        },
+        {
+          "id": "super_gaussian",
+          "label": "Super-Gaussian",
+          "flags": [
+            "--ns-backend",
+            "super_gaussian"
+          ],
+          "note": "超高斯语音先验的统计谱增强。"
+        },
+        {
+          "id": "off",
+          "label": "旁路 NS",
+          "flags": [
+            "--no-ns"
+          ],
+          "note": "关闭降噪；保留 AEC 与后级独立配置。"
+        }
+      ]
+    },
+    {
+      "id": "eq",
+      "label": "EQ 频响均衡",
+      "tab": "eq",
+      "description": "VCP 固定在 NR 之后、AGC 之前；频响改变会影响后级电平检测。",
+      "source": "cpp/src/parametric_eq.hpp · cpp/src/audio_engine.cpp",
+      "options": [
+        {
+          "id": "three_band",
+          "label": "三段语音形状",
+          "flags": [
+            "--eq-preamp-db",
+            "-2",
+            "--eq-band",
+            "low_shelf,180,-2,0.707",
+            "--eq-band",
+            "peak,1800,2,1",
+            "--eq-band",
+            "high_shelf,4500,-1,0.707"
+          ],
+          "note": "低架 −2 dB、1.8 kHz 峰值 +2 dB、高架 −1 dB；preamp −2 dB。"
+        },
+        {
+          "id": "low_shelf",
+          "label": "低架 · 180 Hz / −3 dB",
+          "flags": [
+            "--eq-band",
+            "low_shelf,180,-3,0.707"
+          ],
+          "note": "因果低频衰减；不是麦克风或车舱校准结果。"
+        },
+        {
+          "id": "parametric",
+          "label": "参数峰值 · 2 kHz / +2 dB",
+          "flags": [
+            "--eq-preamp-db",
+            "-2",
+            "--eq-band",
+            "peak,2000,2,1"
+          ],
+          "note": "单峰 biquad，preamp 提供正增益余量。"
+        },
+        {
+          "id": "off",
+          "label": "平直 · 旁路 EQ",
+          "flags": [],
+          "note": "零频段、0 dB preamp；VCP 默认未配置 EQ 形状。"
+        }
+      ]
+    },
+    {
+      "id": "agc",
+      "label": "AGC 增益控制",
+      "tab": "agc",
+      "description": "观察语音与噪声证据调节电平；与 DRC 的峰值压缩、终级硬限幅分开。",
+      "source": "cpp/src/legacy_utterance_gain.hpp · cpp/src/utterance_gain.hpp",
+      "options": [
+        {
+          "id": "guarded5",
+          "label": "Guarded5 · VCP 默认语句增益",
+          "flags": [],
+          "note": "repair_stage=1；语音资格、噪声约束与语句锁定。"
+        },
+        {
+          "id": "stage4",
+          "label": "UtteranceGain v4 / Stage4",
+          "flags": [
+            "--repair-stage",
+            "4"
+          ],
+          "note": "实验语句增益状态机，不能直接替代默认准入。",
+          "candidate": true
+        },
+        {
+          "id": "stage4_release",
+          "label": "Stage4 + 噪声释放",
+          "flags": [
+            "--repair-stage",
+            "4",
+            "--stage4-noise-release"
+          ],
+          "note": "依赖持续物理噪声证据释放增益。",
+          "candidate": true
+        },
+        {
+          "id": "agc2",
+          "label": "AGC2 Adaptive Digital",
+          "flags": [
+            "--webrtc-adaptive-gain"
+          ],
+          "note": "启用 WebRTC 自适应数字增益；与默认语句增益互斥执行。",
+          "candidate": true
+        },
+        {
+          "id": "fixed6",
+          "label": "固定增益 · +6 dB",
+          "flags": [
+            "--agc-fixed-gain",
+            "6"
+          ],
+          "note": "统一放大语音与噪声，需同时检查底噪和峰值。"
+        },
+        {
+          "id": "off",
+          "label": "旁路 AGC",
+          "flags": [
+            "--no-agc"
+          ],
+          "note": "禁用整个增益执行器。"
+        }
+      ]
+    },
+    {
+      "id": "drc",
+      "label": "DRC 动态范围",
+      "tab": "drc",
+      "description": "在 AGC 后执行因果软拐点压缩和软饱和，无 look-ahead。",
+      "source": "cpp/src/drc.hpp · cpp/src/audio_engine.cpp",
+      "options": [
+        {
+          "id": "soft",
+          "label": "Soft · 轻度峰值控制",
+          "flags": [
+            "--tx-drc",
+            "--tx-drc-threshold",
+            "-6",
+            "--tx-drc-ratio",
+            "2",
+            "--tx-drc-knee",
+            "4",
+            "--tx-drc-attack-ms",
+            "5",
+            "--tx-drc-release-ms",
+            "60",
+            "--tx-drc-makeup-db",
+            "0",
+            "--tx-drc-ceiling-dbfs",
+            "-0.5"
+          ],
+          "note": "较少压缩语音包络；阈值 −6 dBFS、2:1、4 dB 软拐点。"
+        },
+        {
+          "id": "gentle",
+          "label": "Gentle · 2:1 / 8–100 ms",
+          "flags": [
+            "--tx-drc",
+            "--tx-drc-ratio",
+            "2",
+            "--tx-drc-attack-ms",
+            "8",
+            "--tx-drc-release-ms",
+            "100"
+          ],
+          "note": "−12 dBFS threshold，6 dB knee，−0.5 dBFS ceiling。"
+        },
+        {
+          "id": "default",
+          "label": "默认 · 4:1 / 5–60 ms",
+          "flags": [
+            "--tx-drc"
+          ],
+          "note": "VCP 默认 −12 dBFS threshold、0 dB makeup。"
+        },
+        {
+          "id": "aggressive",
+          "label": "Aggressive · 8:1 / −18 dBFS",
+          "flags": [
+            "--tx-drc",
+            "--tx-drc-threshold",
+            "-18",
+            "--tx-drc-ratio",
+            "8",
+            "--tx-drc-attack-ms",
+            "3",
+            "--tx-drc-release-ms",
+            "80"
+          ],
+          "note": "强压缩候选；需检查语音包络和可懂度。",
+          "candidate": true
+        },
+        {
+          "id": "fast",
+          "label": "Fast · 4:1 / 1–20 ms",
+          "flags": [
+            "--tx-drc",
+            "--tx-drc-attack-ms",
+            "1",
+            "--tx-drc-release-ms",
+            "20"
+          ],
+          "note": "快包络处理，可能改变语音瞬态。"
+        },
+        {
+          "id": "off",
+          "label": "旁路 TX DRC",
+          "flags": [
+            "--no-tx-drc"
+          ],
+          "note": "终级 limiter 仍由下一独立配置决定。"
+        }
+      ]
+    },
+    {
+      "id": "limiter",
+      "label": "终级限幅",
+      "tab": "drc",
+      "description": "TX DRC 之后的独立硬 ceiling；不代表 true-peak 或扬声器声学保护。",
+      "source": "cpp/src/audio_engine.cpp",
+      "options": [
+        {
+          "id": "on",
+          "label": "开启 · 0.98 FS 硬 ceiling",
+          "flags": [],
+          "note": "超过 ceiling 的样本截断并计入 limited_samples。"
+        },
+        {
+          "id": "off",
+          "label": "旁路终级限幅",
+          "flags": [
+            "--no-limiter"
+          ],
+          "note": "导出或回放前需检查实际峰值与满幅比例。"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "id": "array_control",
+      "label": "DAS 对照",
+      "description": "仅阵列合成，AEC / NS / EQ / AGC / DRC / 限幅全部旁路。",
+      "profile": "general",
+      "extra_flags": [
+        "--no-low-cut"
+      ],
+      "selection": {
+        "bf": "das",
+        "aec": "off",
+        "ns": "off",
+        "eq": "off",
+        "agc": "off",
+        "drc": "off",
+        "limiter": "off"
+      }
+    },
+    {
+      "id": "vcp_default",
+      "label": "VCP 默认",
+      "description": "Speex MDF + Coherence RES + WebRTC NS + Guarded5 + 默认 DRC；EQ 平直。",
+      "profile": "vcp",
+      "selection": {
+        "bf": "das",
+        "aec": "speex",
+        "ns": "webrtc",
+        "eq": "off",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "vcp_joint",
+      "label": "VCP 联合优化 · 工程可选",
+      "profile": "vcp_joint",
+      "description": "多参考双讲保护、统一原声预算与轻度峰值控制。已接入实际回放；启动期回声抑制与高信噪比场景仍需实录确认。",
+      "selection": {
+        "bf": "das",
+        "aec": "speex",
+        "ns": "super_gaussian",
+        "eq": "off",
+        "agc": "guarded5",
+        "drc": "soft",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "super_gaussian_optimal",
+      "label": "Super-Gaussian 单级最优",
+      "description": "VCP 默认只替换 NS 为 Super-Gaussian H1 谱增益；当前 72 场景单级筛选中 60/72。噪声与远端衰减余量低于 WebRTC NS，仍需目标域复测。",
+      "profile": "vcp",
+      "recommended": true,
+      "selection": {
+        "bf": "das",
+        "aec": "speex",
+        "ns": "super_gaussian",
+        "eq": "off",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "all_serial",
+      "label": "六级串联",
+      "description": "DAS + Speex MDF/Coherence RES + WebRTC NS + 三段 EQ + Guarded5 + Gentle DRC。",
+      "profile": "vcp",
+      "selection": {
+        "bf": "das",
+        "aec": "speex",
+        "ns": "webrtc",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "gentle",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "mvdr_serial",
+      "label": "MVDR 串联",
+      "description": "六级串联中只替换 BF 为观测导向 MVDR，AEC 保持 MDF/Coherence RES。",
+      "profile": "vcp",
+      "selection": {
+        "bf": "mvdr",
+        "aec": "speex",
+        "ns": "webrtc",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "gentle",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "speex_serial",
+      "label": "Speex NS 串联",
+      "description": "六级串联中只替换降噪后端为 Speex NS，AEC 保持 MDF/Coherence RES。",
+      "profile": "vcp",
+      "selection": {
+        "bf": "das",
+        "aec": "speex",
+        "ns": "speex",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "gentle",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "rnnoise_serial",
+      "label": "RNNoise 串联",
+      "description": "六级串联中只替换降噪后端为 RNNoise，AEC 保持 MDF/Coherence RES。",
+      "profile": "vcp",
+      "selection": {
+        "bf": "das",
+        "aec": "speex",
+        "ns": "rnnoise",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "gentle",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "omlsa_serial",
+      "label": "OM-LSA 串联",
+      "description": "六级串联中只替换降噪后端为 OM-LSA / IMCRA，AEC 保持 MDF/Coherence RES。",
+      "profile": "vcp",
+      "selection": {
+        "bf": "das",
+        "aec": "speex",
+        "ns": "omlsa",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "gentle",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "stage4_serial",
+      "label": "Stage4 串联",
+      "description": "六级串联中只替换增益控制为 UtteranceGain v4，AEC 保持 MDF/Coherence RES。",
+      "profile": "vcp",
+      "selection": {
+        "bf": "das",
+        "aec": "speex",
+        "ns": "webrtc",
+        "eq": "three_band",
+        "agc": "stage4",
+        "drc": "gentle",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "aec3_serial",
+      "label": "AEC3 串联候选",
+      "description": "六级串联中只替换回声后端为 WebRTC AEC3。",
+      "profile": "vcp",
+      "selection": {
+        "bf": "das",
+        "aec": "aec3",
+        "ns": "webrtc",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "gentle",
+        "limiter": "on"
+      }
+    }
+  ],
+  "evidence_preset_ids": [
+    "array_control",
+    "vcp_default",
+    "super_gaussian_optimal",
+    "all_serial",
+    "mvdr_serial",
+    "speex_serial",
+    "rnnoise_serial",
+    "omlsa_serial",
+    "stage4_serial",
+    "aec3_serial"
+  ],
+  "joint_stage_defaults": {
+    "drc": [
+      "--tx-drc-threshold",
+      "-12",
+      "--tx-drc-ratio",
+      "4",
+      "--tx-drc-knee",
+      "6",
+      "--tx-drc-attack-ms",
+      "5",
+      "--tx-drc-release-ms",
+      "60",
+      "--tx-drc-makeup-db",
+      "0",
+      "--tx-drc-ceiling-dbfs",
+      "-0.5"
+    ]
+  }
+}

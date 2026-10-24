@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "status": "experimental_capacity_comparison_not_promoted",
+  "default_enabled": false,
+  "architecture": "same IMCRA/OM-LSA and controller v3; GRU hidden width 64 only",
+  "input_size": 128,
+  "bands": 64,
+  "hidden_size": 64,
+  "output_size": 128,
+  "parameters": 45568,
+  "fp32_weight_bytes": 182272,
+  "matrix_mmac_per_second": 4.5056,
+  "feature_version": 1,
+  "binary_magic": "ITUNSGR1",
+  "format_version": 1,
+  "models": [
+    {
+      "sample_rate_hz": 16000,
+      "path": "student-16000.bin",
+      "bytes": 182312,
+      "sha256": "068acf29a6b4f4af49f8bd0ae5e873dbdc7ad7c5f73a95e85ddf472815e12d92",
+      "training_metadata": "build/ns-hybrid-gru64-20261018/data/gru64-s20261018/training-16000.json"
+    },
+    {
+      "sample_rate_hz": 24000,
+      "path": "student-24000.bin",
+      "bytes": 182312,
+      "sha256": "fa75a2d4a8619f1dd996924a4acab0d9be5eb701e9d4c3ffe0fb683e74fcb751",
+      "training_metadata": "build/ns-hybrid-gru64-20261018/data/gru64-s20261018/training-24000.json"
+    },
+    {
+      "sample_rate_hz": 48000,
+      "path": "student-48000.bin",
+      "bytes": 182312,
+      "sha256": "d006fff007003b45a8d602d63ac8af8630d0ae5fe8480c65552f21a8d8129ff4",
+      "training_metadata": "build/ns-hybrid-gru64-20261018/data/gru64-s20261018/training-48000.json"
+    }
+  ],
+  "native_rates_hz": [
+    16000,
+    24000,
+    48000
+  ],
+  "hop_ms": 10,
+  "window_ms": 20,
+  "signal_delay_ms": 10,
+  "resampling": false,
+  "external_vad": false,
+  "teacher_used": false,
+  "training_seed": 20261018,
+  "epochs": 12,
+  "label_schema": "event_v2",
+  "spp_mix": 0.5,
+  "snr_mix": 0.5,
+  "comparison": {
+    "primary_seed": 20261018,
+    "full_cases": 847,
+    "gru32_pass": 736,
+    "gru64_pass": 717,
+    "holdout_cases": 180,
+    "gru32_holdout_pass": 147,
+    "gru64_holdout_pass": 147
+  },
+  "source_manifest": "build/ns-hybrid-gru64-20261018/data/manifest.json",
+  "source_manifest_sha256": "3d73723b6fbb0eb06d662b85a56b20e569e9fe5558e96dd2416f6a39e84d4ee2",
+  "protocol": "build/ns-hybrid-gru64-20261018/protocol.json",
+  "implementation_report": "../../../docs/NS_HYBRID_GRU64_EXPERIMENT_20261018.md",
+  "limitations": [
+    "not better than GRU32 in primary frozen quality comparison",
+    "no full VCP/ITU-T acceptance",
+    "24k model with existing AEC3 48k bridge explicitly rejected"
+  ]
+}

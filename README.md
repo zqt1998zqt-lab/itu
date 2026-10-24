@@ -33,6 +33,40 @@ npm run test       # 单元测试
 npm run dev:all    # 前端 + 评测服务一起启动
 ```
 
+生产构建的 `dist/` 只包含网站代码、3D 模型、文档和评测资源清单。
+`public/evaluation/` 与 `public/evaluation-cache/` 单独保存，不再随每次前端发布复制；
+`dist/evaluation-assets.json` 为每个文件登记 URL、字节数和 SHA-256，并提供整批 release_id。
+
+本机查看生产版本（仍使用同源 `/api`、`/evaluation/...`）：
+
+```bash
+npm run build
+npm run assets:verify
+npm run serve -- --port 5174
+```
+
+独立发布资源时，先复制到一个新的版本目录并自动核对哈希，再启动网站：
+
+```bash
+npm run assets:publish -- --to /srv/itu-assets/release-20261021
+npm run assets:verify -- --root /srv/itu-assets/release-20261021
+npm run serve -- --web-root dist --assets-root /srv/itu-assets/release-20261021 --host 0.0.0.0 --port 5173
+```
+
+`--to` 不覆盖已有目录。显式指定的资源目录必须含有 `evaluation-assets.json`，
+缺失或与网站的 release_id 不一致时拒绝启动；即使清单一致，也会逐文件核对字节数和 SHA-256。
+默认使用本地 `public/` 时允许没有发布清单，但仍须通过网站清单的全量文件校验才能启动。
+校验仅在启动时进行，资源变更后须重新构建并重启网站服务。
+部署时应同时保留对应的 `dist/` 与资源版本目录。原始与冻结数据不被发布脚本修改。
+`npm run preview -- --port 5174` 也支持分离的评测资源，可通过
+`ITU_EVALUATION_ASSETS_ROOT` 指定上述资源目录。
+
+生产服务支持音频 Range/HEAD、真实 MIME 和缺失资源 404。
+API 默认转发到 `127.0.0.1:8001`，历史远端音频按原有规则转发到 `127.0.0.1:18879`，
+缓存元数据优先。独立运行 `scripts/evaluation_server.py` 时必须提供 `--directory`，
+它只服务历史静态文件；不替代计算 API。使用已有远端评测库时还需保留对应的 SSH 转发。
+可通过 `ITU_API_ORIGIN` 和 `ITU_HISTORICAL_ORIGIN` 指定上游；修改环境变量后需重启该网站服务。
+
 ### C++ 引擎
 
 ```bash
@@ -52,8 +86,33 @@ ctest --test-dir build --output-on-failure
 ### 评测服务
 
 ```bash
-python3 scripts/evaluation_server.py     # 默认监听 8001
+npm run api                            # 计算 API，默认监听 8001
+python3 scripts/evaluation_server.py --directory /path/to/evaluation --port 18879
 ```
+
+### 音频图形引擎
+
+网站入口：`#graphs`。上传单文件或处理前后音频后，服务会在同一份文件身份和对齐条件下生成
+波形与短时能量、对数 STFT、频谱差分、LTAS、ERB、高时间分辨率频谱及共享标尺三联图，
+并返回可供网页展示的 PNG 与工程分析 JSON。
+
+接口、计算参数、生成图形和分析边界见
+[`docs/AUDIO_GRAPH_ENGINE_20261023.md`](docs/AUDIO_GRAPH_ENGINE_20261023.md)。
+
+### P.1100 / P.1110 / P.1120 声学测试系统
+
+网站入口：`#acoustic`。系统提供夹具/噪声场门禁、服务器 SHA-256 证据库、
+PCM 测量包编译、仿真/预合规/正式三种执行模式及逐项结果。
+
+```bash
+npm run dev:all
+# http://127.0.0.1:5173/#acoustic
+```
+
+仓库内只有 P.1120 (10/2025) 全文，P.1100/P.1110 正文尚未落入本地；
+系统会把这两类正式运行保持阻断，并根据客户工作簿独立标记诊断结果。
+完整拓扑、C1–C5、标准测项、证据格式和验收边界见
+[`ITU_ACOUSTIC_QUALIFICATION_SYSTEM.md`](ITU_ACOUSTIC_QUALIFICATION_SYSTEM.md)。
 
 ## 3D 智能座舱页
 

@@ -10,7 +10,7 @@ namespace {
 void require(bool b,const char* why) {if(!b) throw std::runtime_error(why);}
 void rates() {
   for(unsigned rate:{16000,24000,48000}) for(unsigned m:{1,2,4}) {
-    auto c=itu::vehicle_stream_config(); c.sample_rate=rate; c.frame_size=rate/100;
+    auto c=itu::barrot_vcp_config(); c.sample_rate=rate; c.frame_size=rate/100;
     c.native_fullband=true; c.microphones=m;
     c.aec=c.noise_suppression=c.automatic_gain=c.limiter=false;
     c.beamforming=m>1;
@@ -200,7 +200,7 @@ void highband() {
 }
 void reference_protection() {
   for(unsigned rate:{16000,24000,48000}) {
-    auto c=itu::vehicle_stream_config(); c.sample_rate=rate; c.frame_size=rate/100;
+    auto c=itu::barrot_vcp_config(); c.sample_rate=rate; c.frame_size=rate/100;
     c.linear_phase_low_cut=c.noise_suppression=c.automatic_gain=c.limiter=false;
     c.linear_speech_protection=c.analyze_linear_noise=false;
     auto off=c; off.reference_guard=false;
@@ -238,7 +238,7 @@ void reference_protection() {
   }
 }
 void intermittent_taps() {
-  auto c=itu::vehicle_stream_config(); c.sample_rate=24000; c.frame_size=240;
+  auto c=itu::barrot_vcp_config(); c.sample_rate=24000; c.frame_size=240;
   itu::AudioEngine always(c),intermittent(c); itu::FrameInfo f,g;
   std::vector<float> x(240),r(240),o(240),p(240),a(240),b(240),i(240),j(240),u(240),v(240);
   for(unsigned k=0;k<250;++k) {
@@ -253,7 +253,7 @@ void intermittent_taps() {
 }
 void protected_ns_noise_control() {
   for(unsigned rate:{16000,24000,48000}) {
-    auto c=itu::vehicle_stream_config(); c.sample_rate=rate; c.frame_size=rate/100;
+    auto c=itu::barrot_vcp_config(); c.sample_rate=rate; c.frame_size=rate/100;
     c.aec=c.automatic_gain=c.limiter=false;
     itu::AudioEngine e(c); itu::FrameInfo f;
     std::vector<float> x(c.frame_size),o(c.frame_size);

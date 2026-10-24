@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "scope": "Auditable P.1100/P.1110/P.1120 acoustic qualification orchestration. A catalog entry is a requirement to collect evidence, not a measured result.",
+  "standards": {
+    "NB": {
+      "recommendation": "P.1100",
+      "edition": "2025-10",
+      "official_url": "https://www.itu.int/rec/T-REC-P.1100/en",
+      "full_text_status": "not_present_locally",
+      "formal_text_gate": "Operator must supply a verified edition/body artifact and reconcile every customer-workbook limit to the current clause."
+    },
+    "WB": {
+      "recommendation": "P.1110",
+      "edition": "2025-10",
+      "official_url": "https://www.itu.int/rec/T-REC-P.1110/en",
+      "full_text_status": "not_present_locally",
+      "formal_text_gate": "Operator must supply a verified edition/body artifact and reconcile every customer-workbook limit to the current clause."
+    },
+    "SWB": {
+      "recommendation": "P.1120",
+      "edition": "2025-10",
+      "official_url": "https://www.itu.int/rec/T-REC-P.1120/en",
+      "full_text_status": "verified_local",
+      "local_text_path": "build/itut-standards-20261010/P.1120.pdf",
+      "formal_text_gate": "Local P.1120 PDF and extracted text have immutable SHA-256 identity; NV200 workbook rows remain explicitly customer limits."
+    },
+    "FB": {
+      "recommendation": "P.1120",
+      "edition": "2025-10",
+      "official_url": "https://www.itu.int/rec/T-REC-P.1120/en",
+      "full_text_status": "verified_local",
+      "local_text_path": "build/itut-standards-20261010/P.1120.pdf",
+      "formal_text_gate": "FB has no workbook-derived rows in the supplied NV200 sheet; use the official P.1120 FB clauses and masks."
+    }
+  },
+  "topology": [
+    {
+      "stage": 1,
+      "id": "vehicle_or_cabin",
+      "label": "DUT vehicle / calibrated cabin",
+      "requirements": [
+        "Production-like microphone, speaker, housing and acoustic-zone placement",
+        "Reference marks for repeatable HATS and microphone positions",
+        "Vehicle HVAC and all relevant systems energized"
+      ]
+    },
+    {
+      "stage": 2,
+      "id": "hats",
+      "label": "P.58 HATS with P.57 ears",
+      "requirements": [
+        "Driver/acoustic-zone position with MRP and DRP exposed",
+        "HATS-HFRP equalization for send measurements",
+        "Binaural receive capture and P.581 diffuse-field processing"
+      ]
+    },
+    {
+      "stage": 3,
+      "id": "noise_reproduction",
+      "label": "Synchronized cabin noise reproduction",
+      "requirements": [
+        "C1-C5 driving recordings from the target vehicle and installation",
+        "Four-loudspeaker system plus subwoofer, or a compliant spatial reproduction system",
+        "A-weighted reproduction within 1 dB and third-octave spectrum within 3 dB"
+      ]
+    },
+    {
+      "stage": 4,
+      "id": "dut_and_network",
+      "label": "DUT, POI and system simulator",
+      "requirements": [
+        "Exact firmware, volume setting, codec/network path and SRW variant",
+        "Calibrated electrical reference points POI SEND and POI RECEIVE",
+        "Physical and timestamped send/receive loopback for delay"
+      ]
+    },
+    {
+      "stage": 5,
+      "id": "stimuli_and_analysis",
+      "label": "Signals, approved methods and measurement analysis",
+      "requirements": [
+        "Current P.501 signal pack and exact content identity",
+        "Approved P.863/POLQA build and ETSI TS 103 281 method package where applicable",
+        "Working level, pass/fail limits and independent results source retained by the test house"
+      ]
+    },
+    {
+      "stage": 6,
+      "id": "evidence_and_review",
+      "label": "Immutable evidence and review",
+      "requirements": [
+        "Every standard gate has a hashed source artifact",
+        "Raw captures/instrument traces retained for every reported measurement",
+        "Independent reviewer attests scope, calculations, masking and conclusions"
+      ]
+    }
+  ],
+  "calibration_points": [
+    "HATS_MRP",
+    "HATS_DRP",
+    "HFRP",
+    "POI_SEND",
+    "POI_RECEIVE"
+  ],
+  "noise_scenarios": [
+    {
+      "id": "C1",
+      "description": "Stationary vehicle at idle",
+      "vehicle_speed_kmh": 0,
+      "fan": "lowest",
+      "airflow": "record actual setting",
+      "windows": "up",
+      "wipers": "off",
+      "turn_signal": "off",
+      "background_talkers": "none",
+      "road_surface": "not applicable",
+      "wind_speed_max_mps": 5,
+      "precipitation": "none",
+      "temperature_c": [-20, 40],
+      "optional": false
+    },
+    {
+      "id": "C2",
+      "description": "City driving",
+      "vehicle_speed_kmh": 60,
+      "fan": "medium",
+      "airflow": "toward windows",
+      "windows": "up",
+      "wipers": "off",
+      "turn_signal": "off",
+      "background_talkers": "none",
+      "road_surface": "dry rough road; no impulse bumps",
+      "wind_speed_max_mps": 5,
+      "precipitation": "none",
+      "temperature_c": [-20, 40],
+      "optional": false
+    },
+    {
+      "id": "C3",
+      "description": "Highway driving",
+      "vehicle_speed_kmh": 120,
+      "fan": "lowest",
+      "airflow": "record actual setting",
+      "windows": "up",
+      "wipers": "off",
+      "turn_signal": "off",
+      "background_talkers": "none",
+      "road_surface": "dry rough road; no impulse bumps",
+      "wind_speed_max_mps": 5,
+      "precipitation": "none",
+      "temperature_c": [-20, 40],
+      "optional": false
+    },
+    {
+      "id": "C4",
+      "description": "Highway driving with medium HVAC directed to windows",
+      "vehicle_speed_kmh": 120,
+      "fan": "medium",
+      "airflow": "toward windows",
+      "windows": "up",
+      "wipers": "off",
+      "turn_signal": "off",
+      "background_talkers": "none",
+      "road_surface": "dry rough road; no impulse bumps",
+      "wind_speed_max_mps": 5,
+      "precipitation": "none",
+      "temperature_c": [-20, 40],
+      "optional": false
+    },
+    {
+      "id": "C5",
+      "description": "High-speed market condition",
+      "vehicle_speed_min_kmh": 160,
+      "fan": "lowest",
+      "airflow": "toward windows",
+      "windows": "up",
+      "wipers": "off",
+      "turn_signal": "off",
+      "background_talkers": "none",
+      "road_surface": "dry rough road; no impulse bumps",
+      "wind_speed_max_mps": 5,
+      "precipitation": "none",
+      "temperature_c": [-20, 40],
+      "optional": true
+    }
+  ],
+  "measurement_families": {
+    "round_trip_delay": {"label": "Round-trip / send / receive delay", "units": "ms", "p1120_clauses": ["11.2"], "required_artifact": "timestamped acoustic/electrical loopback trace"},
+    "slr": {"label": "Send loudness rating", "units": "dB", "p1120_clauses": ["7.4", "11.3.2"], "required_artifact": "calibrated MRP-to-POI third-octave trace"},
+    "rlr": {"label": "Receive loudness rating", "units": "dB", "p1120_clauses": ["11.3.3"], "required_artifact": "calibrated POI-to-DRP binaural trace"},
+    "rlr_linearity": {"label": "Loudness linearity", "units": "dB", "p1120_clauses": ["11.3.4", "11.3.5"], "required_artifact": "nominal and offset-level traces"},
+    "frequency_response": {"label": "Send/receive frequency response", "units": "dB", "p1120_clauses": ["11.4"], "required_artifact": "coherence-qualified third-octave transfer response and official mask"},
+    "listening_quality": {"label": "One-way listening quality", "units": "MOS-LQO", "p1120_clauses": ["11.5", "11.6"], "required_artifact": "approved P.863 result and input/source identities"},
+    "idle_noise_level": {"label": "Idle channel noise", "units": "dBm0/dBPa", "p1120_clauses": ["11.7"], "required_artifact": "post-activation one-second calibrated noise trace"},
+    "idle_noise_peaks": {"label": "Idle-noise spectral peaks / tonality", "units": "dB/tuHMS", "p1120_clauses": ["11.7"], "required_artifact": "ECMA-418-2 tonality output and calibrated spectrum"},
+    "out_of_band": {"label": "Out-of-band signal", "units": "dB", "p1120_clauses": ["11.8"], "required_artifact": "specified excitation and calibrated endpoint records"},
+    "double_talk_classification": {"label": "Double-talk attenuation classification", "units": "class/%", "p1120_clauses": ["11.12", "11.13"], "required_artifact": "sent/received level trajectories and class calculation"},
+    "tclw": {"label": "Terminal coupling loss / echo", "units": "dB", "p1120_clauses": ["11.11"], "required_artifact": "physical loudspeaker-to-microphone echo measurement"},
+    "hats_snr": {"label": "Calibrated HATS SNR", "units": "dB", "p1120_clauses": ["7.4", "10.3.5"], "required_artifact": "HATS speech/noise calibration and raw traces"},
+    "g_mos": {"label": "Background-noise global quality", "units": "MOS-LQO", "p1120_clauses": ["11.14.3"], "required_artifact": "ETSI TS 103 281 result for the declared scenario"},
+    "n_mos": {"label": "Background-noise quality", "units": "MOS-LQO", "p1120_clauses": ["11.14.3"], "required_artifact": "N-MOS result and noise/clean identities"},
+    "s_mos": {"label": "Speech quality in noise", "units": "MOS-LQO", "p1120_clauses": ["11.14.3"], "required_artifact": "S-MOS result and clean reference identity"},
+    "cng_level": {"label": "Comfort-noise level", "units": "dB", "p1120_clauses": ["11.14.6"], "required_artifact": "calibrated original-versus-CNG level trace"},
+    "cng_spectrum": {"label": "Comfort-noise spectrum", "units": "dB", "p1120_clauses": ["11.14.6"], "required_artifact": "original-versus-CNG spectrum and official mask"}
+  },
+  "official_p1120_masks": {
+    "SWB_send": {"clause": "11.4.1", "frequency_hz": [80, 125, 8000, 12500, 14000], "normalized_at_hz": 1000, "upper_db": [4, 4, 4, 4, 4], "lower_db": [-10, -4, -4, -7, -7]},
+    "FB_send": {"clause": "11.4.1", "frequency_hz": [50, 100, 12500, 16000], "normalized_at_hz": 1000, "upper_db": [4, 4, 4, 4], "lower_db": [-10, -4, -4, -7]},
+    "SWB_receive": {"clause": "11.4.2", "frequency_hz": [80, 125, 250, 400, 8000, 12500, 14000], "normalized_at_hz": 1000, "upper_db": [8, 8, 8, 4, 4, 4, 4], "lower_db": [-10, -4, -4, -4, -4, -7, -7]},
+    "FB_receive": {"clause": "11.4.2", "frequency_hz": [50, 100, 12500, 16000], "normalized_at_hz": 1000, "upper_db": [4, 4, 4, 4], "lower_db": [-10, -4, -4, -7]}
+  },
+  "formal_completion_rule": "A customer-workbook row can pass only against its recorded customer limit. It cannot establish official standard compliance. Formal completion requires current standard evidence, all calibrated physical captures, approved external method identities, and independent review."
+}

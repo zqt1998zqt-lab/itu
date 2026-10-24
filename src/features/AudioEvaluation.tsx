@@ -62,7 +62,7 @@ const unavailableLabel = (gate: Gate) => gate.reason === "no measurable input ex
 const fmt = (value: number | null | undefined, digits = 2) => value == null ? "—" : value.toFixed(digits);
 
 export default function AudioEvaluation() {
-  const [data, setData] = useState<Catalog | null>(null), [error, setError] = useState("");
+  const [catalog, setCatalog] = useState<{ base: string; value: Catalog } | null>(null), [error, setError] = useState("");
   const [family, setFamily] = useState("all"), [selected, setSelected] = useState("004-ns-p0"), [mode, setMode] = useState("full");
   const [status, setStatus] = useState("all");
   const [batch, setBatch] = useState("no-passenger-current"), [batches, setBatches] = useState<{ id: string; label: string; path: string }[]>([{ id: "no-passenger-current", label: "当前车载测试集 · 已移除乘客讲话", path: "/evaluation/no-passenger-current" }, { id: "v3-native", label: "历史完整矩阵 · myserver 原生", path: "/evaluation/v3-native" }, { id: "v3-radio-final", label: "收音机专项验收", path: "/evaluation/v3-radio-final" }, { id: "v3-radio-optimized", label: "收音机 AEC 优化候选", path: "/evaluation/v3-radio-optimized" }, { id: "v3-radio", label: "收音机 AEC 修正专项", path: "/evaluation/v3-radio" }, { id: "v2", label: "扩展车载评测集（旧定义）", path: "/evaluation/v2" }, { id: "v1", label: "基础验收集", path: "/evaluation" }]);
@@ -73,9 +73,10 @@ export default function AudioEvaluation() {
   const [noise, setNoise] = useState("all"), [snr, setSnr] = useState("all"), [speaker, setSpeaker] = useState("all");
   const [playback, setPlayback] = useState("all");
   const [microphones, setMicrophones] = useState("all");
-  const [detail, setDetail] = useState<{ scene: Scene; acceptance: { id: string; passed: boolean; gates: Gate[] } } | null>(null);
+  const [detail, setDetail] = useState<{ base: string; scene: Scene; acceptance: { id: string; passed: boolean; gates: Gate[] } } | null>(null);
   const [detailError, setDetailError] = useState("");
   const base = batches.find(item => item.id === batch)?.path ?? "/evaluation";
+  const data = batch !== "no-passenger-current" && catalog?.base === base ? catalog.value : null;
   useEffect(() => {
     const abort = new AbortController();
     fetch("/evaluation/batches.json", { signal: abort.signal }).then(response => response.ok ? response.json() : null).then(result => { if (result?.batches?.length) setBatches(result.batches); }).catch(() => {});
@@ -119,13 +120,14 @@ export default function AudioEvaluation() {
   useEffect(() => {
     if (batch === "no-passenger-current") return;
     const abort = new AbortController();
-    setData(null); setDetail(null); setError(""); setDetailError("");
+    setCatalog(null); setDetail(null); setError(""); setDetailError("");
     fetch(`${base}/catalog.json`, { signal: abort.signal }).then(async response => {
       if (!response.ok) throw Error("评测数据加载失败，请确认数据已发布。");
-      setData(await response.json());
+      const value = await response.json();
+      if (!abort.signal.aborted) setCatalog({ base, value });
     }).catch(e => { if (!abort.signal.aborted) setError(e instanceof Error ? e.message : "评测数据加载失败"); });
     return () => abort.abort();
-  }, [base]);
+  }, [base, batch]);
   const verdicts = useMemo(() => new Map(data?.acceptance?.details.map(item => [item.id, item]) ?? []), [data]);
   const scenes = useMemo(() => data?.scenes.filter(scene => (family === "all" || scene.family === family) &&
     (status === "all" || verdicts.get(scene.id)?.passed === (status === "pass")) &&
@@ -140,17 +142,18 @@ export default function AudioEvaluation() {
     const abort = new AbortController();
     fetch(`${base}/scene-data/${indexed.id}.json`, { signal: abort.signal }).then(async response => {
       if (!response.ok) throw Error("场景指标加载失败");
-      setDetail(await response.json());
+      const value = await response.json();
+      if (!abort.signal.aborted) setDetail({ ...value, base });
     }).catch(e => { if (!abort.signal.aborted) setDetailError(e instanceof Error ? e.message : "场景指标加载失败"); });
     return () => abort.abort();
   }, [base, data?.sharded, indexed?.id]);
   const resetFilters = () => { setStatus("all"); setFamily("all"); setNoise("all"); setSnr("all"); setSpeaker("all"); setPlayback("all"); setMicrophones("all"); setSelected(""); setMode("full"); };
-  const batchControl = <label className="evaluation-batch">评测批次<select aria-label="评测批次" value={batch} onChange={e => { setBatch(e.target.value); resetFilters(); }}>{batches.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>;
+  const batchControl = <label className="evaluation-batch">评测批次<select aria-label="评测批次" value={batch} onChange={e => { setBatch(e.target.value); setError(""); setDetailError(""); resetFilters(); }}>{batches.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>;
   if (batch === "no-passenger-current") return <div className="evaluation-page">{batchControl}<ActiveDataset /></div>;
   if (error) return <div className="evaluation-page">{batchControl}<section className="evaluation-empty" role="alert"><p>{error}</p><button className="button secondary" onClick={() => window.location.reload()}>重新加载</button></section></div>;
   if (!data) return <div className="evaluation-page">{batchControl}<section className="evaluation-empty" role="status">正在加载仿真评测结果…</section></div>;
   const acceptance = data.acceptance;
-  const loaded = data.sharded && detail?.scene.id === indexed?.id ? detail : null;
+  const loaded = data.sharded && detail?.base === base && detail?.scene.id === indexed?.id ? detail : null;
   const scene = loaded?.scene ?? indexed;
   const checkedScene = data.sharded ? loaded?.acceptance : verdicts.get(scene?.id ?? "");
   const problems = acceptance?.details.flatMap(item => item.gates.filter(gate => gate.status === "fail" || (gate.status === "unavailable" && !gate.optional)).map(gate => ({ id: item.id, gate }))) ?? [];

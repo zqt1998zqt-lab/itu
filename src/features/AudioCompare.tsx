@@ -1,6 +1,6 @@
 import { displayValue, metricOf } from "../domain/audio";
 import type { AudioReport } from "../domain/audio";
-import { AudioStatus } from "./AudioResults";
+import { AudioStatus } from "../components/AudioHighlights";
 import { SpectrumPlot } from "../components/AudioCharts";
 export default function AudioCompare({ report }: { report: AudioReport }) {
   const noise = metricOf(report, "noise_attenuation"),

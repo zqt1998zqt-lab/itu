@@ -27,7 +27,7 @@ class DownlinkPipeline {
       : sample_rate_(sample_rate ? sample_rate : 16000),
         frame_size_(frame_size ? frame_size : 160),
         config_(config),
-        drc_(sample_rate_, config.drc) {
+        drc_(sample_rate_, config.drc),temp_buf_(frame_size_) {
     if (ParametricEq::enabled(config_.eq)) {
       eq_ = std::make_unique<ParametricEq>(config_.eq, sample_rate_);
     }
@@ -94,6 +94,11 @@ class DownlinkPipeline {
 
   const DrcConfig& drc_config() const noexcept { return config_.drc; }
   float current_drc_gain_db() const noexcept { return drc_.current_gain_db(); }
+  // Includes inline DRC state; opaque WebRTC biquad storage is excluded.
+  std::size_t wrapper_memory_bytes() const noexcept {
+    return sizeof(*this)+temp_buf_.capacity()*sizeof(float)+
+        drc_.memory_bytes()+(eq_ ? sizeof(ParametricEq) : 0);
+  }
 
  private:
   void process_downlink_nr(float* data, std::size_t n) noexcept {

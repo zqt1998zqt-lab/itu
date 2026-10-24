@@ -12,4 +12,8 @@
 .alignment-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .alignment-filters label { display: grid; gap: 8px; color: var(--muted); font-size: .8rem; min-width: 0; }
 .alignment-filters select, .alignment-filters input { width: 100%; min-width: 0; }
+.alignment-sections { display: flex; flex-wrap: wrap; gap: 8px; }
+.alignment-sections button[aria-pressed="true"] { color: var(--blue); background: #edf3ff; border-color: #9bb8ed; }
+.alignment-pagination { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-block: 16px; }
+.alignment-pagination p { flex: 1 1 220px; }
 @media (max-width: 760px) { .alignment-filters { grid-template-columns: 1fr; } }

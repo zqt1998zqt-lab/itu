@@ -124,12 +124,22 @@ class AdaptiveController {
             std::max(1.f, policy_.snr_full_db - policy_.snr_start_db),
         0., 1.));
     float near = std::clamp(.82f * speech + .18f * snr_conf, 0.f, 1.f);
+    const bool startup_speech = frames_ < 30 && !input.far_active &&
+        (input.linear_speech >= .25f || input.spectral_excess > .55f);
     if (cold_start_noise) near = 0.f;
-    else if (frames_ < 30) near *= .35f; // Do not mistake cold-start noise for speech.
+    else if (frames_ < 30 && !startup_speech) near *= .35f; // Do not mistake cold-start noise for speech.
+    // An echo residual can be far above the ambient floor while containing no
+    // near speech. SNR supplies audibility confidence, not independent evidence
+    // of double talk; do not let that prior alone bypass suppression.
+    if (input.far_active && input.reference_reliable && !input.near_hold && speech < .20f)
+      near = 0.f;
+    const bool ambient_drop = !input.far_active && !input.near_hold &&
+        input.spectral_excess < .05f && ratio < 2.5;
     const bool heavy_noise_tail = noise_floor_ >= 1.5e-3 &&
         input.spectral_excess < .08f && ratio < 2.2 &&
         (!input.far_active || (!input.near_hold && input.linear_speech < .50f));
     if (input.near_hold && !heavy_noise_tail) near = 1.0f;
+    if (ambient_drop) near = 0.f;
 
     float far = input.far_active ? (input.reference_reliable ? .82f : .55f) : 0.f;
     if (input.far_active && input.reference_reliable)
@@ -140,9 +150,9 @@ class AdaptiveController {
 
     float target = policy_.minimum_preserve + policy_.near_boost * near +
         policy_.double_talk_boost * double_talk - policy_.far_only_penalty * far_only - wind_penalty;
-    if (double_talk > .10f) target = std::max(target, .98f);
+    if (double_talk > .10f && (input.near_hold || near > .45f)) target = std::max(target, .98f);
     target = std::clamp(target, 0.f, 1.f);
-    const float release_step = heavy_noise_tail ? .10f : policy_.release_step;
+    const float release_step = ambient_drop ? .25f : (heavy_noise_tail ? .10f : policy_.release_step);
     const float step = target >= preserve_mix_ ? policy_.attack_step : release_step;
     preserve_mix_ += std::clamp(target - preserve_mix_, -step, step);
 
@@ -182,14 +192,6 @@ class AdaptiveController {
   static Policy policy_for(const Context& c) noexcept {
     Policy p;
     switch (c.mode) {
-      case ProcessingMode::call:
-        p.minimum_preserve=.10f; p.near_boost=.95f; p.double_talk_boost=.3f;
-        p.far_only_penalty=.7f; p.max_gain_db=12.f; p.noise_gain_penalty=4.f;
-        break;
-      case ProcessingMode::ecnr:
-        p.minimum_preserve=.03f; p.near_boost=.82f; p.double_talk_boost=.25f;
-        p.far_only_penalty=.95f; p.max_gain_db=18.f; p.noise_gain_penalty=7.f;
-        break;
       case ProcessingMode::vehicle_stream:
         p.minimum_preserve=.05f; p.near_boost=.95f; p.double_talk_boost=.50f;
         p.far_only_penalty=.9f; p.wind_penalty=.16f; p.max_gain_db=18.f;

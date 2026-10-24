@@ -7,9 +7,12 @@
     "dev": "vite --host 0.0.0.0 --port 5173 --strictPort",
     "api": "bash scripts/api.sh",
     "dev:all": "node scripts/dev.mjs",
-    "build": "node --experimental-strip-types scripts/build-flow-diagrams.mjs && tsc --noEmit && vite build",
+    "build": "node --experimental-strip-types scripts/build-flow-diagrams.mjs && \"$HOME/.venv/bin/python\" scripts/build-pipeline-case-visuals.py && tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5173 --strictPort",
-    "test": "node --test --experimental-strip-types tests/model.test.ts tests/ecnr-evaluation.test.ts"
+    "test": "node --test --experimental-strip-types tests/model.test.ts tests/ecnr-evaluation.test.ts tests/enhancement-chain.test.ts tests/synthesize-model.test.ts tests/audio-graphics.test.ts tests/web-assets.test.ts tests/pipeline-case-evidence.test.ts tests/joint-next-model.test.ts",
+    "serve": "node --experimental-strip-types scripts/serve.ts",
+    "assets:publish": "node --experimental-strip-types scripts/publish-evaluation-assets.ts",
+    "assets:verify": "node --experimental-strip-types scripts/publish-evaluation-assets.ts --verify"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.15",

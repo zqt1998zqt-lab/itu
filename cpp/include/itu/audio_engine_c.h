@@ -16,9 +16,10 @@ typedef struct itu_audio_engine itu_audio_engine;
 enum itu_audio_profile {
   ITU_AUDIO_PROFILE_GENERAL = 0,
   ITU_AUDIO_PROFILE_REFERENCED_RADIO = 1,
-  ITU_AUDIO_PROFILE_VEHICLE_STREAM = 2
+  ITU_AUDIO_PROFILE_VEHICLE_STREAM = 2,
+  ITU_AUDIO_PROFILE_VCP = 3
 };
-enum itu_audio_noise_backend { ITU_AUDIO_NS_WEBRTC=0, ITU_AUDIO_NS_RNNOISE=1, ITU_AUDIO_NS_SPEEX=2, ITU_AUDIO_NS_ULUNAS=3 };
+enum itu_audio_noise_backend { ITU_AUDIO_NS_WEBRTC=0, ITU_AUDIO_NS_RNNOISE=1, ITU_AUDIO_NS_SPEEX=2, ITU_AUDIO_NS_ULUNAS=3, ITU_AUDIO_NS_OMLSA_IMCRA=4, ITU_AUDIO_NS_SUPER_GAUSSIAN=5 };
 enum itu_audio_eq_kind { ITU_AUDIO_EQ_PEAK=0, ITU_AUDIO_EQ_LOW_SHELF=1, ITU_AUDIO_EQ_HIGH_SHELF=2 };
 typedef struct itu_audio_eq_band { int kind; float frequency_hz, gain_db, q; } itu_audio_eq_band;
 typedef struct itu_audio_eq_config {
@@ -86,9 +87,12 @@ int itu_audio_reset(itu_audio_engine* engine);
 /* Native-endian float32 PCM. Counts are float elements, not bytes. Exactly one fixed frame.
  * mic: frame_size*microphones interleaved, ref: frame_size*reference_channels interleaved
  * (mono for legacy create APIs; NULL/0 only if AEC off),
- * output: frame_size mono. AEC tap: interleaved, after AEC3 suppression and shared
- * speech protection, before BF; conversion-only capture when AEC is disabled.
- * BF tap: frame_size. Linear AEC tap: 160*microphones, deinterleaved channel blocks.
+ * output: frame_size mono. Enabled BF precedes AEC. AEC/input/linear taps then
+ * replicate the mono beam residual across the legacy microphone-sized buffers;
+ * these are not independent microphone residuals. With BF off, taps remain per mic.
+ * BF tap: frame_size, before AEC when BF is enabled.
+ * Linear AEC tap: 160*microphones, deinterleaved channel blocks.
+ * Reference must be actual playback PCM; this TX call never processes RX again.
  * All storage must remain valid during this synchronous call; pointers are not retained.
  * Auxiliary taps must not alias input/output. Output may alias input (mono only).
  * One processing thread; stop/join before reset/destroy. APM uses internal locks.
@@ -102,6 +106,15 @@ int itu_audio_process(itu_audio_engine* engine,
                      float* output, size_t output_samples,
                      itu_audio_frame_info* info, float* aec_tap, float* bf_tap,
                      float* linear_aec_tap);
+/* Interleaved RX PCM, exactly frame_size*reference_channels float samples.
+ * Process once per playback frame. Speaker output and AEC reference are identical;
+ * pass the returned reference directly to itu_audio_process. NULL reference output
+ * is allowed. Invalid length/sample validation does not advance RX state. */
+int itu_audio_process_downlink(itu_audio_engine* engine,
+                              const float* input, size_t samples,
+                              float* speaker, float* reference);
+/* Number of physical AEC capture channels, before legacy tap replication. */
+unsigned itu_audio_aec_capture_channels(const itu_audio_engine* engine);
 /* Wrapper buffers only, excluding opaque upstream APM allocation. */
 size_t itu_audio_working_memory_bytes(const itu_audio_engine* engine);
 const char* itu_audio_version(void);

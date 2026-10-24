@@ -23,8 +23,21 @@ class SpectralExcess {
     for(unsigned k=2;k<128;++k) bands[std::min(15u,(k-2)/8)]+=std::norm(spectrum_[k]);
     if(!eligible) return score_=0;
     ++frames_;
+    double sum=0,log_sum=0,floor_sum=0;
+    for(unsigned b=0;b<16;++b) {
+      const double p=std::max(double(bands[b]),1e-20);
+      sum+=p; log_sum+=std::log(p); floor_sum+=floor_[b];
+    }
+    flatness_=static_cast<float>(sum>1e-14 ? std::exp(log_sum/16.)/(sum/16.) : 1.);
     if(frames_<=30) {
-      for(unsigned b=0;b<16;++b) floor_[b]+=(bands[b]-floor_[b])/frames_;
+      // Do not let an early voiced onset overwrite the initial ambient floor,
+      // while still tracking downward minima and broad ambient noise startups.
+      if(floor_frames_==0 || sum<=2.5*std::max(floor_sum,1e-18) || flatness_>.38f) {
+        ++floor_frames_;
+        for(unsigned b=0;b<16;++b) floor_[b]+=(bands[b]-floor_[b])/floor_frames_;
+      } else {
+        for(unsigned b=0;b<16;++b) floor_[b]=std::min(floor_[b],bands[b]);
+      }
     }
     for(unsigned b=0;b<16;++b) block_min_[b]=std::min(block_min_[b],bands[b]);
     if(frames_%20==0) {
@@ -48,18 +61,20 @@ class SpectralExcess {
     }
     fraction_=total>1e-14 ? excess/total : 0;
     const float broad=std::clamp((float(active)-1)/4.f,0.f,1.f);
-    score_=frames_>=30 ? std::clamp((fraction_-.35f)/.5f,0.f,1.f)*broad : .5f;
+    const float measured=std::clamp((fraction_-.35f)/.5f,0.f,1.f)*broad;
+    score_=frames_>=30 ? measured : std::max(.5f,measured);
     return score_;
   }
   float score() const noexcept {return score_;}
   float fraction() const noexcept {return fraction_;}
+  float flatness() const noexcept {return flatness_;}
  private:
   webrtc::RealFourierOoura fft_;
   std::array<float,256> history_{},time_{},window_{};
   std::array<std::complex<float>,129> spectrum_{};
   std::array<float,16> floor_{},block_min_{};
   std::array<std::array<float,16>,10> minima_{};
-  unsigned frames_=0,head_=0,blocks_=0;
-  float score_=0,fraction_=0;
+  unsigned frames_=0,floor_frames_=0,head_=0,blocks_=0;
+  float score_=0,fraction_=0,flatness_=1.f;
 };
 }

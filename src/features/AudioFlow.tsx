@@ -21,7 +21,7 @@ export default function AudioFlow({ files }: { files: AudioFiles }) {
   const markerId = useId().replace(/:/g, "");
   const diagrams = mode === "device" ? [DIAGRAMS.device, DIAGRAMS.website] : [DIAGRAMS.website];
   const nodes = diagrams.flatMap((diagram) => diagram.nodes);
-  const zones = diagrams.flatMap((diagram) => diagram.zones);
+  const zones = diagrams.flatMap((diagram) => diagram.zones.map((zone, index) => ({ ...zone, key: `${diagram.mode}-${index}` })));
   const title = mode === "device" ? "完整信号链：从声源到指标报告" : DIAGRAMS.website.title;
   const node = { ...nodes.find((item) => item.id === selected)!, ...FLOW_NODE_DETAILS[selected] };
   const Icon = node.icon;
@@ -45,7 +45,7 @@ export default function AudioFlow({ files }: { files: AudioFiles }) {
         <a href="/diagrams/nv200-audio-flow.html" target="_blank" rel="noreferrer" className="text-link">查看独立页面 <ArrowRight size={14} aria-hidden="true" /></a>
       </div>
       <nav className="audio-flow-stage-nav" aria-label="流程阶段导航">
-        <span>跳到阶段</span>{zones.map((zone, index) => <button type="button" key={zone.title} onClick={() => document.querySelectorAll(".audio-flow-board .df-zone")[index]?.scrollIntoView({ block: "start", inline: "nearest" })}>{zone.title.split(" · ")[0].replace(/^\d+\s+/, "")} <ArrowDown size={12} aria-hidden="true" /></button>)}
+        <span>跳到阶段</span>{zones.map((zone, index) => <button type="button" key={zone.key} onClick={() => document.querySelectorAll(".audio-flow-board .df-zone")[index]?.scrollIntoView({ block: "start", inline: "nearest" })}>{zone.title.split(" · ")[0].replace(/^\d+\s+/, "")} <ArrowDown size={12} aria-hidden="true" /></button>)}
       </nav>
       <figure className="audio-flow-figure" aria-labelledby="audio-flow-title" aria-describedby="audio-flow-caption">
         <div className="audio-flow-heading">

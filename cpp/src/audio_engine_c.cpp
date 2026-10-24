@@ -19,6 +19,7 @@ itu::Config convert(const itu_audio_config& c,int profile) {
     case ITU_AUDIO_PROFILE_GENERAL: break;
     case ITU_AUDIO_PROFILE_REFERENCED_RADIO: r=itu::referenced_radio_config(); break;
     case ITU_AUDIO_PROFILE_VEHICLE_STREAM: r=itu::vehicle_stream_config(); break;
+    case ITU_AUDIO_PROFILE_VCP: r=itu::barrot_vcp_config(); break;
     default: throw std::invalid_argument("unknown processing profile");
   }
   r.sample_rate=c.sample_rate; r.frame_size=c.frame_size; r.microphones=c.microphones;
@@ -69,7 +70,7 @@ itu_audio_engine* itu_audio_create_extended(const itu_audio_config* c,int profil
       throw std::invalid_argument("configuration ABI mismatch");
     for (int v : {c->aec,c->beamforming,c->noise_suppression,c->automatic_gain,c->limiter})
       if (v!=0 && v!=1) throw std::invalid_argument("boolean flag must be 0 or 1");
-    if(backend<ITU_AUDIO_NS_WEBRTC || backend>ITU_AUDIO_NS_ULUNAS)
+    if(backend<ITU_AUDIO_NS_WEBRTC || backend>ITU_AUDIO_NS_SUPER_GAUSSIAN)
       throw std::invalid_argument("unknown noise backend");
     auto config=convert(*c,profile);
     if(x) {
@@ -112,8 +113,16 @@ int itu_audio_process(itu_audio_engine* e, const float* mic, size_t mn, const fl
   info->estimated_delay_ms=f.estimated_delay_ms; info->backend_error=f.backend_error; info->limited_samples=f.limited_samples;
   info->latency_samples=f.latency_samples;
   info->aec_output_delay_samples=f.aec_output_delay_samples;
-  info->linear_aec_delay_samples=f.linear_aec_delay_samples; return static_cast<int>(result);
+  info->linear_aec_delay_samples=f.linear_aec_delay_samples;
+  return static_cast<int>(result);
 }
 size_t itu_audio_working_memory_bytes(const itu_audio_engine* e) { return e ? e->core.working_memory_bytes() : 0; }
+int itu_audio_process_downlink(itu_audio_engine* e,const float* input,size_t samples,float* speaker,float* reference) {
+  if(!e) return ITU_AUDIO_INVALID_POINTER;
+  return static_cast<int>(e->core.process_downlink(input,samples,speaker,reference));
+}
+unsigned itu_audio_aec_capture_channels(const itu_audio_engine* e) {
+  return e ? (e->core.config().beamforming ? 1u : e->core.config().microphones) : 0u;
+}
 const char* itu_audio_version(void) { return "itu-audio/0.2.0 abi/2 webrtc/52022620d7f1f97eed6bcfbfcb2744fb26acc86f"; }
 }

@@ -12,7 +12,9 @@ build/
 
 # --- 大体积数据与评测产物（不入库，按需本地生成）---
 datasets/
-public/evaluation/
+public/evaluation/*
+!public/evaluation/pipeline-cases/
+!public/evaluation/pipeline-cases/**
 public/evaluation-cache/
 .backups/
 

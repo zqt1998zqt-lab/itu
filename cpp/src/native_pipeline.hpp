@@ -7,7 +7,8 @@ class NativePipeline {
   explicit NativePipeline(const Config& config);
   ~NativePipeline();
   Status process(const float* mic,const float* ref,float* out,FrameInfo& info,
-                 float* aec,float* bf,float* linear,float* conditioned) noexcept;
+                 float* aec,float* bf,float* linear,float* conditioned,
+                 const PostAecContext* context=nullptr) noexcept;
   std::size_t memory_bytes() const noexcept;
  private:
   struct State;

@@ -1,0 +1,1838 @@
+[
+  {
+    "asset_id": "ns-webrtc",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/webrtc_v5_bounded09-0.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 416,
+    "waveform": "/evaluation/pipeline-cases/ns-webrtc-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-webrtc-mel.svg"
+  },
+  {
+    "asset_id": "ns-speex",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/speex_v5_steadydual-0.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-speex-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-speex-mel.svg"
+  },
+  {
+    "asset_id": "ns-rnnoise",
+    "case_id": "vehicle-16000-development-m1-10",
+    "before": "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+    "after": "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-rnnoise-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-rnnoise-mel.svg"
+  },
+  {
+    "asset_id": "ns-ulunas",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/ulunas_direct-0.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-ulunas-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-ulunas-mel.svg"
+  },
+  {
+    "asset_id": "ns-omlsa",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/omlsa_imcra_v2_mild-0.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-omlsa-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-omlsa-mel.svg"
+  },
+  {
+    "asset_id": "ns-super-gaussian",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/super_gaussian_balanced-0.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-super-gaussian-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-super-gaussian-mel.svg"
+  },
+  {
+    "asset_id": "ns-hybrid-gru",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/conv_gain_gru32-0.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 160,
+    "waveform": "/evaluation/pipeline-cases/ns-hybrid-gru-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-hybrid-gru-mel.svg"
+  },
+  {
+    "asset_id": "ns-residual",
+    "case_id": "coverage-16000-development-9c7b62f0-snr+30",
+    "before": "build/controlled-native-full-20261017/cases/coverage-16000-development-9c7b62f0-snr+30/before.wav",
+    "after": "build/ns-traditional-residual-20261019-v6/full-gate/omlsa/r3/421f46769689383c7718/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-residual-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-residual-mel.svg"
+  },
+  {
+    "asset_id": "ns-gtcrn",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/gtcrn_dns3_direct-0.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-gtcrn-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-gtcrn-mel.svg"
+  },
+  {
+    "asset_id": "ns-dpcrn",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/dpcrn_direct-0.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-dpcrn-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-dpcrn-mel.svg"
+  },
+  {
+    "asset_id": "ns-webrtc-pass",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-case-replay-20261020/webrtc_v5_bounded09/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 416,
+    "waveform": "/evaluation/pipeline-cases/ns-webrtc-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-webrtc-pass-mel.svg"
+  },
+  {
+    "asset_id": "ns-webrtc-fail",
+    "case_id": "sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-07",
+    "before": "build/controlled-cavemove-20261017/cases/sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-07/before.wav",
+    "after": "build/ns-case-replay-20261020/webrtc_v5_bounded09/sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-07/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 416,
+    "waveform": "/evaluation/pipeline-cases/ns-webrtc-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-webrtc-fail-mel.svg"
+  },
+  {
+    "asset_id": "ns-speex-pass",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-case-replay-20261020/speex_v5_steadydual/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-speex-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-speex-pass-mel.svg"
+  },
+  {
+    "asset_id": "ns-speex-fail",
+    "case_id": "noise-step-16000-validation-m1-snr+20",
+    "before": "build/controlled-cavemove-20261017/cases/noise-step-16000-validation-m1-snr+20/before.wav",
+    "after": "build/ns-case-replay-20261020/speex_v5_steadydual/noise-step-16000-validation-m1-snr+20/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      8.0,
+      16.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-speex-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-speex-fail-mel.svg"
+  },
+  {
+    "asset_id": "ns-omlsa-pass",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-case-replay-20261020/omlsa_imcra_v2_mild/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-omlsa-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-omlsa-pass-mel.svg"
+  },
+  {
+    "asset_id": "ns-omlsa-fail",
+    "case_id": "noise-step-16000-validation-m1-snr+20",
+    "before": "build/controlled-cavemove-20261017/cases/noise-step-16000-validation-m1-snr+20/before.wav",
+    "after": "build/ns-case-replay-20261020/omlsa_imcra_v2_mild/noise-step-16000-validation-m1-snr+20/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      8.0,
+      16.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-omlsa-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-omlsa-fail-mel.svg"
+  },
+  {
+    "asset_id": "ns-super-gaussian-pass",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-case-replay-20261020/super_gaussian_balanced/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-super-gaussian-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-super-gaussian-pass-mel.svg"
+  },
+  {
+    "asset_id": "ns-super-gaussian-fail",
+    "case_id": "noise-step-16000-validation-m1-snr+20",
+    "before": "build/controlled-cavemove-20261017/cases/noise-step-16000-validation-m1-snr+20/before.wav",
+    "after": "build/ns-case-replay-20261020/super_gaussian_balanced/noise-step-16000-validation-m1-snr+20/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      8.0,
+      16.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-super-gaussian-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-super-gaussian-fail-mel.svg"
+  },
+  {
+    "asset_id": "ns-hybrid-gru-pass",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-case-replay-20261020/conv_gain_gru32/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 160,
+    "waveform": "/evaluation/pipeline-cases/ns-hybrid-gru-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-hybrid-gru-pass-mel.svg"
+  },
+  {
+    "asset_id": "ns-hybrid-gru-fail",
+    "case_id": "sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-08",
+    "before": "build/controlled-cavemove-20261017/cases/sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-08/before.wav",
+    "after": "build/ns-case-replay-20261020/conv_gain_gru32/sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-08/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 160,
+    "waveform": "/evaluation/pipeline-cases/ns-hybrid-gru-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-hybrid-gru-fail-mel.svg"
+  },
+  {
+    "asset_id": "ns-ulunas-pass",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-ulunas-dpcrn-20261019/runs/ulunas/full/ulunas_direct/91353b9fe0bd39c9732e/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-ulunas-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-ulunas-pass-mel.svg"
+  },
+  {
+    "asset_id": "ns-ulunas-fail",
+    "case_id": "coverage-16000-validation-bae79cad-snr+30",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-bae79cad-snr+30/before.wav",
+    "after": "build/ns-ulunas-dpcrn-20261019/runs/ulunas/full/ulunas_direct/d274bb73b2d6392c08f3/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-ulunas-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-ulunas-fail-mel.svg"
+  },
+  {
+    "asset_id": "ns-gtcrn-pass",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-gtcrn-direct-20261018/full/gtcrn_dns3_direct/91353b9fe0bd39c9732e/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-gtcrn-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-gtcrn-pass-mel.svg"
+  },
+  {
+    "asset_id": "ns-gtcrn-fail",
+    "case_id": "coverage-16000-validation-755dfafe-snr+30",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-755dfafe-snr+30/before.wav",
+    "after": "build/ns-gtcrn-direct-20261018/full/gtcrn_dns3_direct/12a375d39d02b561b0a4/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-gtcrn-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-gtcrn-fail-mel.svg"
+  },
+  {
+    "asset_id": "ns-dpcrn-pass",
+    "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+    "after": "build/ns-ulunas-dpcrn-20261019/runs/dpcrn/full/dpcrn_direct/91353b9fe0bd39c9732e/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-dpcrn-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-dpcrn-pass-mel.svg"
+  },
+  {
+    "asset_id": "ns-dpcrn-fail",
+    "case_id": "coverage-16000-validation-755dfafe-snr+30",
+    "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-755dfafe-snr+30/before.wav",
+    "after": "build/ns-ulunas-dpcrn-20261019/runs/dpcrn/full/dpcrn_direct/12a375d39d02b561b0a4/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-dpcrn-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-dpcrn-fail-mel.svg"
+  },
+  {
+    "asset_id": "ns-rnnoise-pass",
+    "case_id": "vehicle-16000-development-m1-10",
+    "before": "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+    "after": "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-rnnoise-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-rnnoise-pass-mel.svg"
+  },
+  {
+    "asset_id": "ns-rnnoise-fail",
+    "case_id": "vehicle-16000-holdout-m1-02",
+    "before": "build/controlled-native-full-20261017/cases/vehicle-16000-holdout-m1-02/before.wav",
+    "after": "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-native-full-20261017/cases/vehicle-16000-holdout-m1-02/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 480,
+    "waveform": "/evaluation/pipeline-cases/ns-rnnoise-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/ns-rnnoise-fail-mel.svg"
+  },
+  {
+    "asset_id": "aec-aec3-pass",
+    "case_id": "factorial-16000-rt0.15-delay020",
+    "before": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-16000-rt0.15-delay020/before.wav",
+    "after": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-16000-rt0.15-delay020/runs/aec_config_probe/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      17.0,
+      23.0
+    ],
+    "delay_samples": 224,
+    "waveform": "/evaluation/pipeline-cases/aec-aec3-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/aec-aec3-pass-mel.svg"
+  },
+  {
+    "asset_id": "aec-aec3-fail",
+    "case_id": "factorial-48000-rt0.45-delay080",
+    "before": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-48000-rt0.45-delay080/before.wav",
+    "after": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-48000-rt0.45-delay080/runs/aec_config_probe/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      6.0,
+      9.0
+    ],
+    "delay_samples": 1248,
+    "waveform": "/evaluation/pipeline-cases/aec-aec3-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/aec-aec3-fail-mel.svg"
+  },
+  {
+    "asset_id": "aec-speex-pass",
+    "case_id": "factorial-16000-rt0.45-delay020",
+    "before": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.45-delay020/before.wav",
+    "after": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.45-delay020/runs/aec_config_probe/result.aec.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      17.0,
+      23.0
+    ],
+    "delay_samples": 0,
+    "waveform": "/evaluation/pipeline-cases/aec-speex-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/aec-speex-pass-mel.svg"
+  },
+  {
+    "asset_id": "aec-speex-fail",
+    "case_id": "factorial-16000-rt0.15-delay180",
+    "before": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.15-delay180/before.wav",
+    "after": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.15-delay180/runs/aec_config_probe/result.aec.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      17.0,
+      23.0
+    ],
+    "delay_samples": 0,
+    "waveform": "/evaluation/pipeline-cases/aec-speex-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/aec-speex-fail-mel.svg"
+  },
+  {
+    "asset_id": "aec-speex-coherence-pass",
+    "case_id": "factorial-16000-rt0.15-delay080",
+    "before": "build/aec-coherence-residual-20261023-r2/speex_coherence_residual/cases/factorial-16000-rt0.15-delay080/before.wav",
+    "after": "build/aec-coherence-residual-20261023-r2/speex_coherence_residual/cases/factorial-16000-rt0.15-delay080/runs/aec_config_probe/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      17.0,
+      23.0
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/aec-speex-coherence-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/aec-speex-coherence-pass-mel.svg"
+  },
+  {
+    "asset_id": "aec-speex-coherence-fail",
+    "case_id": "factorial-48000-rt0.45-delay180",
+    "before": "build/aec-coherence-residual-20261023-r2/speex_coherence_residual/cases/factorial-48000-rt0.45-delay180/before.wav",
+    "after": "build/aec-coherence-residual-20261023-r2/speex_coherence_residual/cases/factorial-48000-rt0.45-delay180/runs/aec_config_probe/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      17.0,
+      23.0
+    ],
+    "delay_samples": 336,
+    "waveform": "/evaluation/pipeline-cases/aec-speex-coherence-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/aec-speex-coherence-fail-mel.svg"
+  },
+  {
+    "asset_id": "aec-aec3",
+    "case_id": "factorial-16000-rt0.15-delay020",
+    "before": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-16000-rt0.15-delay020/before.wav",
+    "after": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-16000-rt0.15-delay020/runs/aec_config_probe/result.aec.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      17.0,
+      23.0
+    ],
+    "delay_samples": 128,
+    "waveform": "/evaluation/pipeline-cases/aec-aec3-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/aec-aec3-mel.svg"
+  },
+  {
+    "asset_id": "aec-speex",
+    "case_id": "factorial-16000-rt0.15-delay020",
+    "before": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.15-delay020/before.wav",
+    "after": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.15-delay020/runs/aec_config_probe/result.aec.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      17.0,
+      23.0
+    ],
+    "delay_samples": 0,
+    "waveform": "/evaluation/pipeline-cases/aec-speex-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/aec-speex-mel.svg"
+  },
+  {
+    "asset_id": "aec-pre-beam",
+    "case_id": "16000-baseline / radio_and_road",
+    "before": "build/vehicle-v2-continuous-20261010/16000-baseline/stream.bf.wav",
+    "after": "build/vehicle-v2-continuous-20261010/16000-baseline/stream.aec.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      96.0,
+      102.0
+    ],
+    "delay_samples": 384,
+    "waveform": "/evaluation/pipeline-cases/aec-pre-beam-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/aec-pre-beam-mel.svg"
+  },
+  {
+    "asset_id": "agc-guarded5",
+    "case_id": "vehicle-noise-24000-m1-sim_rain_impulse-snr+30",
+    "before": "build/failure-cause-analysis-20261017/ablations/cases/vehicle-noise-24000-development-m1-sim_rain_impulse-snr+30/runs/diagnostic_full/result.nr-protected-agc-before.float.wav",
+    "after": "build/failure-cause-analysis-20261017/ablations/cases/vehicle-noise-24000-development-m1-sim_rain_impulse-snr+30/runs/diagnostic_full/result.agc-after.float.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      7.8,
+      9.2
+    ],
+    "delay_samples": 496,
+    "waveform": "/evaluation/pipeline-cases/agc-guarded5-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-guarded5-mel.svg"
+  },
+  {
+    "asset_id": "agc-utterance-v4",
+    "case_id": "vehicle-16000-development-m1-10",
+    "before": "build/repair-sequential-20261017/final-r16-experimental/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.nr-protected-agc-before.float.wav",
+    "after": "build/repair-sequential-20261017/final-r16-experimental/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.agc-after.float.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      10.5,
+      16.5
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-utterance-v4-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-utterance-v4-mel.svg"
+  },
+  {
+    "asset_id": "agc-stage4-release",
+    "case_id": "vehicle-16000-development-m1-10",
+    "before": "build/agc-stage4-release-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.nr-protected-agc-before.float.wav",
+    "after": "build/agc-stage4-release-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.agc-after.float.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      10.5,
+      16.5
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-stage4-release-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-stage4-release-mel.svg"
+  },
+  {
+    "asset_id": "agc-best-candidate",
+    "case_id": "vehicle-16000-development-m1-12",
+    "before": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.nr-protected-agc-before.float.wav",
+    "after": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.agc-after.float.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      10.5,
+      16.5
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-best-candidate-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-best-candidate-mel.svg"
+  },
+  {
+    "asset_id": "agc-best-regression",
+    "case_id": "vehicle-48000-development-m1-11",
+    "before": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-48000-development-m1-11/runs/full/result.nr-protected-agc-before.float.wav",
+    "after": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-48000-development-m1-11/runs/full/result.agc-after.float.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      10.5,
+      16.5
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-best-regression-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-best-regression-mel.svg"
+  },
+  {
+    "asset_id": "eq-three-pass",
+    "case_id": "controlled-native-full-20261017__vehicle-16000-holdout-m2-11__tbus",
+    "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-holdout-m2-11__tbus/runs/full/result.after.wav",
+    "after": "build/eq-algorithm-matrix-linear-20261022-r1/three_band/cases/controlled-native-full-20261017__vehicle-16000-holdout-m2-11__tbus/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 98,
+    "waveform": "/evaluation/pipeline-cases/eq-three-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/eq-three-pass-mel.svg"
+  },
+  {
+    "asset_id": "eq-three-fail",
+    "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus",
+    "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus/runs/full/result.after.wav",
+    "after": "build/eq-algorithm-matrix-linear-20261022-r1/three_band/cases/controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 349,
+    "waveform": "/evaluation/pipeline-cases/eq-three-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/eq-three-fail-mel.svg"
+  },
+  {
+    "asset_id": "eq-low-shelf-fail",
+    "case_id": "controlled-native-full-20261017__vehicle-16000-holdout-m1-10__tbus",
+    "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-10__tbus/runs/full/result.after.wav",
+    "after": "build/eq-algorithm-matrix-linear-20261022-r1/low_shelf/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-10__tbus/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/eq-low-shelf-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/eq-low-shelf-fail-mel.svg"
+  },
+  {
+    "asset_id": "eq-parametric-fail",
+    "case_id": "controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic",
+    "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic/runs/full/result.after.wav",
+    "after": "build/eq-algorithm-matrix-linear-20261022-r1/parametric_peak/cases/controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 341,
+    "waveform": "/evaluation/pipeline-cases/eq-parametric-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/eq-parametric-fail-mel.svg"
+  },
+  {
+    "asset_id": "eq-calibrated-fail",
+    "case_id": "controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic",
+    "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic/runs/full/result.after.wav",
+    "after": "build/eq-algorithm-matrix-linear-20261022-r1/calibrated_inverse/cases/controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 341,
+    "waveform": "/evaluation/pipeline-cases/eq-calibrated-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/eq-calibrated-fail-mel.svg"
+  },
+  {
+    "asset_id": "aec-fusion-fail",
+    "case_id": "factorial-48000-rt0.45-delay080",
+    "before": "build/aec3-state-fusion-20261020-r3/aec3_fusion/cases/factorial-48000-rt0.45-delay080/before.wav",
+    "after": "build/aec3-state-fusion-20261020-r3/aec3_fusion/cases/factorial-48000-rt0.45-delay080/runs/aec_config_probe/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      17.0,
+      23.0
+    ],
+    "delay_samples": 1248,
+    "waveform": "/evaluation/pipeline-cases/aec-fusion-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/aec-fusion-fail-mel.svg"
+  },
+  {
+    "asset_id": "eq-linear-fail",
+    "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus",
+    "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus/runs/full/result.after.wav",
+    "after": "build/eq-algorithm-matrix-linear-20261022-r1/linear_phase_three_band/cases/controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 829,
+    "waveform": "/evaluation/pipeline-cases/eq-linear-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/eq-linear-fail-mel.svg"
+  },
+  {
+    "asset_id": "bf-das-pass",
+    "case_id": "field-p0-m4-wind-snr15",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-wind-snr15/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/delay_sum/cases/field-p0-m4-wind-snr15/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 5,
+    "waveform": "/evaluation/pipeline-cases/bf-das-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-das-pass-mel.svg"
+  },
+  {
+    "asset_id": "bf-das-fail",
+    "case_id": "field-p0-m4-multirender-snr0",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-multirender-snr0/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/delay_sum/cases/field-p0-m4-multirender-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      12.0,
+      15.0
+    ],
+    "delay_samples": 5,
+    "waveform": "/evaluation/pipeline-cases/bf-das-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-das-fail-mel.svg"
+  },
+  {
+    "asset_id": "bf-mvdr-observed-pass",
+    "case_id": "field-p1-m4-wind-snr0",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_observed/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 357,
+    "waveform": "/evaluation/pipeline-cases/bf-mvdr-observed-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-mvdr-observed-pass-mel.svg"
+  },
+  {
+    "asset_id": "bf-mvdr-observed-fail",
+    "case_id": "field-p0-m4-multirender-snr30",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-multirender-snr30/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_observed/cases/field-p0-m4-multirender-snr30/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      12.0,
+      15.0
+    ],
+    "delay_samples": 357,
+    "waveform": "/evaluation/pipeline-cases/bf-mvdr-observed-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-mvdr-observed-fail-mel.svg"
+  },
+  {
+    "asset_id": "bf-mvdr-fixed-pass",
+    "case_id": "field-p1-m4-wind-snr0",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_fixed/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 357,
+    "waveform": "/evaluation/pipeline-cases/bf-mvdr-fixed-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-mvdr-fixed-pass-mel.svg"
+  },
+  {
+    "asset_id": "bf-mvdr-fixed-fail",
+    "case_id": "field-p0-m2-multirender-snr30",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m2-multirender-snr30/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_fixed/cases/field-p0-m2-multirender-snr30/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      12.0,
+      15.0
+    ],
+    "delay_samples": 354,
+    "waveform": "/evaluation/pipeline-cases/bf-mvdr-fixed-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-mvdr-fixed-fail-mel.svg"
+  },
+  {
+    "asset_id": "bf-mpdr-pass",
+    "case_id": "field-p1-m4-wind-snr15",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p1-m4-wind-snr15/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/mpdr_continuous/cases/field-p1-m4-wind-snr15/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 357,
+    "waveform": "/evaluation/pipeline-cases/bf-mpdr-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-mpdr-pass-mel.svg"
+  },
+  {
+    "asset_id": "bf-mpdr-fail",
+    "case_id": "field-p0-m2-multirender-snr30",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m2-multirender-snr30/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/mpdr_continuous/cases/field-p0-m2-multirender-snr30/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      12.0,
+      15.0
+    ],
+    "delay_samples": 354,
+    "waveform": "/evaluation/pipeline-cases/bf-mpdr-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-mpdr-fail-mel.svg"
+  },
+  {
+    "asset_id": "bf-das-wind-pass",
+    "case_id": "field-p0-m4-wind-snr15",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-wind-snr15/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/das_wind/cases/field-p0-m4-wind-snr15/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 357,
+    "waveform": "/evaluation/pipeline-cases/bf-das-wind-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-das-wind-pass-mel.svg"
+  },
+  {
+    "asset_id": "bf-das-wind-fail",
+    "case_id": "field-p0-m4-multirender-snr0",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-multirender-snr0/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/das_wind/cases/field-p0-m4-multirender-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      12.0,
+      15.0
+    ],
+    "delay_samples": 357,
+    "waveform": "/evaluation/pipeline-cases/bf-das-wind-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-das-wind-fail-mel.svg"
+  },
+  {
+    "asset_id": "bf-mvdr-wind-pass",
+    "case_id": "field-p1-m4-wind-snr0",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_wind/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 357,
+    "waveform": "/evaluation/pipeline-cases/bf-mvdr-wind-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-mvdr-wind-pass-mel.svg"
+  },
+  {
+    "asset_id": "bf-mvdr-wind-fail",
+    "case_id": "field-p0-m4-multirender-snr30",
+    "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-multirender-snr30/runs/full/result.after.wav",
+    "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_wind/cases/field-p0-m4-multirender-snr30/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      12.0,
+      15.0
+    ],
+    "delay_samples": 357,
+    "waveform": "/evaluation/pipeline-cases/bf-mvdr-wind-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/bf-mvdr-wind-fail-mel.svg"
+  },
+  {
+    "asset_id": "drc-limiter-representative",
+    "case_id": "controlled-cavemove-20261017__vehicle-16000-holdout-m4-13__cavemove_volkswagen_golf_s60_w0",
+    "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-cavemove-20261017__vehicle-16000-holdout-m4-13__cavemove_volkswagen_golf_s60_w0/runs/full/result.after.wav",
+    "after": "build/drc-algorithm-matrix-20261022-r1/limiter_only/cases/controlled-cavemove-20261017__vehicle-16000-holdout-m4-13__cavemove_volkswagen_golf_s60_w0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 5,
+    "waveform": "/evaluation/pipeline-cases/drc-limiter-representative-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/drc-limiter-representative-mel.svg"
+  },
+  {
+    "asset_id": "drc-default-pass",
+    "case_id": "controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus",
+    "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus/runs/full/result.after.wav",
+    "after": "build/drc-algorithm-matrix-20261022-r1/default/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 0,
+    "waveform": "/evaluation/pipeline-cases/drc-default-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/drc-default-pass-mel.svg"
+  },
+  {
+    "asset_id": "drc-default-fail",
+    "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus",
+    "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+    "after": "build/drc-algorithm-matrix-20261022-r1/default/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 0,
+    "waveform": "/evaluation/pipeline-cases/drc-default-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/drc-default-fail-mel.svg"
+  },
+  {
+    "asset_id": "drc-gentle-pass",
+    "case_id": "controlled-native-full-20261017__vehicle-16000-holdout-m4-12__tbus",
+    "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-holdout-m4-12__tbus/runs/full/result.after.wav",
+    "after": "build/drc-algorithm-matrix-20261022-r1/gentle/cases/controlled-native-full-20261017__vehicle-16000-holdout-m4-12__tbus/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 5,
+    "waveform": "/evaluation/pipeline-cases/drc-gentle-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/drc-gentle-pass-mel.svg"
+  },
+  {
+    "asset_id": "drc-gentle-fail",
+    "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus",
+    "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+    "after": "build/drc-algorithm-matrix-20261022-r1/gentle/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 0,
+    "waveform": "/evaluation/pipeline-cases/drc-gentle-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/drc-gentle-fail-mel.svg"
+  },
+  {
+    "asset_id": "drc-aggressive-pass",
+    "case_id": "controlled-native-full-20261017__vehicle-24000-validation-m2-12__pink",
+    "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-24000-validation-m2-12__pink/runs/full/result.after.wav",
+    "after": "build/drc-algorithm-matrix-20261022-r1/aggressive/cases/controlled-native-full-20261017__vehicle-24000-validation-m2-12__pink/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 24000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 163,
+    "waveform": "/evaluation/pipeline-cases/drc-aggressive-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/drc-aggressive-pass-mel.svg"
+  },
+  {
+    "asset_id": "drc-aggressive-fail",
+    "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus",
+    "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+    "after": "build/drc-algorithm-matrix-20261022-r1/aggressive/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 0,
+    "waveform": "/evaluation/pipeline-cases/drc-aggressive-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/drc-aggressive-fail-mel.svg"
+  },
+  {
+    "asset_id": "drc-fast-pass",
+    "case_id": "controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus",
+    "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus/runs/full/result.after.wav",
+    "after": "build/drc-algorithm-matrix-20261022-r1/fast/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 0,
+    "waveform": "/evaluation/pipeline-cases/drc-fast-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/drc-fast-pass-mel.svg"
+  },
+  {
+    "asset_id": "drc-fast-fail",
+    "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus",
+    "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+    "after": "build/drc-algorithm-matrix-20261022-r1/fast/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 48000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 0,
+    "waveform": "/evaluation/pipeline-cases/drc-fast-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/drc-fast-fail-mel.svg"
+  },
+  {
+    "asset_id": "drc-lookahead-pass",
+    "case_id": "controlled-native-full-20261017__vehicle-16000-development-m1-10__tcar",
+    "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-development-m1-10__tcar/runs/full/result.after.wav",
+    "after": "build/drc-algorithm-matrix-20261022-r1/lookahead_2ms/cases/controlled-native-full-20261017__vehicle-16000-development-m1-10__tcar/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 32,
+    "waveform": "/evaluation/pipeline-cases/drc-lookahead-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/drc-lookahead-pass-mel.svg"
+  },
+  {
+    "asset_id": "drc-lookahead-fail",
+    "case_id": "controlled-native-full-20261017__vehicle-24000-development-m1-10__pink",
+    "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-24000-development-m1-10__pink/runs/full/result.after.wav",
+    "after": "build/drc-algorithm-matrix-20261022-r1/lookahead_2ms/cases/controlled-native-full-20261017__vehicle-24000-development-m1-10__pink/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 24000,
+    "window_seconds": [
+      13.0,
+      21.0
+    ],
+    "delay_samples": 208,
+    "waveform": "/evaluation/pipeline-cases/drc-lookahead-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/drc-lookahead-fail-mel.svg"
+  },
+  {
+    "asset_id": "chain-array_control-pass",
+    "case_id": "field-p1-m2-cold-snr0",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m2-cold-snr0/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/array_control/cases/field-p1-m2-cold-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 2,
+    "waveform": "/evaluation/pipeline-cases/chain-array_control-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-array_control-pass-mel.svg"
+  },
+  {
+    "asset_id": "chain-array_control-fail",
+    "case_id": "field-p1-m2-multirender-snr0",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m2-multirender-snr0/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/array_control/cases/field-p1-m2-multirender-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      6,
+      9
+    ],
+    "delay_samples": 2,
+    "waveform": "/evaluation/pipeline-cases/chain-array_control-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-array_control-fail-mel.svg"
+  },
+  {
+    "asset_id": "chain-vcp_default-pass",
+    "case_id": "field-p0-m4-diffuse-snr0",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-diffuse-snr0/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/vcp_default/cases/field-p0-m4-diffuse-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 101,
+    "waveform": "/evaluation/pipeline-cases/chain-vcp_default-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-vcp_default-pass-mel.svg"
+  },
+  {
+    "asset_id": "chain-vcp_default-fail",
+    "case_id": "field-p0-m4-multirender-snr30",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-multirender-snr30/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/vcp_default/cases/field-p0-m4-multirender-snr30/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      12,
+      15
+    ],
+    "delay_samples": 101,
+    "waveform": "/evaluation/pipeline-cases/chain-vcp_default-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-vcp_default-fail-mel.svg"
+  },
+  {
+    "asset_id": "chain-super_gaussian_optimal-pass",
+    "case_id": "field-p0-m4-cylindrical-snr15",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-cylindrical-snr15/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/super_gaussian_optimal/cases/field-p0-m4-cylindrical-snr15/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 165,
+    "waveform": "/evaluation/pipeline-cases/chain-super_gaussian_optimal-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-super_gaussian_optimal-pass-mel.svg"
+  },
+  {
+    "asset_id": "chain-super_gaussian_optimal-fail",
+    "case_id": "field-p0-m2-multirender-snr30",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m2-multirender-snr30/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/super_gaussian_optimal/cases/field-p0-m2-multirender-snr30/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      12,
+      15
+    ],
+    "delay_samples": 162,
+    "waveform": "/evaluation/pipeline-cases/chain-super_gaussian_optimal-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-super_gaussian_optimal-fail-mel.svg"
+  },
+  {
+    "asset_id": "chain-all_serial-pass",
+    "case_id": "field-p1-m4-noise_step-snr15",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-noise_step-snr15/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/all_serial/cases/field-p1-m4-noise_step-snr15/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 101,
+    "waveform": "/evaluation/pipeline-cases/chain-all_serial-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-all_serial-pass-mel.svg"
+  },
+  {
+    "asset_id": "chain-all_serial-fail",
+    "case_id": "field-p1-m4-noise_step-snr30",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-noise_step-snr30/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/all_serial/cases/field-p1-m4-noise_step-snr30/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 101,
+    "waveform": "/evaluation/pipeline-cases/chain-all_serial-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-all_serial-fail-mel.svg"
+  },
+  {
+    "asset_id": "chain-mvdr_serial-pass",
+    "case_id": "field-p1-m2-noise_step-snr15",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m2-noise_step-snr15/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/mvdr_serial/cases/field-p1-m2-noise_step-snr15/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 450,
+    "waveform": "/evaluation/pipeline-cases/chain-mvdr_serial-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-mvdr_serial-pass-mel.svg"
+  },
+  {
+    "asset_id": "chain-mvdr_serial-fail",
+    "case_id": "field-p0-m4-cold-snr15",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-cold-snr15/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/mvdr_serial/cases/field-p0-m4-cold-snr15/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 453,
+    "waveform": "/evaluation/pipeline-cases/chain-mvdr_serial-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-mvdr_serial-fail-mel.svg"
+  },
+  {
+    "asset_id": "chain-speex_serial-pass",
+    "case_id": "field-p1-m4-cold-snr0",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-cold-snr0/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/speex_serial/cases/field-p1-m4-cold-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 165,
+    "waveform": "/evaluation/pipeline-cases/chain-speex_serial-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-speex_serial-pass-mel.svg"
+  },
+  {
+    "asset_id": "chain-speex_serial-fail",
+    "case_id": "field-p1-m2-noise_step-snr30",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m2-noise_step-snr30/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/speex_serial/cases/field-p1-m2-noise_step-snr30/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 162,
+    "waveform": "/evaluation/pipeline-cases/chain-speex_serial-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-speex_serial-fail-mel.svg"
+  },
+  {
+    "asset_id": "chain-rnnoise_serial-pass",
+    "case_id": "field-p1-m4-diffuse-snr0",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-diffuse-snr0/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/rnnoise_serial/cases/field-p1-m4-diffuse-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 485,
+    "waveform": "/evaluation/pipeline-cases/chain-rnnoise_serial-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-rnnoise_serial-pass-mel.svg"
+  },
+  {
+    "asset_id": "chain-rnnoise_serial-fail",
+    "case_id": "field-p0-m2-diffuse-snr15",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m2-diffuse-snr15/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/rnnoise_serial/cases/field-p0-m2-diffuse-snr15/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 482,
+    "waveform": "/evaluation/pipeline-cases/chain-rnnoise_serial-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-rnnoise_serial-fail-mel.svg"
+  },
+  {
+    "asset_id": "chain-omlsa_serial-pass",
+    "case_id": "field-p0-m4-diffuse-snr0",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-diffuse-snr0/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/omlsa_serial/cases/field-p0-m4-diffuse-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 165,
+    "waveform": "/evaluation/pipeline-cases/chain-omlsa_serial-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-omlsa_serial-pass-mel.svg"
+  },
+  {
+    "asset_id": "chain-omlsa_serial-fail",
+    "case_id": "field-p1-m4-diffuse-snr30",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-diffuse-snr30/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/omlsa_serial/cases/field-p1-m4-diffuse-snr30/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 165,
+    "waveform": "/evaluation/pipeline-cases/chain-omlsa_serial-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-omlsa_serial-fail-mel.svg"
+  },
+  {
+    "asset_id": "chain-stage4_serial-pass",
+    "case_id": "field-p0-m4-wind-snr0",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-wind-snr0/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/stage4_serial/cases/field-p0-m4-wind-snr0/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 101,
+    "waveform": "/evaluation/pipeline-cases/chain-stage4_serial-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-stage4_serial-pass-mel.svg"
+  },
+  {
+    "asset_id": "chain-stage4_serial-fail",
+    "case_id": "field-p1-m4-noise_step-snr30",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-noise_step-snr30/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/stage4_serial/cases/field-p1-m4-noise_step-snr30/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 101,
+    "waveform": "/evaluation/pipeline-cases/chain-stage4_serial-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-stage4_serial-fail-mel.svg"
+  },
+  {
+    "asset_id": "chain-aec3_serial-pass",
+    "case_id": "field-p1-m4-noise_step-snr15",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-noise_step-snr15/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/aec3_serial/cases/field-p1-m4-noise_step-snr15/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 229,
+    "waveform": "/evaluation/pipeline-cases/chain-aec3_serial-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-aec3_serial-pass-mel.svg"
+  },
+  {
+    "asset_id": "chain-aec3_serial-fail",
+    "case_id": "field-p0-m4-noise_step-snr30",
+    "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-noise_step-snr30/before.wav",
+    "after": "build/enhancement-chain-matrix-20261023-r5/aec3_serial/cases/field-p0-m4-noise_step-snr30/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 229,
+    "waveform": "/evaluation/pipeline-cases/chain-aec3_serial-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/chain-aec3_serial-fail-mel.svg"
+  },
+  {
+    "asset_id": "agc-guarded5-pass",
+    "case_id": "vehicle-16000-development-m1-11",
+    "before": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-guarded5-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-guarded5-pass-mel.svg"
+  },
+  {
+    "asset_id": "agc-guarded5-fail",
+    "case_id": "vehicle-16000-development-m1-10",
+    "before": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-guarded5-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-guarded5-fail-mel.svg"
+  },
+  {
+    "asset_id": "agc-agc2-adaptive-pass",
+    "case_id": "vehicle-16000-development-m2-13",
+    "before": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m2-13/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m2-13/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 98,
+    "waveform": "/evaluation/pipeline-cases/agc-agc2-adaptive-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-agc2-adaptive-pass-mel.svg"
+  },
+  {
+    "asset_id": "agc-agc2-adaptive-fail",
+    "case_id": "vehicle-16000-development-m1-12",
+    "before": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-agc2-adaptive-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-agc2-adaptive-fail-mel.svg"
+  },
+  {
+    "asset_id": "agc-fixed-0-pass",
+    "case_id": "vehicle-16000-development-m1-11",
+    "before": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-fixed-0-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-fixed-0-pass-mel.svg"
+  },
+  {
+    "asset_id": "agc-fixed-0-fail",
+    "case_id": "vehicle-16000-development-m1-12",
+    "before": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-fixed-0-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-fixed-0-fail-mel.svg"
+  },
+  {
+    "asset_id": "agc-fixed-3-pass",
+    "case_id": "vehicle-16000-development-m1-11",
+    "before": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-fixed-3-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-fixed-3-pass-mel.svg"
+  },
+  {
+    "asset_id": "agc-fixed-3-fail",
+    "case_id": "vehicle-16000-development-m1-10",
+    "before": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-fixed-3-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-fixed-3-fail-mel.svg"
+  },
+  {
+    "asset_id": "agc-fixed-6-pass",
+    "case_id": "vehicle-16000-development-m1-11",
+    "before": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-fixed-6-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-fixed-6-pass-mel.svg"
+  },
+  {
+    "asset_id": "agc-fixed-6-fail",
+    "case_id": "vehicle-16000-development-m1-12",
+    "before": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-fixed-6-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-fixed-6-fail-mel.svg"
+  },
+  {
+    "asset_id": "agc-fixed-8-pass",
+    "case_id": "vehicle-16000-development-m4-11",
+    "before": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m4-11/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m4-11/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 101,
+    "waveform": "/evaluation/pipeline-cases/agc-fixed-8-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-fixed-8-pass-mel.svg"
+  },
+  {
+    "asset_id": "agc-fixed-8-fail",
+    "case_id": "vehicle-16000-development-m1-11",
+    "before": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-fixed-8-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-fixed-8-fail-mel.svg"
+  },
+  {
+    "asset_id": "agc-no-tx-drc-pass",
+    "case_id": "vehicle-16000-development-m1-12",
+    "before": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-no-tx-drc-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-no-tx-drc-pass-mel.svg"
+  },
+  {
+    "asset_id": "agc-no-tx-drc-fail",
+    "case_id": "vehicle-16000-development-m1-10",
+    "before": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+    "after": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-no-tx-drc-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-no-tx-drc-fail-mel.svg"
+  },
+  {
+    "asset_id": "agc-stage4-release-no-tx-drc-pass",
+    "case_id": "vehicle-16000-development-m2-11",
+    "before": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m2-11/before.wav",
+    "after": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m2-11/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      13,
+      21
+    ],
+    "delay_samples": 98,
+    "waveform": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-pass-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-pass-mel.svg"
+  },
+  {
+    "asset_id": "agc-stage4-release-no-tx-drc-fail",
+    "case_id": "vehicle-16000-validation-m1-10",
+    "before": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-validation-m1-10/before.wav",
+    "after": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-validation-m1-10/runs/full/result.after.wav",
+    "before_channel": 0,
+    "after_channel": 0,
+    "before_crop_samples": 0,
+    "sample_rate": 16000,
+    "window_seconds": [
+      22,
+      24
+    ],
+    "delay_samples": 96,
+    "waveform": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-fail-waveform.svg",
+    "mel": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-fail-mel.svg"
+  }
+]

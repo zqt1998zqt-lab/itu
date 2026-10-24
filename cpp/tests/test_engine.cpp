@@ -4,6 +4,7 @@
 #include "denormal_scope.hpp"
 #include "reference_monitor.hpp"
 #include "speech_gain.hpp"
+#include "adaptive_controller.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -12,6 +13,7 @@
 #include <limits>
 #include <new>
 #include <stdexcept>
+#include <tuple>
 #include <vector>
 namespace { bool watch=false; std::size_t allocations=0; }
 void* operator new(std::size_t n) {if(watch) ++allocations; if(void* p=std::malloc(n?n:1)) return p; throw std::bad_alloc();}
@@ -69,6 +71,36 @@ void latency() {
       require(lag==f.linear_aec_delay_samples && best>.7,"linear AEC measured latency");
     }
   }
+}
+void lookahead_latency() {
+  auto c=bypass(); c.tx_drc.enabled=true; c.tx_drc.threshold_dbfs=0;
+  c.tx_drc.ratio=1; c.tx_drc.knee_width_db=0; c.tx_drc.attack_ms=50;
+  c.tx_drc.release_ms=60; c.tx_drc.makeup_gain_db=0;
+  c.tx_drc.ceiling_dbfs=-.5f; c.tx_drc.lookahead_ms=2;
+  itu::AudioEngine e(c); itu::FrameInfo f;
+  std::vector<float> x(160),o(160),source,after;
+  std::uint32_t seed=271;
+  for(unsigned k=0;k<300;++k) {
+    for(float& v:x) v=random_sample(seed)*.2f;
+    source.insert(source.end(),x.begin(),x.end()); run(e,x,{},o,f);
+    after.insert(after.end(),o.begin(),o.end());
+  }
+  double best=-1; unsigned lag=0;
+  for(unsigned d=0;d<100;++d) {
+    double cross=0,a=0,b=0;
+    for(unsigned i=1600;i+600<source.size();++i) {
+      cross+=double(source[i])*after[i+d];
+      a+=double(source[i])*source[i];
+      b+=double(after[i+d])*after[i+d];
+    }
+    const double corr=cross/std::sqrt(a*b+1e-30);
+    if(corr>best) {best=corr;lag=d;}
+  }
+  require(lag==32 && f.tx_drc_delay_samples==32 &&
+      f.latency_samples==32 && best>.999,
+      "TX DRC look-ahead latency/report mismatch");
+  std::cout<<"TX DRC look-ahead measured="<<lag
+           <<" reported="<<f.latency_samples<<" correlation="<<best<<'\n';
 }
 void aec_effect_doubletalk() {
   auto c=bypass(); c.aec=true; c.stream_delay_ms=40;
@@ -138,9 +170,64 @@ void agc_limiter() {
   c=bypass(); c.limiter=true; itu::AudioEngine limit(c); std::fill(x.begin(),x.end(),1.f);
   run(limit,x,{},o,f); require(f.limited_samples==160 && o[0]==c.output_ceiling,"limiter absent");
 }
+void agc_fault_injection() {
+  // One frozen 48 kHz scene has a verified positive Stage4 target. Keep the
+  // fixture beside the test so the negative control exercises the same gain
+  // state machine rather than a hand-tuned synthetic level.
+  const char* path="itu-agc-fault-fixture.wav";
+  constexpr unsigned rate=48000,h=480;
+  std::vector<float> source(rate*4),speech(rate),noise(rate);
+  std::uint32_t seed=7171;
+  for(unsigned i=0;i<rate;++i) {
+    const float window=.5f-.5f*std::cos(2.f*3.14159265358979323846f*float(i)/float(rate));
+    speech[i]=window*(.006f*std::sin(i*.031f)+.004f*std::sin(i*.079f)+.002f*std::sin(i*.173f));
+    noise[i]=.0015f*random_sample(seed);
+  }
+  for(unsigned k=0;k<4;++k) for(unsigned i=0;i<rate;++i)
+    source[k*rate+i]=(k==0 || k==2 ? speech[i] : noise[i]);
+  itu::write_wav(path,rate,1,source);
+  const auto fixture=itu::read_wav(path);std::remove(path);
+  require(fixture.sample_rate==rate && fixture.samples.size()==source.size(),"AGC fault fixture readback");
+
+  auto config=itu::barrot_vcp_config();
+  config.sample_rate=rate;config.frame_size=h;config.aec=config.noise_suppression=false;
+  config.tx_drc.enabled=false;config.repair_stage=4;config.stage4_noise_release=true;
+  auto with=[&](itu::GainFault fault) {
+    auto c=config;c.gain_fault=fault;
+    itu::AudioEngine e(c);itu::FrameInfo f;
+    std::vector<float> out(h),audio;
+    double normal_energy=0,fault_energy=0;
+    bool positive=false,inverted=false,boost=false;
+    unsigned command_checks=0;
+    for(std::size_t k=0;k+h<=fixture.samples.size();k+=h) {
+      std::vector<float> mic(fixture.samples.begin()+k,fixture.samples.begin()+k+h);
+      run(e,mic,{},out,f);audio.insert(audio.end(),out.begin(),out.end());
+      positive|=f.gain_target_db>0.f && f.applied_gain_db>0.f;
+      inverted|=f.applied_gain_db<0.f;
+      boost|=f.applied_gain_db>config.max_gain_db+1e-4f;
+      if(f.applied_gain_db!=0.f) ++command_checks;
+      for(float v:out) fault_energy+=double(v)*v;
+    }
+    return std::tuple<std::vector<float>,double,bool,bool,bool,unsigned>(
+        std::move(audio),fault_energy,positive,inverted,boost,command_checks);
+  };
+  auto [baseline,baseline_energy,baseline_positive,baseline_inverted,baseline_boost,baseline_checks]=with(itu::GainFault::none);
+  auto [previous,previous_energy,previous_positive,previous_inverted,previous_boost,previous_checks]=with(itu::GainFault::previous_frame);
+  auto [inverted,inverted_energy,inverted_positive,inverted_inverted,inverted_boost,inverted_checks]=with(itu::GainFault::inverted);
+  auto [boost,boost_energy,boost_positive,boost_inverted,boost_boost,boost_checks]=with(itu::GainFault::always_boost);
+  require(baseline_positive && !baseline_inverted && !baseline_boost,"AGC fault positive baseline missing");
+  require(previous!=baseline && previous_positive && previous_checks>0,"previous-frame AGC fault was unobservable");
+  require(inverted!=baseline && inverted_inverted && inverted_checks>0,
+          "inverted AGC fault was not applied to final PCM");
+  require(boost!=baseline && boost_checks>0,
+          "always-boost AGC fault was not applied to final PCM");
+  std::cout<<"AGC fault baseline="<<baseline_energy<<" previous="<<previous_energy
+           <<" inverted="<<inverted_energy<<" always_boost="<<boost_energy<<'\n';
+}
 void taps_and_multichannel() {
-  auto c=bypass(); c.aec=true; c.microphones=4;
-  auto full=c; full.noise_suppression=full.automatic_gain=full.beamforming=true;
+  auto c=bypass(); c.aec=true; c.microphones=4;c.beamforming=true;
+  // BF now defines the AEC input. Only downstream NR/AGC may vary here.
+  auto full=c; full.noise_suppression=full.automatic_gain=true;
   itu::AudioEngine before(c),after(full); itu::FrameInfo f,g;
   std::vector<float> mic(640),ref(160),o(160),p(160),t1(640),t2(640),l1(640),l2(640);
   std::uint32_t seed=122;
@@ -245,6 +332,8 @@ void speech_gain_state() {
   require(bounded.observe(.005f,.95f,false,3,6)==3,"gain not restored after playback");
 }
 void c_abi() {
+  static_assert(sizeof(itu_audio_frame_info)==64,
+                "ABI v2 frame-info layout changed");
   itu_audio_config c; itu_audio_default_config(&c); char error[128];
   c.microphones=0; require(!itu_audio_create(&c,error,sizeof(error)) && error[0],"invalid config");
   itu_audio_default_config(&c); c.abi_version=1; require(!itu_audio_create(&c,error,sizeof(error)),"legacy ABI accepted");
@@ -317,6 +406,30 @@ void radio_protection() {
     require(f.frame_index==0 && f.fullband_ns_mix==0 && f.fullband_noise_power==0,"radio reset leaks protection state");
   }
 }
+void adaptive_echo_evidence() {
+  for(unsigned rate:{16000u,24000u,48000u}) {
+    itu::AdaptiveController controller({itu::ProcessingMode::vehicle_stream,rate,rate/100,1,1});
+    itu::AdaptiveController::Observation input;
+    input.level=.0001f;
+    for(unsigned frame=0;frame<200;++frame) controller.observe(input);
+    // A converged echo residual above a quiet cabin floor is a negative
+    // control for the former SNR-only near prior and double-talk shortcut.
+    input.level=.03f; input.far_active=input.reference_reliable=true;
+    input.coherence=.35f;
+    itu::AdaptiveController::Decision decision;
+    for(unsigned frame=0;frame<100;++frame) decision=controller.observe(input);
+    require(decision.near_confidence<.01f && decision.preserve_mix<.05f,
+            "echo residual SNR alone activates double-talk preservation");
+    input.near_hold=true;input.linear_speech=input.nonlinear_speech=.8f;
+    for(unsigned frame=0;frame<20;++frame) decision=controller.observe(input);
+    require(decision.near_confidence>.9f && decision.preserve_mix>.9f,
+            "confirmed double talk no longer activates preservation");
+    input.near_hold=false;input.linear_speech=input.nonlinear_speech=0;
+    for(unsigned frame=0;frame<100;++frame) decision=controller.observe(input);
+    require(decision.near_confidence<.01f && decision.preserve_mix<.05f,
+            "echo-only recovery retains the double-talk bypass");
+  }
+}
 void wav() {
   std::vector<float> x={-1.f,-.3f,0.f,.3f,.999f}; const char* path="itu-core-roundtrip-test.wav";
   itu::write_wav(path,16000,1,x); auto w=itu::read_wav(path); std::remove(path);
@@ -327,7 +440,7 @@ void wav() {
 int main() {
   unsigned passed=0;
   try {
-    for(auto test:{validation,latency,aec_effect_doubletalk,beamforming,ns_effect,agc_limiter,taps_and_multichannel,reset_allocations,denormal_mode_restoration,reference_monitor_transitions,speech_gain_state,c_abi,vehicle_profile,radio_protection,wav}) {test(); ++passed;}
+    for(auto test:{validation,latency,lookahead_latency,aec_effect_doubletalk,beamforming,ns_effect,agc_limiter,agc_fault_injection,taps_and_multichannel,reset_allocations,denormal_mode_restoration,reference_monitor_transitions,speech_gain_state,c_abi,vehicle_profile,radio_protection,adaptive_echo_evidence,wav}) {test(); ++passed;}
     std::cout<<"PASS "<<passed<<" groups; WebRTC "<<itu::kWebRtcRevision<<'\n';
   } catch(const std::exception& e) {watch=false; std::cerr<<"FAIL after "<<passed<<" groups: "<<e.what()<<'\n'; return 1;}
 }

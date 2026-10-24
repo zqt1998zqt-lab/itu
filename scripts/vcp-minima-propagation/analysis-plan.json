@@ -1,0 +1,394 @@
+{
+  "schema_id": "vcp.minima_history_propagation_analysis_plan.v1",
+  "plan_id": "luna-minima-propagation-analysis-20261024-v1",
+  "status": "analysis_plan_only_pending_observer_output",
+  "created_date": "2026-10-24",
+  "objective": "Independently analyze the frozen actual-previous-enabled minima/history SG trace on the two scenes that actually ran, identify measured state-to-gain propagation by synchronized hop/bin, and preserve the pre-existing full-chain regression result as a separate bounded outcome bridge. This is a diagnostic of a rejected candidate, not candidate optimization or causal-quality proof.",
+  "frozen_decision": {
+    "candidate_status": "rejected",
+    "candidate_replayed_by_independent_review": false,
+    "actual_executed_scenes": [
+      "field-p0-m2-cold-snr15",
+      "field-p0-m4-cold-snr0"
+    ],
+    "planned_but_unexecuted_scene": "field-p0-m4-cold-snr15",
+    "not_run_stages": [
+      "controls12",
+      "onset6",
+      "staged24",
+      "full72"
+    ],
+    "terminal_failure": {
+      "scene_id": "field-p0-m4-cold-snr0",
+      "window": "cold_start",
+      "references": [
+        "joint_v2",
+        "state_v1"
+      ],
+      "sisdr_delta_db": -1.1208428809377153,
+      "stoi_delta": -0.08039659380934419,
+      "limits": {
+        "sisdr_delta_db_min": -0.1,
+        "stoi_delta_min": -0.02
+      }
+    },
+    "rule": "This trace analysis cannot reverse the rejection, relax a quality gate, or imply that a measured internal effect repairs the failed full-chain window."
+  },
+  "frozen_protocol": {
+    "remote_path": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-minima-propagation-20261024/protocol.json",
+    "sha256": "f72a9620cd981e19cf3a8a6dbba9609ec8a0646cde9e254ecbbb73c003e1ec88",
+    "identity_lock_path": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-minima-propagation-20261024/identity-lock.json",
+    "identity_lock_sha256": "7989da6265e59ce9594b63c0a7b49a598dee7c1d1bea86d3618f482727f19663",
+    "instrumentation_scope": "Observer-only diagnostic of the existing candidate source and frozen direct SG component inputs; no optimization, retune, new case, controls, onset replay, staged/full evaluation, publication, or production change.",
+    "expected_roles": [
+      "flagoff",
+      "flagon"
+    ],
+    "scope": {
+      "actual_cases": 2,
+      "hops_per_case": 2402,
+      "trace_hops": "0..59 inclusive",
+      "rate_hz": 16000,
+      "hop_samples": 160,
+      "hop_ms": 10,
+      "fft_size": 512,
+      "bins": 257,
+      "full_bin_trace_required": true,
+      "cold_source_window_seconds": [
+        0,
+        0.5
+      ],
+      "float_bytes_per_stream": 1537280
+    }
+  },
+  "read_only_inventory": {
+    "collected_via": "F:/nxp/analysis/vcp_structure_20261024/remote.ps1, using read-only Python inventory scripts; no remote files were modified",
+    "full_chain_review_local": {
+      "path": "F:/nxp/analysis/vcp_structure_20261024/minima_field_independent_review.json",
+      "sha256": "ba9f0239d38399db37f970bc24b086a2a15750582880bbde5879c952bd19f4d5",
+      "status": "passed",
+      "candidate_status": "rejected",
+      "executed_result_rows": 2,
+      "third_case_directory_absent": true,
+      "method": "Fresh-WAV recomputation using the frozen target construction, declared fixed delay, existing metrics and gates; no lag search, level normalization, or candidate executable invocation."
+    },
+    "component_capture": {
+      "root": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-state-attribution-20261024/capture-known3",
+      "provenance": "Earlier exact capture at GatedBiasSg::process from the known3 joint-v2 full-chain baseline; this is the frozen component replay input, not a direct capture from either minima-history candidate run.",
+      "cases": [
+        {
+          "scene_id": "field-p0-m2-cold-snr15",
+          "sg_input": {
+            "path": "field-p0-m2-cold-snr15/sg.input.f32",
+            "bytes": 1537280,
+            "sha256": "d98c64e3c32fbc2e82b6e7622d2c5ebc99c85f9d7b5b835c70c1a26653426edf"
+          },
+          "flagoff_wet": {
+            "path": "field-p0-m2-cold-snr15/sg.output.f32",
+            "bytes": 1537280,
+            "sha256": "3c1cd9fe5dbc7e03761e3b00f454e5c84492dafa0343ab8a3a7be364c8810cf8"
+          },
+          "flagon_component_wet": {
+            "path": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-minima-history-20261024/candidate-minima-v1/component-controls/results/field-p0-m2-cold-snr15/candidate-wet.f32",
+            "bytes": 1537280,
+            "sha256": "40a44059b01214c34e18cd82a69bcc27b0fc58b79da03e49565ffecf89d9549f"
+          }
+        },
+        {
+          "scene_id": "field-p0-m4-cold-snr0",
+          "sg_input": {
+            "path": "field-p0-m4-cold-snr0/sg.input.f32",
+            "bytes": 1537280,
+            "sha256": "5e46ff34322cb3ad1b28a53d761584a437f8a7ea13e7288ae7972d3b7ed751d5"
+          },
+          "flagoff_wet": {
+            "path": "field-p0-m4-cold-snr0/sg.output.f32",
+            "bytes": 1537280,
+            "sha256": "93e192fbe63053520b25c8c6b206e10c6d404d2fb16a50728884ef401c851abc"
+          },
+          "flagon_component_wet": {
+            "path": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-minima-history-20261024/candidate-minima-v1/component-controls/results/field-p0-m4-cold-snr0/candidate-wet.f32",
+            "bytes": 1537280,
+            "sha256": "b7590681866c770fba6fe6c926bf6f888b55f17ad13740244fd98f428df0a446"
+          }
+        }
+      ],
+      "capture_report_sha256": "ac3e531bb2fc087dc705f5d9ab6cb5d05e0bf76c09c69c1ff6f8cf8f3b6725b8"
+    },
+    "prior_state_probe_reference_only": {
+      "root": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-state-attribution-20261024/state-probe/traces",
+      "run_identity": "Earlier baseline versus rejected full-support restart trace; not the current minima/history candidate.",
+      "replay_report_sha256": "9d3c775e71196229e39dcaabe8b678a644e61d3510cfee3879a275e5c3d33229",
+      "cases": [
+        {
+          "scene_id": "field-p0-m2-cold-snr15",
+          "baseline_state_csv_sha256": "bb9e800ae9558931f6e013c2cb016b52ff8bd817cb5273940559716c0b0c9acb",
+          "baseline_wet_sha256": "3c1cd9fe5dbc7e03761e3b00f454e5c84492dafa0343ab8a3a7be364c8810cf8",
+          "rejected_state_csv_sha256": "7fd4e57d9feebadb6874c1c2acad2403133d57e82d70c2fc7d13c03914e18a6a",
+          "rejected_wet_sha256": "75bea2f688e423beafe7705e8739b9c8233a7ab1fb8555be1d0ac1c528e28c30",
+          "state_rows_per_role": 2223000,
+          "trace_frames": "0..59"
+        },
+        {
+          "scene_id": "field-p0-m4-cold-snr0",
+          "baseline_state_csv_sha256": "b43e26524c693afd5aab68da01d33a0d1cbd175a4e9a0a39a10322f66bcf6a27",
+          "baseline_wet_sha256": "93e192fbe63053520b25c8c6b206e10c6d404d2fb16a50728884ef401c851abc",
+          "rejected_state_csv_sha256": "cf03ed3b99aafe0da4177fd6c75af2954e0915f205f20dbae177382f93555fd6",
+          "rejected_wet_sha256": "4f59326880dc127de7d72e271e5761e63fa15d08a583f09e2266213e279e197b",
+          "state_rows_per_role": 2223000,
+          "trace_frames": "0..59"
+        }
+      ],
+      "interventions_report_sha256": "ebe2fd98a0e12f03fb9f8851c3161e04775cc2356e5e94c9f231b8feaad64946",
+      "state_analysis_sha256": "4a7ac63b5cf3474e40ca40aa87b6672919949fccb77af40518681e9a0a681897",
+      "use_limit": "Use only to check field names, stage ordering, units, prior observer exactness, and known interpretation traps. Do not treat full-support traces as evidence for the minima/history candidate."
+    }
+  },
+  "frozen_full_chain_metrics_bridge": {
+    "meaning": "Outcome-level context from the already executed, flag-enabled full-chain CLI runs and independent fresh-WAV recomputation. These metrics do not prove that the component-only SG trace produced the full-chain outcome.",
+    "sample_rate_hz": 16000,
+    "full_chain_frame_rows": 2402,
+    "full_chain_frame_index": "0..2401 inclusive",
+    "frame_csv_time_s": "0..24.01 inclusive",
+    "speech_gate_limits": {
+      "sisdr_delta_db_min": -0.1,
+      "stoi_delta_min": -0.02
+    },
+    "noise_echo_gate": {
+      "output_rms_delta_db_max": 0.1
+    },
+    "alignment_method": "Fixed geometry at processing rate using declared ceil latency; no lag fitting and no level normalization.",
+    "cases": [
+      {
+        "scene_id": "field-p0-m2-cold-snr15",
+        "declared_delay_samples": 162,
+        "target_origin_core_samples": 2,
+        "active_stft_frames_in_cold_start": 37,
+        "candidate_after_wav": {
+          "path": "/home/zhangqingtian/project/itu/build/vcp-joint-refine-20261024/evaluation/luna-minima-history-v1-known3/single-cases/field-p0-m2-cold-snr15/luna_minima_history_v1/cases/field-p0-m2-cold-snr15/runs/full/result.after.wav",
+          "sha256": "dd882f55c8a2242884ceb5ff3546fb644ce4283765db776d48ab77f760cc8a39",
+          "sample_rate_hz": 16000,
+          "channels": 1,
+          "frames": 384162,
+          "peak_abs": 0.450103759765625
+        },
+        "candidate_frames_csv": {
+          "path": "/home/zhangqingtian/project/itu/build/vcp-joint-refine-20261024/evaluation/luna-minima-history-v1-known3/single-cases/field-p0-m2-cold-snr15/luna_minima_history_v1/cases/field-p0-m2-cold-snr15/runs/full/result.frames.csv",
+          "sha256": "6dbc0115b8e5a925f2171a3277b3a1b80136e3dffe43ac11a2cf1b5cf62c8dbe",
+          "rows": 2402
+        },
+        "candidate_invocation_sha256": "933befb3d9ba780db4b964abeb64f387ed3d9ff09f106f1c8fe9f4062533b43b",
+        "candidate_result_json_sha256": "8369b4672c54f72984a55ad896496bb394788ba2648db259af161d6c2f7071b0",
+        "enabled_flag": "--sg-minima-history-bootstrap",
+        "per_window_deltas": [
+          {
+            "window": "near_only",
+            "sisdr_delta_db": 0.034477175537707794,
+            "stoi_delta": -0.0000012503240562899975,
+            "joint_v2_pass": true,
+            "state_v1_pass": true
+          },
+          {
+            "window": "near_late",
+            "sisdr_delta_db": 0.04239818127498651,
+            "stoi_delta": -0.0000029975154954842154,
+            "joint_v2_pass": true,
+            "state_v1_pass": true
+          },
+          {
+            "window": "noise_only",
+            "output_rms_delta_db": -0.004895876294746415,
+            "joint_v2_pass": true,
+            "state_v1_pass": true
+          },
+          {
+            "window": "cold_start",
+            "sisdr_delta_db": 0.05272933665671786,
+            "stoi_delta": -0.0007137844017998107,
+            "joint_v2_pass": true,
+            "state_v1_pass": true
+          }
+        ]
+      },
+      {
+        "scene_id": "field-p0-m4-cold-snr0",
+        "declared_delay_samples": 165,
+        "target_origin_core_samples": 5,
+        "active_stft_frames_in_cold_start": 37,
+        "candidate_after_wav": {
+          "path": "/home/zhangqingtian/project/itu/build/vcp-joint-refine-20261024/evaluation/luna-minima-history-v1-known3/single-cases/field-p0-m4-cold-snr0/luna_minima_history_v1/cases/field-p0-m4-cold-snr0/runs/full/result.after.wav",
+          "sha256": "f1036617c9ecd2517ce7ba265607f4524153998c096fd1846f169324e1cc17fb",
+          "sample_rate_hz": 16000,
+          "channels": 1,
+          "frames": 384165,
+          "peak_abs": 0.489471435546875
+        },
+        "candidate_frames_csv": {
+          "path": "/home/zhangqingtian/project/itu/build/vcp-joint-refine-20261024/evaluation/luna-minima-history-v1-known3/single-cases/field-p0-m4-cold-snr0/luna_minima_history_v1/cases/field-p0-m4-cold-snr0/runs/full/result.frames.csv",
+          "sha256": "bcd334bb351b41a3d172594ea3e21c95d9ed9e3cf83b435fcb3310e1101f82e5",
+          "rows": 2402
+        },
+        "candidate_invocation_sha256": "e8856243d54da25fbb3959b3183a0fe7235a517e3d3ae9fe3eb69ccfa06b9672",
+        "candidate_result_json_sha256": "aa7851a54f9c351b47b2ea2d12f872bf7cf0fbaa76409f96c6f772c18fcd2441",
+        "enabled_flag": "--sg-minima-history-bootstrap",
+        "per_window_deltas": [
+          {
+            "window": "near_only",
+            "sisdr_delta_db": 0.030179074370087378,
+            "stoi_delta": 0.0005885831940332098,
+            "joint_v2_pass": true,
+            "state_v1_pass": true
+          },
+          {
+            "window": "near_late",
+            "sisdr_delta_db": 0.030527391326312436,
+            "stoi_delta": -0.000039673066006051805,
+            "joint_v2_pass": true,
+            "state_v1_pass": true
+          },
+          {
+            "window": "noise_only",
+            "output_rms_delta_db": -0.002926637715724212,
+            "joint_v2_pass": true,
+            "state_v1_pass": true
+          },
+          {
+            "window": "cold_start",
+            "sisdr_delta_db": -1.1208428809377153,
+            "stoi_delta": -0.08039659380934419,
+            "joint_v2_pass": false,
+            "state_v1_pass": false
+          }
+        ]
+      }
+    ],
+    "third_case": {
+      "scene_id": "field-p0-m4-cold-snr15",
+      "status": "unexecuted",
+      "rule": "Do not infer its trace, outcome, or gate from either executed scene."
+    }
+  },
+  "causal_bridge_gate": {
+    "current_status": "not_established",
+    "observed_gap": "The two minima-history full-chain run directories contain result.after.wav, result.frames.csv, result.json, multichannel AEC taps, and invocation.json, but no .f32/.raw/.bin SG-boundary capture. The frozen component traces instead use capture-known3/sg.input.f32 from the earlier joint-v2 baseline run.",
+    "non_equivalence_rule": "Do not treat result.aec.wav or result.aec-input.wav as the direct GatedBiasSg input. Those exported multichannel taps are upstream of the documented VehicleNs quantization/resampling and possible low-band addition.",
+    "observed_shared_upstream_tap_hashes": [
+      {
+        "scene_id": "field-p0-m2-cold-snr15",
+        "candidate_result_aec_input_sha256": "b9dacc12a2455660973e4a559bb7f6933c78901dd1b75a2caf49ab5847982b18",
+        "capture_known3_result_aec_input_sha256": "b9dacc12a2455660973e4a559bb7f6933c78901dd1b75a2caf49ab5847982b18",
+        "interpretation": "An exact match at this exported AEC-input tap is useful context, but does not prove identity at the SG core[] float boundary."
+      },
+      {
+        "scene_id": "field-p0-m4-cold-snr0",
+        "candidate_result_aec_input_sha256": "92dbfb7e1664b05f94b2ae2ecde2f577a89a599ef8dd36560a41a93e40a967ee",
+        "capture_known3_result_aec_input_sha256": "92dbfb7e1664b05f94b2ae2ecde2f577a89a599ef8dd36560a41a93e40a967ee",
+        "interpretation": "An exact match at this exported AEC-input tap is useful context, but does not prove identity at the SG core[] float boundary."
+      }
+    ],
+    "minimum_evidence_for_audio_link": [
+      "Capture the exact core[] float32 stream at GatedBiasSg::process entry from the same frozen flag-enabled full-chain candidate execution and record its byte count and SHA-256.",
+      "Require that captured input hash to equal the component replay input hash for the same case; if it differs, do not use the component trace as an explanation of that full-chain output.",
+      "If claiming observer-only whole-chain equivalence, compare the instrumented flag-enabled output PCM and non-timing JSON plus frame telemetry with the frozen candidate run under the same source, CLI arguments, alignment, and inputs; otherwise keep the conclusion at SG-component scope.",
+      "Keep SG hop scheduling time separate from end-to-end audio time. Map to result.after.wav using the fixed declared delay and target-origin metadata; do not align by search or treat hop_index × 10 ms as output latency."
+    ]
+  },
+  "analysis_method": {
+    "join_key": [
+      "schema_version",
+      "run_id",
+      "case_id",
+      "variant",
+      "branch_id",
+      "hop_index",
+      "bin_index"
+    ],
+    "required_temporal_checkpoints": [
+      "initialize_minima_history hook entry/exit with measured invocation counters",
+      "current power before the helper",
+      "state before noise estimation",
+      "posterior and gamma/xi/DD values",
+      "final spectral gain before the noise update",
+      "noise-update decision inputs and state after update",
+      "WOLA/output wet hop"
+    ],
+    "state_families": {
+      "candidate_minima_history_write_set": [
+        "minimum_",
+        "conditional_min_",
+        "sub_min_",
+        "conditional_sub_min_",
+        "history_",
+        "conditional_history_",
+        "head_",
+        "frames_in_subwindow_",
+        "rotations_"
+      ],
+      "must_be_separately_tracked": [
+        "power_current",
+        "noise_used",
+        "noise_next",
+        "smooth_",
+        "conditional_",
+        "indicator_",
+        "gamma",
+        "xi",
+        "zeta",
+        "previous_h1_snr_",
+        "posterior_speech_probability",
+        "gain_linear",
+        "noise-update denominator/indicator/coefficient",
+        "WOLA/output wet"
+      ],
+      "rule": "Verify the measured helper write set at the boundary. Do not assume the first divergence or its sign from the hypothesis; report the first observed state/checkpoint/hop/bin difference."
+    },
+    "first_difference_analysis": [
+      "For each case and paired flagoff/flagon stream, compare exact float32 bit patterns first, then report signed absolute difference and finite ratio where defined.",
+      "Find the earliest differing checkpoint, hop, and bin for each state field; distinguish immediate helper writes from later recurrence effects and from differences already present at input or initial state.",
+      "Keep per-bin values and ring-clock state through hop 59. For each hop, summarize distributions and totals without calling them contribution percentages.",
+      "Recompute any claimed scalar recursion from recorded operands using the frozen source formula and explicit float32 tolerance; classify agreement as recurrence-consistent evidence, not a new intervention or isolated causal estimate.",
+      "Check exact wet float equality against the frozen expected role artifact for all 2402 hops before interpreting any state difference. A mismatch invalidates the trace as an exact replay of that role."
+    ],
+    "time_and_frequency_localization": {
+      "trace_time": "hop_index × 0.01 s is the SG input scheduling time only; trace spans 0.00–0.59 s and includes the 0–0.50 s source cold window plus 0.10 s of later context.",
+      "bands_hz": [
+        {
+          "name": "low",
+          "range": "[0, 300)"
+        },
+        {
+          "name": "speech",
+          "range": "[300, 3000)"
+        },
+        {
+          "name": "high",
+          "range": "[3000, 8001)"
+        }
+      ],
+      "frequency_grid": "bin_index × 16000 / 512 Hz; preserve individual bins as the primary evidence and state exact band boundaries in any summary.",
+      "full_chain_target_projection": "Use the already frozen fixed-geometry target construction, 16 kHz processing rate, declared delays (162 and 165 samples), and target origins (2 and 5 core samples). Localize target-projection loss only as a descriptive measurement over the existing cold_start and other frozen windows; retain the existing SI-SDR/STOI/RMS gates and do not create a new pass criterion."
+    }
+  },
+  "interpretation_limits": [
+    "A same-case trace-to-metric association is descriptive until the exact SG input bytes from the same full-chain candidate run are captured and matched.",
+    "The current observer protocol compares the actual flagoff/flagon component streams on a frozen baseline SG input; it contains no randomized experiment or one-family intervention for this minima/history candidate.",
+    "Temporal precedence, recurrence agreement, band localization, or wet-output similarity alone do not estimate a causal share of SI-SDR/STOI loss.",
+    "The full-chain metrics are from two known development scenes only. There is no evidence here for the unexecuted third scene, controls, holdout, real-car, target-board, or production performance.",
+    "Observer I/O invalidates timing and RTF claims."
+  ],
+  "independent_output_audit_checklist": [
+    "Confirm protocol.json and identity-lock hashes remain frozen and match the observer output provenance.",
+    "Confirm exactly the two actual cases and two roles are present; reject any third-scene or extra-control data as out of scope.",
+    "Validate 2402 wet hops per stream, 1,537,280-byte float streams, expected SHA-256 values, finite samples, and all-hop byte exactness.",
+    "Validate state coverage is exactly hops 0..59 for all 257 bins and required checkpoints, with no schema/key collisions or missing bins.",
+    "Check dynamic helper entry/exit counts and changed-field write set; verify raw power, PSD at helper boundary, smoothing, DD memory, WOLA, alternate-path count, control=null, recovery=0, and mix=0 assertions as the frozen protocol requires.",
+    "Check that all stated state differences are supported by paired exact case/hop/bin rows and recorded float bits; separate actual measurements from hypotheses.",
+    "Keep the cold_start full-chain failure and candidate rejection unchanged; do not infer an audio causal bridge without the exact same-run SG input hash and downstream equivalence evidence."
+  ],
+  "stop_conditions": [
+    "Any source/binary/input/identity-lock drift before trace execution.",
+    "Any baseline or candidate component wet-stream hash/byte mismatch against the corresponding frozen expected stream.",
+    "Missing trace coverage, unmeasured helper call evidence, non-finite values, unexpected branch/mix/control/recovery behavior, or unexplained initial-state mismatch.",
+    "Any proposed interpretation that assigns causal-quality percentages, claims a repair, changes the rejected decision, expands the scene set, or links SG-internal values to full-chain audio without the explicit audio-bridge gate."
+  ]
+}

@@ -4,79 +4,77 @@
 #include <cmath>
 namespace itu {
 // One observation per 10 ms. Only control state is retained; no PCM buffer.
-// The 600 ms onset observation is wall time, never scattered voiced frames.
-// A 500 ms scalar power history guards weak consonants after stronger speech.
+// Acquire a scalar utterance gain from 600 ms of physical input, then hold it
+// through syllables and short pauses. AGC2 interpolates initial acquisition over one output frame. Only
+// sustained noise releases the gain; a new utterance reuses the cached target.
 // It changes future gain only: the output sample clock and all taps stay intact.
 class UtteranceGain {
  public:
   enum State : unsigned { observing=0,onset=1,locked=2,quiet=3,conservative=4,far_end=5 };
   float observe(float level,float probability,bool far,float maximum,
-                double shared_noise,float conservative_gain) noexcept {
+                double shared_noise,float conservative_gain,float release_db_per_second=6.f,
+                bool noise_domain_release=false) noexcept {
     const double power=double(level)*level;
-    recent_levels_[recent_head_]=far ? 0.f : level;
-    recent_voice_[recent_head_]=!far && probability>.8f;
-    recent_head_=(recent_head_+1)%recent_levels_.size();
-    if(!far && probability<.1f) {
+    recent_power_[head_]=far ? 0. : power;
+    head_=(head_+1)%recent_power_.size();
+    count_=std::min(unsigned(recent_power_.size()),count_+1);
+    if(!far && probability<.1f && (noise_frames_<10 || power<=4*std::max(noise_,1e-14))) {
       const double rate=noise_frames_<30 ? 1./(++noise_frames_) : .03;
       noise_+=(power-noise_)*rate;
     }
     effective_noise_=std::max({noise_,shared_noise,1e-14});
-    qualified_=!far && noise_frames_>=10 && probability>.8f && power>4*effective_noise_;
+    qualified_=!far && (noise_frames_>=10 || shared_noise>=0) && probability>.8f && power>4*effective_noise_;
     const bool quiet_evidence=!far && (probability<.1f || power<=4*effective_noise_);
     quiet_frames_=quiet_evidence ? std::min(500u,quiet_frames_+1) : 0;
     if(far) {
-      // Interrupted observations are discarded: their age never bridges a
-      // far-end interval. Completed utterance targets remain cached.
-      if(!learned_) {onset_frames_=votes_=0;peak_=0;conservative_=provisional_=false;recent_levels_.fill(0);recent_voice_.fill(false);fresh_onset_=false;}
+      // An interrupted acquisition never bridges the far-end interval.
+      if(!learned_) onset_frames_=votes_=0;
       state_=far_end;return applied_=0;
     }
-    if(!learned_ && onset_frames_==0 && qualified_) {
-      onset_frames_=1;peak_=*std::max_element(recent_levels_.begin(),recent_levels_.end());votes_=1;
-      // The qualifier may lag VAD under changing noise. Do not treat a late
-      // qualified frame in an already voiced episode as a fresh onset.
-      fresh_onset_=std::count(recent_voice_.begin(),recent_voice_.end(),true)<=5;
-    } else if(onset_frames_) {
-      ++onset_frames_;peak_=std::max(peak_,level);votes_+=qualified_;
-      // Low-confidence routing uses the first physical 120 ms. A later loud
-      // noise burst must not revoke the existing projection safeguard.
-      if(onset_frames_==12) {
-        conservative_=peak_*peak_<10*effective_noise_;
-        provisional_=fresh_onset_ && !conservative_ && votes_>=8 && peak_<.012589254f;
-      }
+    if(!learned_ && (onset_frames_ || qualified_)) {
+      if(onset_frames_==0) onset_power_=0;
+      ++onset_frames_;votes_+=qualified_;onset_power_+=power;
       if(onset_frames_>=60) {
-        // Signal below this confidence boundary keeps the existing conservative
-        // controller. NS can attenuate weak speech here; unity would erase
-        // pre-existing projection protection. The route is locked per episode.
-        conservative_=conservative_ || peak_*peak_<10*effective_noise_;
-        // Restricted causal onset gain removes the late 0 -> 8 dB jump.
-        // If later normal-level evidence appears, retain a small fixed target
-        // rather than switching from the provisional gain all the way to zero.
-        target_=votes_>=3 && peak_<.012589254f ? std::min(8.f,maximum) :
-            provisional_ ? std::min(3.f,maximum) : 0;
-        learned_=active_=true;onset_frames_=0;
+        if(votes_>=3) {
+          // Do not dilute the onset level with preceding silence or far-end
+          // zeros. Several syllables distinguish a quiet onset from a quiet
+          // utterance; one isolated peak cannot permanently veto weak speech.
+          const double mean=onset_power_/onset_frames_;
+          target_=mean<.014*.014 ? std::min(8.f,maximum) : 0.f;
+          learned_=true;applied_=target_;
+        }
+        // An uncertain observation expires; it cannot calibrate future speech.
+        onset_frames_=votes_=0;
       }
     }
-    if(learned_ && qualified_) active_=true;
-    if(quiet_frames_>=60) active_=false;
-    if(quiet_frames_>=500) {learned_=false;target_=0;conservative_=provisional_=false;}
-    state_=conservative_ && learned_ ? conservative : onset_frames_ ? onset :
-        active_ ? locked : learned_ ? quiet : observing;
-    applied_=conservative_ && learned_ ? conservative_gain : active_ ? target_ :
-        onset_frames_>=12 && provisional_ ? std::min(5.f,maximum) : 0;
-    // Keep the utterance target across unvoiced gaps, but do not apply a large
-    // boost to observed noise. Twenty quiet frames cap the output at 3 dB;
-    // this is a noise-domain cap, not a new speech calibration or PCM gate.
-    if(quiet_frames_>=20 && !conservative_) applied_=std::min(applied_,3.f);
-    return applied_;
+    if(learned_ && qualified_) applied_=target_;
+    // A weak utterance can remain learned while the gain is being applied to
+    // a later noise-only interval. Release from sustained physical evidence
+    // only after the speech target is already active; this preserves the
+    // qualified low-level onset and short syllable gaps.
+    if(noise_domain_release && learned_ && applied_>0.f &&
+        quiet_evidence && power<=4*effective_noise_) {
+      const float step=std::max(.0001f,release_db_per_second*.01f);
+      applied_=std::max(0.f,applied_-step);
+    }
+    if(quiet_frames_>=150) {
+      const float step=std::max(.0001f,release_db_per_second*.01f);
+      applied_=std::max(0.f,applied_-step);
+    }
+    if(quiet_frames_>=500) {learned_=false;target_=0;onset_frames_=votes_=0;}
+    state_=onset_frames_ ? onset : learned_ ? (quiet_frames_>=150 ? quiet : locked) : observing;
+    return applied_=std::clamp(applied_,0.f,maximum);
   }
   float applied() const noexcept {return applied_;}
   bool qualified() const noexcept {return qualified_;}
   double noise() const noexcept {return effective_noise_;}
   unsigned state() const noexcept {return state_;}
+  unsigned votes() const noexcept {return votes_;}
+  float target() const noexcept {return target_;}
  private:
-  std::array<float,50> recent_levels_{};std::array<bool,50> recent_voice_{};unsigned recent_head_=0;
+  std::array<double,200> recent_power_{};unsigned head_=0,count_=0;
   unsigned noise_frames_=0,onset_frames_=0,votes_=0,quiet_frames_=0,state_=observing;
-  bool learned_=false,active_=false,qualified_=false,conservative_=false,provisional_=false,fresh_onset_=false;
-  float peak_=0,target_=0,applied_=0;double noise_=0,effective_noise_=0;
+  bool learned_=false,qualified_=false;
+  float target_=0,applied_=0;double noise_=0,effective_noise_=0,onset_power_=0;
 };
 }

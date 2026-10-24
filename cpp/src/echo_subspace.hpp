@@ -17,6 +17,16 @@ class EchoSubspace {
       spectra_((channels+1)*1025),covariance_(1025*channels*channels),cross_(1025*channels) {
     for(unsigned i=0;i<2048;++i) window_[i]=.5f-.5f*std::cos(2*3.14159265358979323846f*i/2048);
   }
+  // Reset spectral evidence after a playback-path change without allocating
+  // on the real-time thread. A caller can align each render independently.
+  void reset() noexcept {
+    std::fill(history_.begin(),history_.end(),0.f);
+    std::fill(mic_power_.begin(),mic_power_.end(),0.f);
+    std::fill(render_history_.begin(),render_history_.end(),0.f);
+    std::fill(covariance_.begin(),covariance_.end(),std::complex<float>{});
+    std::fill(cross_.begin(),cross_.end(),std::complex<float>{});
+    frames_=head_=delay_=0; ratio_=1.f;
+  }
   void push(const float* capture,const float* render,unsigned mics,bool excited,unsigned delay) noexcept {
     delay=std::min(delay,8000u);
     if(std::abs(int(delay)-int(delay_))>16) {

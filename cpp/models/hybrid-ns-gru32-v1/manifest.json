@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "family": "hybrid_ns_gru32_v1",
+  "status": "experimental_not_accepted_as_default",
+  "default_enabled": false,
+  "architecture": "OM-LSA/IMCRA + portable FP32 causal GRU corrector",
+  "selected_training": "supervised-v2",
+  "teacher_used_in_selected_models": false,
+  "models": [
+    {
+      "sample_rate_hz": 16000,
+      "path": "student-16000.bin",
+      "sha256": "8274f1adeb1e7c847837dc4b98b30d1fe450384e074cbfd7e5cb90f92f502b2c",
+      "bytes": 79144,
+      "training_metadata": "build/ns-hybrid-student-20261018/data-v2/supervised-v2/training-16000.json",
+      "training_metadata_sha256": "cb0cdf403f95bd687abb05794f0c7c445afaec1f79a525de47c2fc4504b89f61",
+      "development_cases": 416,
+      "validation_cases": 170,
+      "development_frames": 998400,
+      "best_validation_loss": 0.4596407444161527
+    },
+    {
+      "sample_rate_hz": 24000,
+      "path": "student-24000.bin",
+      "sha256": "463216466e841bfe42b9698784bb184abad1f0ff23b254963a4ddc9fb6e08771",
+      "bytes": 79144,
+      "training_metadata": "build/ns-hybrid-student-20261018/data-v2/supervised-v2/training-24000.json",
+      "training_metadata_sha256": "fdab20612e41d2bdf56e4d874a5aa28825163e87b5b71cb02c0775d2dbe0d232",
+      "development_cases": 15,
+      "validation_cases": 15,
+      "development_frames": 36000,
+      "best_validation_loss": 0.6012245933214824
+    },
+    {
+      "sample_rate_hz": 48000,
+      "path": "student-48000.bin",
+      "sha256": "d27e51dee54dc16390bb9e08a8b7897d8f94132169572ec2599694bc46934dec",
+      "bytes": 79144,
+      "training_metadata": "build/ns-hybrid-student-20261018/data-v2/supervised-v2/training-48000.json",
+      "training_metadata_sha256": "070ad2dc0eaebf36c3cb7d60854be3b5773a8f5755cb19300ba2b5a0ab880d70",
+      "development_cases": 101,
+      "validation_cases": 15,
+      "development_frames": 242400,
+      "best_validation_loss": 0.503821583588918
+    }
+  ],
+  "binary_contract": {
+    "magic": "ITUNSGR1",
+    "header_bytes": 32,
+    "version": 1,
+    "feature_version": 1,
+    "header_fields_le_u32": [
+      "version",
+      "sample_rate_hz",
+      "bands",
+      "hidden_size",
+      "feature_version",
+      "parameters"
+    ],
+    "parameters": 19776,
+    "parameter_dtype": "little_endian_float32",
+    "weight_bytes": 79104,
+    "weight_order": [
+      "gru.weight_ih_l0",
+      "gru.weight_hh_l0",
+      "gru.bias_ih_l0",
+      "gru.bias_hh_l0",
+      "head.weight",
+      "head.bias"
+    ],
+    "integrity_trailer": "FNV1a64 little endian, hash header and weights",
+    "integrity_bytes": 8
+  },
+  "frontend": {
+    "native_rates_hz": [
+      16000,
+      24000,
+      48000
+    ],
+    "hop_ms": 10,
+    "window_ms": 20,
+    "window": "sin(pi*(n+0.5)/window_samples)",
+    "fft_size_by_rate": {
+      "16000": 512,
+      "24000": 512,
+      "48000": 1024
+    },
+    "resampling": false,
+    "declared_signal_delay_ms": 10,
+    "input_entry": "PCM16-equivalent quantization at native rate",
+    "external_vad": false
+  },
+  "features": {
+    "bands": 64,
+    "input_size": 128,
+    "centers_hz": "24 points linspace(0,1000); 16 points 1000+3000*i/16 (i=1..16); 24 points 4000+(rate/2-4000)*i/24 (i=1..24)",
+    "projection": "two triangular weights per FFT bin, normalized per band",
+    "first_64": "clip(log(max(band_power,1e-16))-log(max(band_noise,1e-16)),-12,12)/6",
+    "last_64": "clip(log(max(band_power,1e-16))-previous_log_power,-12,12)/6; first frame zeros",
+    "source": "NS input, current PSD before t+1 estimator update; no teacher inputs"
+  },
+  "network": {
+    "hidden_size": 32,
+    "gru_layers": 1,
+    "bidirectional": false,
+    "equations": "PyTorch GRU reset-after",
+    "outputs": {
+      "spp": 64,
+      "delta_log_xi": 64
+    },
+    "spp_activation": "sigmoid",
+    "delta_activation": "tanh * 1.3815510558",
+    "power_snr_correction_limit_db": 6,
+    "matrix_mac_per_hop": 19456,
+    "matrix_mmac_per_second": 1.9456
+  },
+  "controller": {
+    "implementation": "hybrid_ns_control.hpp v3",
+    "spp_mix": 0.5,
+    "snr_mix": 0.5,
+    "confidence": "(2*p_nn-1)^2",
+    "statistical_strength": 2,
+    "gain_floor_db": -18,
+    "speech_floor_db": -3,
+    "suppression_attack_ms": 30,
+    "speech_gain_recovery": "immediate",
+    "neural_psd_update": false,
+    "phase_correction": false,
+    "quiet_psd_limit": "16*hop/(12*32768^2)"
+  },
+  "training": {
+    "manifest": "build/ns-hybrid-student-20261018/data-v2/supervised-v2/training-manifest.json",
+    "manifest_sha256": "3d73723b6fbb0eb06d662b85a56b20e569e9fe5558e96dd2416f6a39e84d4ee2",
+    "label_schema": "event_v2",
+    "spp_label": "clean/noise band power > 10^(-5/10) AND clean band power > 1e-9",
+    "loss": "BCE(spp) + 0.18*SmoothL1(delta_log_xi)",
+    "teacher_weight": 0,
+    "epochs": 12,
+    "seed": 20261018,
+    "learning_rate": 0.002,
+    "batch_size": 32,
+    "truncated_bptt_frames": 100,
+    "holdout_loaded": false,
+    "original_dev_validation_cases": 667,
+    "clean_augmentation_container_cases": 65,
+    "unique_clean_augmentation_pcm_claimed": false
+  },
+  "acceptance": {
+    "all_ns": {
+      "baseline_pass": 570,
+      "hybrid_pass": 736,
+      "cases": 847
+    },
+    "holdout": {
+      "baseline_pass": 148,
+      "hybrid_pass": 147,
+      "cases": 180
+    },
+    "clean_derived": {
+      "baseline_pass": 86,
+      "hybrid_pass": 86,
+      "cases": 88
+    },
+    "cold_derived": {
+      "baseline_pass": 40,
+      "hybrid_pass": 47,
+      "cases": 88
+    },
+    "quality_accepted_as_default": false,
+    "full_vcp_regression_completed": false,
+    "itut_certification": false,
+    "runtime_report": "build/ns-hybrid-student-20261018/runtime-serial-final/report.json"
+  },
+  "integration": {
+    "cpp_api": true,
+    "cli": true,
+    "c_api_model_loader": false,
+    "android": false,
+    "backend": "omlsa_imcra",
+    "rate_24000_aec3": "explicitly_rejected_due_to_existing_48000_bridge",
+    "failure_behavior": "same-STFT statistical candidate with explicit state/counter; numerical failure sticky per stream"
+  },
+  "limitations": [
+    "holdout pass count did not improve",
+    "cold-start onset speech attenuation worsened",
+    "development source breadth is small; many SNR variants share PCM/noise recordings",
+    "no same-host full-GTCRN runtime comparison or claimed speedup factor",
+    "no full AEC/AGC/RTD acceptance"
+  ],
+  "implementation_report": "../../../docs/NS_HYBRID_STUDENT_IMPLEMENTATION_20261018.md"
+}

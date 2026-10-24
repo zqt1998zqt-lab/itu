@@ -1,0 +1,111 @@
+--- frozen/omlsa_imcra.hpp
++++ observer/omlsa_imcra.hpp
+@@ -107,6 +107,9 @@
+       const float denominator=std::max(1e-16f,b_min_*minimum_[k]);
+       indicator_[k]=power[k]<4.6f*denominator && smooth_[k]<1.67f*denominator ? 1.f:0.f;
+       excluded_bins_+=indicator_[k]==0.f;
++// PROP_BEGIN
++      PROP_UPDATE1(k,smooth_[k],minimum_[k],sub_min_[k],denominator,indicator_[k]);
++// PROP_END
+     }
+     // Second iteration: frequency smoothing EXCLUDES bins identified as speech.
+     // With no eligible neighbour, retain the previous conditional spectrum.
+@@ -139,6 +142,9 @@
+         step_updates_+=bounded<a;a=bounded;
+       }
+       noise_[k]=std::max(1e-16f,next);
++// PROP_BEGIN
++      PROP_UPDATE2(k,numerator,denominator,conditional_[k],conditional_min_[k],conditional_sub_min_[k],d,g,z,prior,p,a,previous,next,power[k],xi[k],gamma[k],noise_[k]);
++// PROP_END
+       noise_updates_+=a<.99999f;
+     }
+     if(++frames_in_subwindow_==subwindow_frames) {
+@@ -153,6 +159,9 @@
+         sub_min_[k]=smooth_[k];conditional_sub_min_[k]=conditional_[k];
+       }
+       head_=(head_+1)%subwindows;frames_in_subwindow_=0;++rotations_;
++// PROP_BEGIN
++      PROP_RING(*this);
++// PROP_END
+     }
+   }
+  private:
+@@ -221,6 +230,9 @@
+       for(unsigned k=0;k<bins_;++k)spectrum_[k]-=frame_bias*bias_basis_[k];
+     }
+     for(unsigned k=0;k<bins_;++k) power_[k]=std::max(1e-16f,std::norm(spectrum_[k]));
++// PROP_BEGIN
++    PROP_STATE("after_power",*this,audio);
++// PROP_END
+     if(minima_history_bootstrap_enabled_ && !bias_mode_ && minima_history_process_calls_==1) {
+       // The intervention occurs on zero-based hop 1, after the current power
+       // exists and before estimation. Recompute the local seed; do not rewrite
+@@ -231,7 +243,13 @@
+       }
+       const double flat=count?std::exp(logs/count)/std::max(1e-16,sum/count):1.;
+       const float local_seed=protect_start_ && flat<.15 ? .05f:1.f;
++// PROP_BEGIN
++      PROP_HELPER("helper_entry",*this,audio,local_seed,flat);
++// PROP_END
+       noise_.initialize_minima_history(power_.data(),local_seed);
++// PROP_BEGIN
++      PROP_HELPER("helper_exit",*this,audio,local_seed,flat);
++// PROP_END
+     }
+     if(!noise_.initialized()) {
+       // A bounded cold-start prior, using only this capture frame. Tonal/speech
+@@ -245,6 +263,9 @@
+       bootstrap_seed_=protect_start_ && flat<.15 ? .05f:1.f;
+       noise_.initialize(power_.data(),bootstrap_seed_);
+     }
++// PROP_BEGIN
++    PROP_STATE("before_estimation",*this,audio);
++// PROP_END
+     float frame_zeta=0;
+     for(unsigned k=0;k<bins_;++k) {
+       gamma_[k]=std::min(1e8f,power_[k]/noise_.noise(k));
+@@ -260,6 +281,9 @@
+       } else frame_probability=probability(frame_zeta/peak_zeta_);
+     }
+     previous_frame_zeta_=frame_zeta;
++// PROP_BEGIN
++    PROP_STATE("posterior",*this,audio);
++// PROP_END
+     mean_probability_=mean_gain_=noise_power_=0;
+     for(unsigned k=0;k<bins_;++k) {
+       const float prior=std::max(.005f,probability(average(zeta_,k,local_))*probability(average(zeta_,k,global_))*frame_probability);
+@@ -272,6 +296,9 @@
+           omlsa_h1_gain(xi_[k],gamma_[k]):super_gaussian_h1_gain(xi_[k],gamma_[k]));
+       gain_[k]=std::exp(p*std::log(h1)+(1-p)*std::log(floor_gain_));
+       previous_h1_snr_[k]=h1*h1*gamma_[k];
++// PROP_BEGIN
++      PROP_OUTER(k,prior,p,h1);
++// PROP_END
+       mean_probability_+=p;mean_gain_+=gain_[k];noise_power_+=noise_.noise(k);
+     }
+     mean_probability_/=bins_;mean_gain_/=bins_;
+@@ -280,8 +307,14 @@
+       control->observe(spectral_frame());
+       mean_gain_=0;for(float g:gain_) mean_gain_+=g;mean_gain_/=bins_;
+     }
++// PROP_BEGIN
++    PROP_STATE("gain",*this,audio);
++// PROP_END
+     // Estimate t+1 only after this frame's gain uses the t noise estimate.
+     noise_.update(power_.data(),xi_.data(),gamma_.data(),step_recovery);
++// PROP_BEGIN
++    PROP_STATE("noise_updated",*this,audio);
++// PROP_END
+     if(bias_mode_==1) {
+       for(unsigned k=0;k<bins_;++k)spectrum_[k]=original_spectrum_[k]*gain_[k];
+     } else if(bias_mode_>=2) {
+@@ -297,6 +330,9 @@
+       audio[i]=overlap_[i]+spectrum_[i].real()*window_[i];
+       overlap_[i]=spectrum_[i+hop_].real()*window_[i+hop_];
+     }
++// PROP_BEGIN
++    PROP_STATE("wet",*this,audio);
++// PROP_END
+     ++minima_history_process_calls_;
+   }
+  private:

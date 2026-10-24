@@ -1,0 +1,1148 @@
+[
+  {
+    "algorithm": "guarded5",
+    "variant": "guarded5",
+    "id": "pass",
+    "status": "通过",
+    "headline": "Guarded5 · 通过案例",
+    "note": "Guarded5 当前冻结配置；完整工程门全部通过。图示 near_late 窗：SI-SDR (dB) 20.6092 >= 19.0000（通过）；ΔSTOI -0.0000 >= -0.0200（通过）；投影增益下限 (dB) 0.0000 >= -3.0000（通过）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/guarded5/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/guarded5/results.jsonl",
+      "report_sha256": "f5c8adf4593720adfb59a55e5c0f286c23f271f39bbb2d2b4ba8a96582c4e3b1",
+      "results_sha256": "6dfee5c275e7bed4629a07e1a4a613866f723f2bdaf8fc69806bfb65802b394f",
+      "passed": true,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 20.60917457775829,
+          "operator": ">=",
+          "threshold": 19.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "stoi_change",
+          "value": -7.785911383728639e-06,
+          "operator": ">=",
+          "threshold": -0.02,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_min_db",
+          "value": 3.4226437146541554e-05,
+          "operator": ">=",
+          "threshold": -3.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_max_db",
+          "value": 3.4226437146541554e-05,
+          "operator": "<=",
+          "threshold": 18.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_min_dbfs",
+          "value": -30.5082089303269,
+          "operator": ">=",
+          "threshold": -65.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_max_dbfs",
+          "value": -30.5082089303269,
+          "operator": "<=",
+          "threshold": -6.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "pass"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-11",
+      "detail": "Guarded5；16 kHz；-30 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Guarded5 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-guarded5-pass-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-guarded5-pass-mel.svg",
+      "analysis": "通过案例；SI-SDR (dB) 20.6092 >= 19.0000（通过）；ΔSTOI -0.0000 >= -0.0200（通过）；投影增益下限 (dB) 0.0000 >= -3.0000（通过）"
+    }
+  },
+  {
+    "algorithm": "guarded5",
+    "variant": "guarded5",
+    "id": "fail",
+    "status": "失败",
+    "headline": "Guarded5 · 失败案例",
+    "note": "Guarded5 当前冻结配置；完整工程门失败 2 项。图示 near_late 窗：投影增益下限 (dB) -0.0014 >= 6.0000（失败）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/guarded5/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/guarded5/results.jsonl",
+      "report_sha256": "f5c8adf4593720adfb59a55e5c0f286c23f271f39bbb2d2b4ba8a96582c4e3b1",
+      "results_sha256": "6dfee5c275e7bed4629a07e1a4a613866f723f2bdaf8fc69806bfb65802b394f",
+      "passed": false,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_min_db",
+          "value": -0.0014403450183049582,
+          "operator": ">=",
+          "threshold": 6.0,
+          "status": "fail",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "fail"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-10",
+      "detail": "Guarded5；16 kHz；-45 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Guarded5 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-guarded5-fail-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-guarded5-fail-mel.svg",
+      "analysis": "失败案例；投影增益下限 (dB) -0.0014 >= 6.0000（失败）"
+    }
+  },
+  {
+    "algorithm": "adaptive-agc2",
+    "variant": "agc2_adaptive",
+    "id": "pass",
+    "status": "通过",
+    "headline": "AGC2 Adaptive · 通过案例",
+    "note": "AGC2 Adaptive 当前冻结配置；完整工程门全部通过。图示 near_late 窗：SI-SDR (dB) 13.1254 >= 11.6530（通过）；ΔSTOI -0.0088 >= -0.0200（通过）；投影增益下限 (dB) -1.6976 >= -3.0000（通过）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/results.jsonl",
+      "report_sha256": "61cbeefbc385b657a7c1157636366d77a85622eb1ee350fdc21e29c0fd552014",
+      "results_sha256": "697c76d54dae279e2fadade5ad7a925add8295a57228b1c1402dd0063a6776cd",
+      "passed": true,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 13.125369783185958,
+          "operator": ">=",
+          "threshold": 11.652996748322717,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "stoi_change",
+          "value": -0.008781860392567342,
+          "operator": ">=",
+          "threshold": -0.02,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_min_db",
+          "value": -1.6975822710789579,
+          "operator": ">=",
+          "threshold": -3.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_max_db",
+          "value": -1.6975822710789579,
+          "operator": "<=",
+          "threshold": 18.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_min_dbfs",
+          "value": -20.63445578383036,
+          "operator": ">=",
+          "threshold": -65.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_max_dbfs",
+          "value": -20.63445578383036,
+          "operator": "<=",
+          "threshold": -6.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "pass"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m2-13",
+      "detail": "AGC2 Adaptive；16 kHz；-15 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 98,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · AGC2 Adaptive 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m2-13/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m2-13/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-agc2-adaptive-pass-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-agc2-adaptive-pass-mel.svg",
+      "analysis": "通过案例；SI-SDR (dB) 13.1254 >= 11.6530（通过）；ΔSTOI -0.0088 >= -0.0200（通过）；投影增益下限 (dB) -1.6976 >= -3.0000（通过）"
+    }
+  },
+  {
+    "algorithm": "adaptive-agc2",
+    "variant": "agc2_adaptive",
+    "id": "fail",
+    "status": "失败",
+    "headline": "AGC2 Adaptive · 失败案例",
+    "note": "AGC2 Adaptive 当前冻结配置；完整工程门失败 2 项。图示 near_late 窗：SI-SDR (dB) 13.5127 >= 19.0000（失败）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/results.jsonl",
+      "report_sha256": "61cbeefbc385b657a7c1157636366d77a85622eb1ee350fdc21e29c0fd552014",
+      "results_sha256": "697c76d54dae279e2fadade5ad7a925add8295a57228b1c1402dd0063a6776cd",
+      "passed": false,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 13.512664426337224,
+          "operator": ">=",
+          "threshold": 19.0,
+          "status": "fail",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "fail"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-12",
+      "detail": "AGC2 Adaptive；16 kHz；-15 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · AGC2 Adaptive 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-agc2-adaptive-fail-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-agc2-adaptive-fail-mel.svg",
+      "analysis": "失败案例；SI-SDR (dB) 13.5127 >= 19.0000（失败）"
+    }
+  },
+  {
+    "algorithm": "fixed-digital",
+    "variant": "fixed_0",
+    "id": "pass",
+    "status": "通过",
+    "headline": "Fixed 0 dB · 通过案例",
+    "note": "Fixed 0 dB 当前冻结配置；完整工程门全部通过。图示 near_late 窗：SI-SDR (dB) 20.6092 >= 19.0000（通过）；ΔSTOI -0.0000 >= -0.0200（通过）；投影增益下限 (dB) 0.0000 >= -3.0000（通过）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/fixed_0/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/fixed_0/results.jsonl",
+      "report_sha256": "ab110a8bd500557cf037a1483f25e242127fc7503989bfba8825136e2770ed32",
+      "results_sha256": "217020bd4dd12b6b8a481bf9530eaaf4abf714636297a9439efab69abd398ba1",
+      "passed": true,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 20.60917457775829,
+          "operator": ">=",
+          "threshold": 19.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "stoi_change",
+          "value": -7.785911383728639e-06,
+          "operator": ">=",
+          "threshold": -0.02,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_min_db",
+          "value": 3.4226437146541554e-05,
+          "operator": ">=",
+          "threshold": -3.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_max_db",
+          "value": 3.4226437146541554e-05,
+          "operator": "<=",
+          "threshold": 18.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_min_dbfs",
+          "value": -30.5082089303269,
+          "operator": ">=",
+          "threshold": -65.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_max_dbfs",
+          "value": -30.5082089303269,
+          "operator": "<=",
+          "threshold": -6.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "pass"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-11",
+      "detail": "Fixed 0 dB；16 kHz；-30 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Fixed 0 dB 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-fixed-0-pass-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-fixed-0-pass-mel.svg",
+      "analysis": "通过案例；SI-SDR (dB) 20.6092 >= 19.0000（通过）；ΔSTOI -0.0000 >= -0.0200（通过）；投影增益下限 (dB) 0.0000 >= -3.0000（通过）"
+    }
+  },
+  {
+    "algorithm": "fixed-digital",
+    "variant": "fixed_0",
+    "id": "fail",
+    "status": "失败",
+    "headline": "Fixed 0 dB · 失败案例",
+    "note": "Fixed 0 dB 当前冻结配置；完整工程门失败 2 项。图示 near_late 窗：SI-SDR (dB) 13.5127 >= 19.0000（失败）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/fixed_0/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/fixed_0/results.jsonl",
+      "report_sha256": "ab110a8bd500557cf037a1483f25e242127fc7503989bfba8825136e2770ed32",
+      "results_sha256": "217020bd4dd12b6b8a481bf9530eaaf4abf714636297a9439efab69abd398ba1",
+      "passed": false,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 13.512664426337224,
+          "operator": ">=",
+          "threshold": 19.0,
+          "status": "fail",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "fail"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-12",
+      "detail": "Fixed 0 dB；16 kHz；-15 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Fixed 0 dB 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-fixed-0-fail-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-fixed-0-fail-mel.svg",
+      "analysis": "失败案例；SI-SDR (dB) 13.5127 >= 19.0000（失败）"
+    }
+  },
+  {
+    "algorithm": "fixed-digital",
+    "variant": "fixed_3",
+    "id": "pass",
+    "status": "通过",
+    "headline": "Fixed 3 dB · 通过案例",
+    "note": "Fixed 3 dB 当前冻结配置；完整工程门全部通过。图示 near_late 窗：SI-SDR (dB) 20.5148 >= 19.0000（通过）；ΔSTOI -0.0000 >= -0.0200（通过）；投影增益下限 (dB) 2.9662 >= -3.0000（通过）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/fixed_3/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/fixed_3/results.jsonl",
+      "report_sha256": "584e57953c3ba8405aa66887419918936f68fd914b64bb0b98cf89ef0854f3b8",
+      "results_sha256": "f6340c0244afb4d8084c0b98c044cde985853066135990809e8facd02ceaf561",
+      "passed": true,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 20.514824382284793,
+          "operator": ">=",
+          "threshold": 19.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "stoi_change",
+          "value": -2.2366219851965852e-05,
+          "operator": ">=",
+          "threshold": -0.02,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_min_db",
+          "value": 2.9662425040353475,
+          "operator": ">=",
+          "threshold": -3.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_max_db",
+          "value": 2.9662425040353475,
+          "operator": "<=",
+          "threshold": 18.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_min_dbfs",
+          "value": -27.541178879381757,
+          "operator": ">=",
+          "threshold": -65.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_max_dbfs",
+          "value": -27.541178879381757,
+          "operator": "<=",
+          "threshold": -6.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "pass"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-11",
+      "detail": "Fixed 3 dB；16 kHz；-30 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Fixed 3 dB 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-fixed-3-pass-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-fixed-3-pass-mel.svg",
+      "analysis": "通过案例；SI-SDR (dB) 20.5148 >= 19.0000（通过）；ΔSTOI -0.0000 >= -0.0200（通过）；投影增益下限 (dB) 2.9662 >= -3.0000（通过）"
+    }
+  },
+  {
+    "algorithm": "fixed-digital",
+    "variant": "fixed_3",
+    "id": "fail",
+    "status": "失败",
+    "headline": "Fixed 3 dB · 失败案例",
+    "note": "Fixed 3 dB 当前冻结配置；完整工程门失败 2 项。图示 near_late 窗：投影增益下限 (dB) 2.9986 >= 6.0000（失败）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/fixed_3/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/fixed_3/results.jsonl",
+      "report_sha256": "584e57953c3ba8405aa66887419918936f68fd914b64bb0b98cf89ef0854f3b8",
+      "results_sha256": "f6340c0244afb4d8084c0b98c044cde985853066135990809e8facd02ceaf561",
+      "passed": false,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_min_db",
+          "value": 2.9985578777097857,
+          "operator": ">=",
+          "threshold": 6.0,
+          "status": "fail",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "fail"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-10",
+      "detail": "Fixed 3 dB；16 kHz；-45 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Fixed 3 dB 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-fixed-3-fail-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-fixed-3-fail-mel.svg",
+      "analysis": "失败案例；投影增益下限 (dB) 2.9986 >= 6.0000（失败）"
+    }
+  },
+  {
+    "algorithm": "fixed-digital",
+    "variant": "fixed_6",
+    "id": "pass",
+    "status": "通过",
+    "headline": "Fixed 6 dB · 通过案例",
+    "note": "Fixed 6 dB 当前冻结配置；完整工程门全部通过。图示 near_late 窗：SI-SDR (dB) 19.0445 >= 19.0000（通过）；ΔSTOI -0.0004 >= -0.0200（通过）；投影增益下限 (dB) 5.7620 >= -3.0000（通过）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/fixed_6/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/fixed_6/results.jsonl",
+      "report_sha256": "f00de3f28614c5f6c43aabd0ecfb83f86ba31f535d4dd596be37af7800b14447",
+      "results_sha256": "4810d4662b1c28b5a3d221dd47fe76ef44d25e4a2dec514b060f8d4d20af409e",
+      "passed": true,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 19.044465942508438,
+          "operator": ">=",
+          "threshold": 19.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "stoi_change",
+          "value": -0.00035486340235224567,
+          "operator": ">=",
+          "threshold": -0.02,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_min_db",
+          "value": 5.761997535389344,
+          "operator": ">=",
+          "threshold": -3.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_max_db",
+          "value": 5.761997535389344,
+          "operator": "<=",
+          "threshold": 18.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_min_dbfs",
+          "value": -24.730045087735817,
+          "operator": ">=",
+          "threshold": -65.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_max_dbfs",
+          "value": -24.730045087735817,
+          "operator": "<=",
+          "threshold": -6.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "pass"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-11",
+      "detail": "Fixed 6 dB；16 kHz；-30 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Fixed 6 dB 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-fixed-6-pass-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-fixed-6-pass-mel.svg",
+      "analysis": "通过案例；SI-SDR (dB) 19.0445 >= 19.0000（通过）；ΔSTOI -0.0004 >= -0.0200（通过）；投影增益下限 (dB) 5.7620 >= -3.0000（通过）"
+    }
+  },
+  {
+    "algorithm": "fixed-digital",
+    "variant": "fixed_6",
+    "id": "fail",
+    "status": "失败",
+    "headline": "Fixed 6 dB · 失败案例",
+    "note": "Fixed 6 dB 当前冻结配置；完整工程门失败 4 项。图示 near_late 窗：SI-SDR (dB) 7.5558 >= 19.0000（失败）；ΔSTOI -0.0444 >= -0.0200（失败）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/fixed_6/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/fixed_6/results.jsonl",
+      "report_sha256": "f00de3f28614c5f6c43aabd0ecfb83f86ba31f535d4dd596be37af7800b14447",
+      "results_sha256": "4810d4662b1c28b5a3d221dd47fe76ef44d25e4a2dec514b060f8d4d20af409e",
+      "passed": false,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 7.555754382822013,
+          "operator": ">=",
+          "threshold": 19.0,
+          "status": "fail",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "stoi_change",
+          "value": -0.04443510431479414,
+          "operator": ">=",
+          "threshold": -0.02,
+          "status": "fail",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "fail"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-12",
+      "detail": "Fixed 6 dB；16 kHz；-15 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Fixed 6 dB 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-fixed-6-fail-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-fixed-6-fail-mel.svg",
+      "analysis": "失败案例；SI-SDR (dB) 7.5558 >= 19.0000（失败）；ΔSTOI -0.0444 >= -0.0200（失败）"
+    }
+  },
+  {
+    "algorithm": "fixed-digital",
+    "variant": "fixed_8",
+    "id": "pass",
+    "status": "通过",
+    "headline": "Fixed 8 dB · 通过案例",
+    "note": "Fixed 8 dB 当前冻结配置；完整工程门全部通过。图示 near_late 窗：SI-SDR (dB) 19.5838 >= 10.5154（通过）；ΔSTOI 0.0012 >= -0.0200（通过）；投影增益下限 (dB) 8.0006 >= 6.0000（通过）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/fixed_8/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/fixed_8/results.jsonl",
+      "report_sha256": "7ea42fc8971b6986e4d26f441efb3f494cd228d976a63d3e310ec87fa68de38a",
+      "results_sha256": "14fbccac47a70e3677922ee8dd773eb4b565d30d0d9ea9d55192d93dcdd14a12",
+      "passed": true,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 19.583755405503357,
+          "operator": ">=",
+          "threshold": 10.515415352905784,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "stoi_change",
+          "value": 0.001214603543646442,
+          "operator": ">=",
+          "threshold": -0.02,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_min_db",
+          "value": 8.000625409864004,
+          "operator": ">=",
+          "threshold": 6.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_max_db",
+          "value": 8.000625409864004,
+          "operator": "<=",
+          "threshold": 18.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_min_dbfs",
+          "value": -37.64529607340514,
+          "operator": ">=",
+          "threshold": -65.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_max_dbfs",
+          "value": -37.64529607340514,
+          "operator": "<=",
+          "threshold": -6.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "fail"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m4-11",
+      "detail": "Fixed 8 dB；16 kHz；-45 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 101,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Fixed 8 dB 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m4-11/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m4-11/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-fixed-8-pass-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-fixed-8-pass-mel.svg",
+      "analysis": "通过案例；SI-SDR (dB) 19.5838 >= 10.5154（通过）；ΔSTOI 0.0012 >= -0.0200（通过）；投影增益下限 (dB) 8.0006 >= 6.0000（通过）"
+    }
+  },
+  {
+    "algorithm": "fixed-digital",
+    "variant": "fixed_8",
+    "id": "fail",
+    "status": "失败",
+    "headline": "Fixed 8 dB · 失败案例",
+    "note": "Fixed 8 dB 当前冻结配置；完整工程门失败 2 项。图示 near_late 窗：SI-SDR (dB) 16.8255 >= 19.0000（失败）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/fixed_8/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/fixed_8/results.jsonl",
+      "report_sha256": "7ea42fc8971b6986e4d26f441efb3f494cd228d976a63d3e310ec87fa68de38a",
+      "results_sha256": "14fbccac47a70e3677922ee8dd773eb4b565d30d0d9ea9d55192d93dcdd14a12",
+      "passed": false,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 16.82548853795425,
+          "operator": ">=",
+          "threshold": 19.0,
+          "status": "fail",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "pass"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-11",
+      "detail": "Fixed 8 dB；16 kHz；-30 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Fixed 8 dB 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-fixed-8-fail-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-fixed-8-fail-mel.svg",
+      "analysis": "失败案例；SI-SDR (dB) 16.8255 >= 19.0000（失败）"
+    }
+  },
+  {
+    "algorithm": "tx-drc",
+    "variant": "no_tx_drc",
+    "id": "pass",
+    "status": "通过",
+    "headline": "No TX DRC · 通过案例",
+    "note": "No TX DRC 当前冻结配置；完整工程门全部通过。图示 near_late 窗：SI-SDR (dB) 22.1702 >= 19.0000（通过）；ΔSTOI -0.0031 >= -0.0200（通过）；投影增益下限 (dB) -0.1332 >= -3.0000（通过）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/results.jsonl",
+      "report_sha256": "2b4a418b698bcb7e1ffa2b28e7e8437fe09ccb317e2ee7ac7bce02076624c2f8",
+      "results_sha256": "fdfb7495b13c0adf8af232e5e4daf3feb35f7ec10e336eb0569f0df5a862164d",
+      "passed": true,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 22.17023405910034,
+          "operator": ">=",
+          "threshold": 19.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "stoi_change",
+          "value": -0.003065890429153062,
+          "operator": ">=",
+          "threshold": -0.02,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_min_db",
+          "value": -0.1331829959258612,
+          "operator": ">=",
+          "threshold": -3.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_max_db",
+          "value": -0.1331829959258612,
+          "operator": "<=",
+          "threshold": 18.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_min_dbfs",
+          "value": -19.08213732893012,
+          "operator": ">=",
+          "threshold": -65.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_max_dbfs",
+          "value": -19.08213732893012,
+          "operator": "<=",
+          "threshold": -6.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "fail"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-12",
+      "detail": "No TX DRC；16 kHz；-15 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · No TX DRC 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-no-tx-drc-pass-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-no-tx-drc-pass-mel.svg",
+      "analysis": "通过案例；SI-SDR (dB) 22.1702 >= 19.0000（通过）；ΔSTOI -0.0031 >= -0.0200（通过）；投影增益下限 (dB) -0.1332 >= -3.0000（通过）"
+    }
+  },
+  {
+    "algorithm": "tx-drc",
+    "variant": "no_tx_drc",
+    "id": "fail",
+    "status": "失败",
+    "headline": "No TX DRC · 失败案例",
+    "note": "No TX DRC 当前冻结配置；完整工程门失败 2 项。图示 near_late 窗：投影增益下限 (dB) -0.0014 >= 6.0000（失败）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/report.json",
+    "evidence": {
+      "results": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/results.jsonl",
+      "report_sha256": "2b4a418b698bcb7e1ffa2b28e7e8437fe09ccb317e2ee7ac7bce02076624c2f8",
+      "results_sha256": "fdfb7495b13c0adf8af232e5e4daf3feb35f7ec10e336eb0569f0df5a862164d",
+      "passed": false,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_min_db",
+          "value": -0.0014403450183049582,
+          "operator": ">=",
+          "threshold": 6.0,
+          "status": "fail",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "fail"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m1-10",
+      "detail": "No TX DRC；16 kHz；-45 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · No TX DRC 冻结 VCP",
+      "beforeFile": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+      "afterFile": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-no-tx-drc-fail-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-no-tx-drc-fail-mel.svg",
+      "analysis": "失败案例；投影增益下限 (dB) -0.0014 >= 6.0000（失败）"
+    }
+  },
+  {
+    "algorithm": "utterance-v4",
+    "variant": "stage4_release_no_tx_drc",
+    "id": "pass",
+    "status": "通过",
+    "headline": "Stage4 + release + No TX DRC · 通过案例",
+    "note": "Stage4 + release + No TX DRC 当前冻结配置；完整工程门全部通过。图示 near_late 窗：SI-SDR (dB) 19.8763 >= 11.8359（通过）；ΔSTOI -0.0004 >= -0.0200（通过）；投影增益下限 (dB) 7.9922 >= 6.0000（通过）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-stage4-release-no-tx-drc-20261020/report.json",
+    "evidence": {
+      "results": "build/agc-stage4-release-no-tx-drc-20261020/results.jsonl",
+      "report_sha256": "7c021ef2f31c323c95ffa7d8af5003cd4ffdcc989e99bd774a87ddb7bc11f96b",
+      "results_sha256": "7f42f6b6ce195f6afff47ced2ec788a5b9414fb4c7c8e8635a4ae3d6db9634b8",
+      "passed": true,
+      "window": "near_late",
+      "gates": [
+        {
+          "segment": "near_late",
+          "metric": "raw_sisdr_db",
+          "value": 19.876260706163944,
+          "operator": ">=",
+          "threshold": 11.835922899236579,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "stoi_change",
+          "value": -0.00036131826433671854,
+          "operator": ">=",
+          "threshold": -0.02,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_min_db",
+          "value": 7.992174705542169,
+          "operator": ">=",
+          "threshold": 6.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "projection_gain_max_db",
+          "value": 7.992174705542169,
+          "operator": "<=",
+          "threshold": 18.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_min_dbfs",
+          "value": -37.64026841309398,
+          "operator": ">=",
+          "threshold": -65.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        },
+        {
+          "segment": "near_late",
+          "metric": "rms_max_dbfs",
+          "value": -37.64026841309398,
+          "operator": "<=",
+          "threshold": -6.0,
+          "status": "pass",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "fail"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-development-m2-11",
+      "detail": "Stage4 + release + No TX DRC；16 kHz；-45 dBFS；tcar；SNR +20 dB；near_late",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        13,
+        21
+      ],
+      "delaySamples": 98,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Stage4 + release + No TX DRC 冻结 VCP",
+      "beforeFile": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m2-11/before.wav",
+      "afterFile": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m2-11/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-pass-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-pass-mel.svg",
+      "analysis": "通过案例；SI-SDR (dB) 19.8763 >= 11.8359（通过）；ΔSTOI -0.0004 >= -0.0200（通过）；投影增益下限 (dB) 7.9922 >= 6.0000（通过）"
+    }
+  },
+  {
+    "algorithm": "utterance-v4",
+    "variant": "stage4_release_no_tx_drc",
+    "id": "fail",
+    "status": "失败",
+    "headline": "Stage4 + release + No TX DRC · 失败案例",
+    "note": "Stage4 + release + No TX DRC 当前冻结配置；完整工程门失败 1 项。图示 noise_only 窗：噪声衰减 (dB) 5.6296 >= 6.0000（失败）。输入麦克风与最终 VCP 输出配对，包含其他增强模块，不作为隔离 AGC 验收。",
+    "source": "build/agc-stage4-release-no-tx-drc-20261020/report.json",
+    "evidence": {
+      "results": "build/agc-stage4-release-no-tx-drc-20261020/results.jsonl",
+      "report_sha256": "7c021ef2f31c323c95ffa7d8af5003cd4ffdcc989e99bd774a87ddb7bc11f96b",
+      "results_sha256": "7f42f6b6ce195f6afff47ced2ec788a5b9414fb4c7c8e8635a4ae3d6db9634b8",
+      "passed": false,
+      "window": "noise_only",
+      "gates": [
+        {
+          "segment": "noise_only",
+          "metric": "total_attenuation_db",
+          "value": 5.629586462653606,
+          "operator": ">=",
+          "threshold": 6.0,
+          "status": "fail",
+          "reason": null,
+          "optional": false
+        }
+      ],
+      "original_status": "pass"
+    },
+    "caseAudio": {
+      "id": "vehicle-16000-validation-m1-10",
+      "detail": "Stage4 + release + No TX DRC；16 kHz；-45 dBFS；straffic；SNR +20 dB；noise_only",
+      "sampleRate": 16000,
+      "windowSeconds": [
+        22,
+        24
+      ],
+      "delaySamples": 96,
+      "beforeLabel": "输入 · 冻结麦克风 / 通道 0",
+      "afterLabel": "输出 · Stage4 + release + No TX DRC 冻结 VCP",
+      "beforeFile": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-validation-m1-10/before.wav",
+      "afterFile": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-validation-m1-10/runs/full/result.after.wav",
+      "waveformSrc": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-fail-waveform.svg",
+      "melSrc": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-fail-mel.svg",
+      "analysis": "失败案例；噪声衰减 (dB) 5.6296 >= 6.0000（失败）"
+    }
+  }
+]

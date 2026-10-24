@@ -1,0 +1,361 @@
+.eq-matrix,
+.eq-layer-card,
+.eq-target-card {
+  min-width: 0;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--nsp-border);
+  border-radius: 8px;
+}
+
+.eq-matrix-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 22px 17px;
+  border-bottom: 1px solid #e8edf3;
+}
+
+.eq-matrix-head > div:first-child > span,
+.eq-layer-head span,
+.eq-target-card > div:first-child > span {
+  color: var(--nsp-muted);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+}
+
+.eq-matrix-head h2,
+.eq-layer-head h2,
+.eq-target-card h2 {
+  margin-top: 7px;
+  color: var(--nsp-ink);
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.eq-matrix-head p,
+.eq-layer-head p,
+.eq-target-card p {
+  max-width: 820px;
+  margin-top: 7px;
+  color: var(--nsp-muted);
+  font-size: 11px;
+  line-height: 1.75;
+}
+
+.eq-matrix-stamp {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: 3px;
+  padding: 10px 12px;
+  color: #5d718b;
+  background: #f7fafc;
+  border: 1px solid #e4eaf1;
+  border-radius: 6px;
+  font-size: 9px;
+}
+
+.eq-matrix-stamp code {
+  color: #395c89;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.eq-matrix-stamp small {
+  color: #8996a8;
+  font-size: 8px;
+}
+
+.eq-matrix-scroll,
+.eq-target-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.eq-matrix-scroll:focus-visible,
+.eq-target-scroll:focus-visible {
+  outline: 2px solid #7fa9e7;
+  outline-offset: -2px;
+}
+
+.eq-matrix-table,
+.eq-target-card table {
+  width: 100%;
+  min-width: 940px;
+  border-collapse: collapse;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.eq-target-card table {
+  min-width: 640px;
+}
+
+.eq-matrix-table th,
+.eq-matrix-table td,
+.eq-target-card th,
+.eq-target-card td {
+  padding: 11px 14px;
+  color: #52657d;
+  border-bottom: 1px solid #edf1f5;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.eq-matrix-table th:first-child,
+.eq-matrix-table td:first-child,
+.eq-matrix-table th:nth-child(2),
+.eq-matrix-table td:nth-child(2),
+.eq-target-card th:first-child,
+.eq-target-card td:first-child {
+  text-align: left;
+}
+
+.eq-matrix-table thead,
+.eq-target-card thead {
+  background: #f8fafc;
+}
+
+.eq-matrix-table thead th,
+.eq-target-card thead th {
+  color: #76859a;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.eq-matrix-table tbody th {
+  display: grid;
+  gap: 3px;
+}
+
+.eq-matrix-table tbody th strong {
+  color: #2d4667;
+  font-size: 11px;
+}
+
+.eq-matrix-table tbody th small {
+  color: #94a0ae;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 8px;
+  font-weight: 400;
+}
+
+.eq-matrix-table tbody tr:hover,
+.eq-target-card tbody tr:hover {
+  background: #fbfcfe;
+}
+
+.eq-matrix-table tr.is-best {
+  background: #f5fbf8;
+  box-shadow: inset 3px 0 #27785a;
+}
+
+.eq-matrix-table td.eq-positive strong {
+  color: #27785a;
+}
+
+.eq-matrix-table td.eq-negative strong {
+  color: #a34f42;
+}
+
+.eq-matrix-table td strong {
+  display: block;
+  font-size: 12px;
+}
+
+.eq-matrix-table td small {
+  display: block;
+  margin-top: 2px;
+  color: #8b98a8;
+  font-size: 8px;
+}
+
+.eq-matrix-notes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 13px 18px 16px;
+  border-top: 1px solid #edf1f5;
+}
+
+.eq-matrix-notes p {
+  color: #66778c;
+  font-size: 10px;
+  line-height: 1.75;
+}
+
+.eq-matrix-notes strong,
+.eq-build-proof strong {
+  color: #3c536f;
+  font-weight: 650;
+}
+
+.eq-build-proof {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr auto;
+  gap: 12px;
+  padding: 12px 18px;
+  color: #6d7e93;
+  background: #f8fafc;
+  border-top: 1px solid #e7edf3;
+  font-size: 9px;
+}
+
+.eq-build-proof > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.eq-build-proof code {
+  overflow-wrap: anywhere;
+  color: #496486;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 9px;
+}
+
+.eq-layer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 22px 17px;
+  color: #b47b12;
+  border-bottom: 1px solid #e8edf3;
+}
+
+.eq-layer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.eq-layer-grid article {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  padding: 18px;
+  border-right: 1px solid #edf1f5;
+}
+
+.eq-layer-grid article:last-child {
+  border-right: 0;
+}
+
+.eq-layer-grid article > span {
+  color: #8a98aa;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+}
+
+.eq-layer-grid h3 {
+  color: #344b68;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.eq-layer-grid strong {
+  color: #385c8b;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.eq-layer-grid article:nth-child(2) strong {
+  color: #a34f42;
+}
+
+.eq-layer-grid article:nth-child(3) strong {
+  color: #8c6c16;
+}
+
+.eq-layer-grid article:nth-child(4) strong {
+  color: #63758c;
+}
+
+.eq-layer-grid p {
+  color: #68798e;
+  font-size: 10px;
+  line-height: 1.72;
+}
+
+.eq-target-card {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.5fr);
+  align-items: stretch;
+  gap: 0;
+}
+
+.eq-target-card > div:first-child {
+  padding: 20px 22px;
+  background: #fffdf8;
+  border-right: 1px solid #eee7d8;
+}
+
+.eq-target-card tbody th {
+  color: #3a506d;
+  font-weight: 600;
+}
+
+@media (max-width: 1180px) {
+  .eq-layer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .eq-layer-grid article:nth-child(2) {
+    border-right: 0;
+  }
+
+  .eq-layer-grid article:nth-child(-n + 2) {
+    border-bottom: 1px solid #edf1f5;
+  }
+
+  .eq-target-card {
+    grid-template-columns: 1fr;
+  }
+
+  .eq-target-card > div:first-child {
+    border-right: 0;
+    border-bottom: 1px solid #eee7d8;
+  }
+}
+
+@media (max-width: 760px) {
+  .eq-matrix-head,
+  .eq-layer-head {
+    flex-direction: column;
+    padding: 18px 16px 15px;
+  }
+
+  .eq-matrix-stamp {
+    width: 100%;
+    justify-items: start;
+  }
+
+  .eq-matrix-notes,
+  .eq-build-proof {
+    grid-template-columns: 1fr;
+    padding: 13px 16px;
+  }
+
+  .eq-layer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .eq-layer-grid article {
+    border-right: 0;
+    border-bottom: 1px solid #edf1f5;
+  }
+
+  .eq-layer-grid article:last-child {
+    border-bottom: 0;
+  }
+
+  .eq-target-card > div:first-child {
+    padding: 18px 16px;
+  }
+}

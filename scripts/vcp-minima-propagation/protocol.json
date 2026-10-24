@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-24T13:11:18.392946+00:00",
+  "objective": "Read-only live-state propagation diagnosis for the already rejected minima/history-only candidate. No optimization candidate, retune or production change.",
+  "cases": [
+    {
+      "scene_id": "field-p0-m2-cold-snr15",
+      "input": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-state-attribution-20261024/capture-known3/field-p0-m2-cold-snr15/sg.input.f32",
+      "input_sha256": "d98c64e3c32fbc2e82b6e7622d2c5ebc99c85f9d7b5b835c70c1a26653426edf",
+      "flagoff_expected": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-state-attribution-20261024/capture-known3/field-p0-m2-cold-snr15/sg.output.f32",
+      "flagoff_sha256": "3c1cd9fe5dbc7e03761e3b00f454e5c84492dafa0343ab8a3a7be364c8810cf8",
+      "flagon_expected": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-minima-history-20261024/candidate-minima-v1/component-controls/results/field-p0-m2-cold-snr15/candidate-wet.f32",
+      "flagon_sha256": "40a44059b01214c34e18cd82a69bcc27b0fc58b79da03e49565ffecf89d9549f",
+      "hops": 2402,
+      "sample_rate": 16000,
+      "hop_samples": 160
+    },
+    {
+      "scene_id": "field-p0-m4-cold-snr0",
+      "input": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-state-attribution-20261024/capture-known3/field-p0-m4-cold-snr0/sg.input.f32",
+      "input_sha256": "5e46ff34322cb3ad1b28a53d761584a437f8a7ea13e7288ae7972d3b7ed751d5",
+      "flagoff_expected": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-state-attribution-20261024/capture-known3/field-p0-m4-cold-snr0/sg.output.f32",
+      "flagoff_sha256": "93e192fbe63053520b25c8c6b206e10c6d404d2fb16a50728884ef401c851abc",
+      "flagon_expected": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-minima-history-20261024/candidate-minima-v1/component-controls/results/field-p0-m4-cold-snr0/candidate-wet.f32",
+      "flagon_sha256": "b7590681866c770fba6fe6c926bf6f888b55f17ad13740244fd98f428df0a446",
+      "hops": 2402,
+      "sample_rate": 16000,
+      "hop_samples": 160
+    }
+  ],
+  "roles": [
+    "flagoff",
+    "flagon"
+  ],
+  "source": "/home/zhangqingtian/project/itu/build/vcp-joint-structure-20261024/luna-minima-history-20261024/candidate-minima-v1/cpp",
+  "source_numeric_header_sha256": "355bb9ad4ad669942e202cc6d0e5b4d52e4c80841d3b9fdb3a6940ec1e54595a",
+  "sampling": {
+    "trace_hops": 60,
+    "whole_wet_hops": 2402,
+    "fft_size": 512,
+    "bins": 257,
+    "hop_seconds": 0.01,
+    "cold_source_window_seconds": [
+      0,
+      0.5
+    ],
+    "full_bin_trace_required": true
+  },
+  "observability_requirements": [
+    "Live actual pre/post initialize_minima_history hook; measured hook entry/exit counters, no hardcoded invocation proof.",
+    "At current power before helper, before estimation, posterior gamma/xi/DD, finalized spectral gain before noise update, after noise update, and output WOLA.",
+    "Observe existing IMCRA update decisions denominator/indicator, conditional minimum, prior/posterior and recursive coefficient and previous/next PSD; no numeric expression replacement.",
+    "Full minimum/history slots at intervention and ring boundary checkpoints; actual float32 bits retained.",
+    "Alternative path intervention count zero; mix zero all2402 hops; control null and recovery0 as capture.",
+    "Strip-only observer hooks from copied source must recover original frozen source byte-for-byte."
+  ],
+  "hypotheses_to_check": [
+    "At hop1 helper only minima/history/ring changes. RawPSD, current power, smooth, DD and WOLA unchanged at helper boundary.",
+    "Because gain precedes noise update, any PSD recursion divergence at hop1 first affects later-hop gamma/xi/gain. Test actual first divergence, do not assume this outcome.",
+    "Minima-conditioned posterior can permit noise learning and reduce later spectral gain; band/time evidence must establish sign and order.",
+    "Ring-clock change may cause later subwindow boundary divergence. Trace60hops limits observations to first0.6s."
+  ],
+  "hard_gates": [
+    "All original whole-chain gates and terminal rejection unchanged. No new enabled CLI scene, controls12/onset6/staged24/full72.",
+    "Each diagnostic wet output must be byte-exact for all2402hops to the corresponding saved role stream; mismatch stops analysis/publication as valid causal evidence.",
+    "All inputs/source/ref/public/production locked; no graph engine changes, default changes, or history deletion.",
+    "Observer timing is invalid for RTF/performance.",
+    "Component traces cannot alone establish clean whole-chain causality; quality evidence remains frozen full-chain audit.",
+    "Two known development cases only; no holdout or global-optimum claim."
+  ],
+  "planned_analyses": [
+    "First bitwise divergence per checkpoint/variable/hop/bin; ratio and absolute difference distinguish floor effects.",
+    "Recompute recorded scalar recurrence and gamma/xi/gain using frozen formulas with explicit float tolerances; distinguish downstream causation from correlation.",
+    "Band/time statistics and plots linking PSD, SNR, probability, gain, ring clock and existing full-chain target loss.",
+    "Dynamic helper write-set preservation, actual call counters, all-hop wet exactness, independent observer/evidence review."
+  ],
+  "production_promoted": false,
+  "deleted_files": 0
+}

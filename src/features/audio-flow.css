@@ -1,18 +1,3 @@
-.audio-flow-entry {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  padding: 16px 20px;
-  margin-bottom: 20px;
-  color: var(--blue);
-  background: #edf3ff;
-  border: 1px solid #dce7fc;
-  border-radius: 9px;
-}
-.audio-flow-entry > div { flex: 1; }
-.audio-flow-entry strong { display: block; font-size: 0.8rem; font-weight: 600; }
-.audio-flow-entry span { display: block; margin-top: 6px; font-size: 0.73rem; line-height: 1.7; color: #536b8c; }
-.audio-flow-entry:hover { border-color: #9bb8ed; }
 .audio-flow-page {
   --df-paper: #f6f8fb; --df-surface: #fff; --df-ink: #233248;
   --df-muted: #65758b; --df-rule: #dce3ec; --df-rule-strong: #bdcada;
@@ -91,14 +76,10 @@
   .audio-flow-needs-list { padding: 0 16px 20px; }
   .audio-flow-needs-list > div { grid-template-columns: 1fr; gap: 12px; }
   .audio-flow-figure figcaption, .audio-flow-standard-note { padding: 16px; }
-  .audio-flow-entry { padding: 15px; }
-  .sidebar nav { flex-wrap: wrap; justify-content: flex-start; }
-  .sidebar .nav-item { flex: 0 1 auto; padding-inline: 8px; }
 }
 @media (max-width: 450px) {
   .audio-flow-modes { width: 100%; }
   .audio-flow-modes button { flex: 1; justify-content: center; padding-inline: 8px; }
-  .sidebar .nav-item { padding-inline: 5px; font-size: 0.7rem; }
 }
 @media print {
   .audio-flow-scroll { overflow: visible; }

@@ -10,8 +10,8 @@ namespace itu {
 // This observes capture/render only, never an evaluation target or scene label.
 class ReferenceMonitor {
  public:
-  ReferenceMonitor():fft_(15),mic_(32768),ref_(32768),time_(32768),render_time_(32768),corr_(32768),
-      x_(16385),y_(16385),cross_(16385) {}
+  explicit ReferenceMonitor(bool retain_state_on_silence=false):fft_(15),mic_(32768),ref_(32768),time_(32768),render_time_(32768),corr_(32768),
+      x_(16385),y_(16385),cross_(16385),retain_state_on_silence_(retain_state_on_silence) {}
   void push(const float* capture,const float* render,unsigned channels) noexcept {
     for(unsigned i=0;i<160;++i) {
       mic_[head_]=capture[i*channels]; ref_[head_]=render[i];
@@ -37,7 +37,7 @@ class ReferenceMonitor {
       if(!render_excited_) {
         confidence_=0;
         consistent_=weak_windows_=0;
-        reliable_=unreliable_=false;
+        if(!retain_state_on_silence_) reliable_=unreliable_=false;
         return;
       }
       double p=0; float peak=0; unsigned lag=0;
@@ -81,5 +81,6 @@ class ReferenceMonitor {
   unsigned head_=0,frames_=0,candidate_=0,consistent_=0,delay_=0,weak_windows_=0;
   float confidence_=0;
   bool reliable_=false,unreliable_=false,render_excited_=false,has_delay_=false;
+  bool retain_state_on_silence_=false;
 };
 }

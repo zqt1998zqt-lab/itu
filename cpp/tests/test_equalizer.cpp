@@ -1,5 +1,6 @@
 #include "itu/audio_engine.hpp"
 #include "itu/audio_engine_c.h"
+#include "linear_phase_eq.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -58,7 +59,65 @@ void validation() {
   require(!itu_audio_create_with_tuning(&c,0,0,&eq,error,sizeof(error)) && error[0],"C EQ boost lacks headroom");
 }
 }
+void linear_phase() {
+  for(unsigned rate:{16000u,24000u,48000u}) {
+    itu::Config c;
+    c.sample_rate=rate;c.frame_size=rate/100;
+    c.aec=c.noise_suppression=c.automatic_gain=c.limiter=false;
+    c.output_eq.phase=itu::EqPhase::linear;
+    c.output_eq.bands=1;
+    c.output_eq.band[0]={itu::EqKind::peak,1000,-6,1};
+    itu::LinearPhaseEq filter(c.output_eq,rate);
+    const auto& taps=filter.coefficients();
+    for(unsigned i=0;i<taps.size()/2;++i)
+      require(std::abs(taps[i]-taps[taps.size()-1-i])<1e-7f,
+              "linear-phase coefficients are asymmetric");
+    require(filter.delay()==(taps.size()-1)/2 &&
+        itu::LinearPhaseEq::delay_for(c.output_eq,rate)==filter.delay(),
+        "linear-phase delay contract mismatch");
+    auto minimum=c;minimum.output_eq.phase=itu::EqPhase::minimum;
+    itu::AudioEngine iir(minimum),fir(c);
+    itu::FrameInfo fi,ff;
+    std::vector<float> x(rate/100),a(rate/100),b(rate/100);
+    std::vector<float> iir_all,fir_all;
+    std::uint32_t seed=913;
+    for(unsigned frame=0;frame<300;++frame) {
+      for(float& v:x) {
+        seed=seed*1664525u+1013904223u;
+        v=(float(seed>>8)/float(1u<<24)-.5f)*.2f;
+      }
+      require(iir.process(x.data(),x.size(),nullptr,0,a.data(),a.size(),fi)==
+              itu::Status::ok,"minimum EQ process");
+      require(fir.process(x.data(),x.size(),nullptr,0,b.data(),b.size(),ff)==
+              itu::Status::ok,"linear EQ process");
+      iir_all.insert(iir_all.end(),a.begin(),a.end());
+      fir_all.insert(fir_all.end(),b.begin(),b.end());
+    }
+    require(ff.latency_samples-fi.latency_samples==filter.delay(),
+            "linear EQ latency not published");
+    const unsigned d=filter.delay();
+    double cross=0,left=0,right=0;
+    for(unsigned i=1000;i+d+2000<iir_all.size();++i) {
+      cross+=double(iir_all[i])*fir_all[i+d];
+      left+=double(iir_all[i])*iir_all[i];
+      right+=double(fir_all[i+d])*fir_all[i+d];
+    }
+    const double correlation=cross/std::sqrt(left*right+1e-30);
+    std::cout<<"linear EQ rate="<<rate<<" taps="<<taps.size()
+             <<" delay="<<d<<" correlation="<<correlation<<'\n';
+    require(correlation>.96,"linear FIR target response diverged");
+  }
+  for(unsigned taps:{32u,34u,2051u}) {
+    itu::Config c;c.sample_rate=16000;c.frame_size=160;c.output_eq.phase=itu::EqPhase::linear;
+    c.output_eq.linear_phase_taps=taps;
+    bool rejected=false;
+    try {itu::LinearPhaseEq filter(c.output_eq,c.sample_rate);}
+    catch(const std::invalid_argument&) {rejected=true;}
+    require(rejected,"invalid linear-phase tap count accepted");
+    std::cout<<"linear EQ rejected taps="<<taps<<'\n';
+  }
+}
 int main() {
-  try {response(); validation(); return 0;}
+  try {response(); validation(); linear_phase(); return 0;}
   catch(const std::exception& e) {std::cerr<<e.what()<<'\n'; return 1;}
 }

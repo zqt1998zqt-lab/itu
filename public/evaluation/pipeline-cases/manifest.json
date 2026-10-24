@@ -1,0 +1,4001 @@
+{
+  "scope": "Frozen input/output pairs; declared causal delay removed; no gain normalization.",
+  "assets": [
+    {
+      "asset_id": "ns-webrtc",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/webrtc_v5_bounded09-0.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "479a216a8ca3f686c9d7bf6bcffafbce6b1216f2b3d37dfb1963894a3e032187",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 416,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · WebRTC NS",
+      "analysis": "语音窗；用于观察谱增益与语音保真",
+      "waveform": "/evaluation/pipeline-cases/ns-webrtc-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-webrtc-mel.svg",
+      "waveform_bytes": 55042,
+      "mel_bytes": 2561598,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.60324566830122
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.57721221305034,
+        "high_db": 13.422787786949657
+      }
+    },
+    {
+      "asset_id": "ns-speex",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/speex_v5_steadydual-0.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "1f80596eb18bca7eac81e7ba6d9b495a2ffbb3af22541bdc7423366aa33d01fb",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · Speex steady-dual",
+      "analysis": "同输入、同时间窗；扣除 480 样本固定延迟",
+      "waveform": "/evaluation/pipeline-cases/ns-speex-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-speex-mel.svg",
+      "waveform_bytes": 55050,
+      "mel_bytes": 2559215,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.58551743672164
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.57402667107074,
+        "high_db": 13.42597332892926
+      }
+    },
+    {
+      "asset_id": "ns-rnnoise",
+      "case_id": "vehicle-16000-development-m1-10",
+      "detail": "CAVEMOVE · Alfa Romeo；16 kHz；SNR +20 dB；后段语音窗",
+      "before": "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+      "after": "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+      "before_sha256": "9779a988ca16e04fdfa7502fd8ad9c1bfcacd26efc9aac9671a21a702556b2f4",
+      "after_sha256": "395fbde4bcb768397a1ea2e20bce6cb964e7e73c67f98bfbf361f5c3b808c006",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · RNNoise",
+      "analysis": "代表性回放；网络输出经同一后级保护",
+      "waveform": "/evaluation/pipeline-cases/ns-rnnoise-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-rnnoise-mel.svg",
+      "waveform_bytes": 55030,
+      "mel_bytes": 2555303,
+      "waveform_rms_dbfs": {
+        "before": -45.49652897188389,
+        "after": -37.63657798733395
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -73.11500780963392,
+        "high_db": 6.884992190366078
+      }
+    },
+    {
+      "asset_id": "ns-ulunas",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/ulunas_direct-0.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "e169cefd9edef82e7f928461ccf13d95bf9a17d1ac827fb9fc3dbc8e66dd97d4",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · UL-UNAS",
+      "analysis": "ONNX 四缓存流式输出；同 692 场景集",
+      "waveform": "/evaluation/pipeline-cases/ns-ulunas-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-ulunas-mel.svg",
+      "waveform_bytes": 55040,
+      "mel_bytes": 2559411,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.74381175195308
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.6332486517691,
+        "high_db": 13.36675134823091
+      }
+    },
+    {
+      "asset_id": "ns-omlsa",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/omlsa_imcra_v2_mild-0.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "d98f9c6322e1fc6e07d2e81c4462d1a0b3e0094355040cf0167941187d3fde32",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · OM-LSA + IMCRA",
+      "analysis": "统计噪声估计与 OM-LSA 软增益",
+      "waveform": "/evaluation/pipeline-cases/ns-omlsa-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-omlsa-mel.svg",
+      "waveform_bytes": 55047,
+      "mel_bytes": 2562495,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.37554709800388
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.53455399431593,
+        "high_db": 13.465446005684074
+      }
+    },
+    {
+      "asset_id": "ns-super-gaussian",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/super_gaussian_balanced-0.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "8323183604d6493442c96732dfa630e5b459bfadd6069fa75cfb198dfef67325",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · Super-Gaussian",
+      "analysis": "共享 IMCRA；仅替换 H1 条件增益",
+      "waveform": "/evaluation/pipeline-cases/ns-super-gaussian-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-super-gaussian-mel.svg",
+      "waveform_bytes": 55047,
+      "mel_bytes": 2562394,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.36915083465672
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.53455399431593,
+        "high_db": 13.465446005684074
+      }
+    },
+    {
+      "asset_id": "ns-hybrid-gru",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/conv_gain_gru32-0.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "fb3e4ce50c985b97bede3bf5faec588757fdafb6afc433e42bf81b1180e507bf",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 160,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · Conv-Gain GRU32",
+      "analysis": "OM-LSA 生成音频；GRU 只修正控制量",
+      "waveform": "/evaluation/pipeline-cases/ns-hybrid-gru-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-hybrid-gru-mel.svg",
+      "waveform_bytes": 55048,
+      "mel_bytes": 2561611,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.877417916483154
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.67415810212049,
+        "high_db": 13.325841897879513
+      }
+    },
+    {
+      "asset_id": "ns-residual",
+      "case_id": "coverage-16000-development-9c7b62f0-snr+30",
+      "detail": "TCAR；16 kHz；SNR +30 dB；后段语音窗；门控残噪恢复案例",
+      "before": "build/controlled-native-full-20261017/cases/coverage-16000-development-9c7b62f0-snr+30/before.wav",
+      "after": "build/ns-traditional-residual-20261019-v6/full-gate/omlsa/r3/421f46769689383c7718/result.after.wav",
+      "before_sha256": "35db82972afb5771a059756f4e8a3a4a22e1123bd1273cfa1124e24887701f68",
+      "after_sha256": "1b3e13f1958f168f960d0c970fac84a0c8240791eb579d0cc399cb83f3834ae5",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · OM-LSA + 残噪门控",
+      "analysis": "通过恢复案例；residual gate SNR -12 dB",
+      "waveform": "/evaluation/pipeline-cases/ns-residual-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-residual-mel.svg",
+      "waveform_bytes": 55084,
+      "mel_bytes": 2553210,
+      "waveform_rms_dbfs": {
+        "before": -31.133112934464144,
+        "after": -31.134166610847537
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.23391651972798,
+        "high_db": 13.76608348027202
+      }
+    },
+    {
+      "asset_id": "ns-gtcrn",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/gtcrn_dns3_direct-0.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "6879960d46a6b8e91b85449bdc9368e2c2d03d84e998b3d8985a0ac0158fc700",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · GTCRN DNS3",
+      "analysis": "512/256 流式直接探针；30 ms 信号时延",
+      "waveform": "/evaluation/pipeline-cases/ns-gtcrn-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-gtcrn-mel.svg",
+      "waveform_bytes": 55043,
+      "mel_bytes": 2557836,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.86133271567857
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.68482850181648,
+        "high_db": 13.315171498183513
+      }
+    },
+    {
+      "asset_id": "ns-dpcrn",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-all-family-comparison-20261019/runtime-serial-complete/dpcrn_direct-0.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "6d33e6041ac84b484cf02a175e84af8d9cafe5bcb8c05f8ac1e325ef2f885661",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · DPCRN small",
+      "analysis": "作者 stateful TFLite；512/256 流式探针",
+      "waveform": "/evaluation/pipeline-cases/ns-dpcrn-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-dpcrn-mel.svg",
+      "waveform_bytes": 55044,
+      "mel_bytes": 2558658,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.66829330572301
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.53643074037859,
+        "high_db": 13.463569259621405
+      }
+    },
+    {
+      "asset_id": "ns-webrtc-pass",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗；完整工程门限通过",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-case-replay-20261020/webrtc_v5_bounded09/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "479a216a8ca3f686c9d7bf6bcffafbce6b1216f2b3d37dfb1963894a3e032187",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 416,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · WebRTC NS",
+      "analysis": "同输入哈希、同门限；完整工程门限通过",
+      "waveform": "/evaluation/pipeline-cases/ns-webrtc-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-webrtc-pass-mel.svg",
+      "waveform_bytes": 55096,
+      "mel_bytes": 2561652,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.60324566830122
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.57721221305034,
+        "high_db": 13.422787786949657
+      }
+    },
+    {
+      "asset_id": "ns-webrtc-fail",
+      "case_id": "sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-07",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +7 dB；后段语音窗；晚期 STOI 门失败",
+      "before": "build/controlled-cavemove-20261017/cases/sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-07/before.wav",
+      "after": "build/ns-case-replay-20261020/webrtc_v5_bounded09/sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-07/result.after.wav",
+      "before_sha256": "7591fa579982fc85e39fa6d6f842116e4bd498fcd438cf574a3ca14f5ea207c2",
+      "after_sha256": "e68655c1a95c7f6c9668e2a0d93210f853347d33897811632b0a2c72ee0200a7",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 416,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · WebRTC NS",
+      "analysis": "同算法自己的失败输出；晚期 STOI 低于冻结门限",
+      "waveform": "/evaluation/pipeline-cases/ns-webrtc-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-webrtc-fail-mel.svg",
+      "waveform_bytes": 55142,
+      "mel_bytes": 2562134,
+      "waveform_rms_dbfs": {
+        "before": -25.044918408304696,
+        "after": -30.210321720807883
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -62.39800745040954,
+        "high_db": 17.601992549590463
+      }
+    },
+    {
+      "asset_id": "ns-speex-pass",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗；完整工程门限通过",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-case-replay-20261020/speex_v5_steadydual/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "1f80596eb18bca7eac81e7ba6d9b495a2ffbb3af22541bdc7423366aa33d01fb",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · Speex steady-dual",
+      "analysis": "同输入哈希、同门限；完整工程门限通过",
+      "waveform": "/evaluation/pipeline-cases/ns-speex-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-speex-pass-mel.svg",
+      "waveform_bytes": 55104,
+      "mel_bytes": 2559269,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.58551743672164
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.57402667107074,
+        "high_db": 13.42597332892926
+      }
+    },
+    {
+      "asset_id": "ns-speex-fail",
+      "case_id": "noise-step-16000-validation-m1-snr+20",
+      "detail": "CAVEMOVE；16 kHz；SNR +20 dB；噪声阶跃；完整工程门限失败",
+      "before": "build/controlled-cavemove-20261017/cases/noise-step-16000-validation-m1-snr+20/before.wav",
+      "after": "build/ns-case-replay-20261020/speex_v5_steadydual/noise-step-16000-validation-m1-snr+20/result.after.wav",
+      "before_sha256": "11a3ef16f7adbf50eb5fcf17ff96c551da709a647cd4eead493bd0607347724d",
+      "after_sha256": "3acd7e713171aaed9686632a9c4c62b39eb54aa9ecd69e5d1f79aeabc27f51d5",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        8.0,
+        16.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · Speex steady-dual",
+      "analysis": "同算法自己的失败输出；噪声阶跃门未通过",
+      "waveform": "/evaluation/pipeline-cases/ns-speex-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-speex-fail-mel.svg",
+      "waveform_bytes": 55070,
+      "mel_bytes": 2555679,
+      "waveform_rms_dbfs": {
+        "before": -32.20102243971863,
+        "after": -32.39843068906765
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -67.00354096432984,
+        "high_db": 12.996459035670153
+      }
+    },
+    {
+      "asset_id": "ns-omlsa-pass",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗；完整工程门限通过",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-case-replay-20261020/omlsa_imcra_v2_mild/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "d98f9c6322e1fc6e07d2e81c4462d1a0b3e0094355040cf0167941187d3fde32",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · OM-LSA + IMCRA",
+      "analysis": "同输入哈希、同门限；完整工程门限通过",
+      "waveform": "/evaluation/pipeline-cases/ns-omlsa-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-omlsa-pass-mel.svg",
+      "waveform_bytes": 55101,
+      "mel_bytes": 2562549,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.37554709800388
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.53455399431593,
+        "high_db": 13.465446005684074
+      }
+    },
+    {
+      "asset_id": "ns-omlsa-fail",
+      "case_id": "noise-step-16000-validation-m1-snr+20",
+      "detail": "CAVEMOVE；16 kHz；SNR +20 dB；噪声阶跃；完整工程门限失败",
+      "before": "build/controlled-cavemove-20261017/cases/noise-step-16000-validation-m1-snr+20/before.wav",
+      "after": "build/ns-case-replay-20261020/omlsa_imcra_v2_mild/noise-step-16000-validation-m1-snr+20/result.after.wav",
+      "before_sha256": "11a3ef16f7adbf50eb5fcf17ff96c551da709a647cd4eead493bd0607347724d",
+      "after_sha256": "dc701585d9ae1b107a836cf16ac89941ba3a763dc5a9f20a0e2ce2c8c73793d1",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        8.0,
+        16.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · OM-LSA + IMCRA",
+      "analysis": "同算法自己的失败输出；噪声阶跃门未通过",
+      "waveform": "/evaluation/pipeline-cases/ns-omlsa-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-omlsa-fail-mel.svg",
+      "waveform_bytes": 55067,
+      "mel_bytes": 2558009,
+      "waveform_rms_dbfs": {
+        "before": -32.20102243971863,
+        "after": -32.232140710458744
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.96558078446034,
+        "high_db": 13.034419215539652
+      }
+    },
+    {
+      "asset_id": "ns-super-gaussian-pass",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗；完整工程门限通过",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-case-replay-20261020/super_gaussian_balanced/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "8323183604d6493442c96732dfa630e5b459bfadd6069fa75cfb198dfef67325",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · Super-Gaussian",
+      "analysis": "同输入哈希、同门限；完整工程门限通过",
+      "waveform": "/evaluation/pipeline-cases/ns-super-gaussian-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-super-gaussian-pass-mel.svg",
+      "waveform_bytes": 55101,
+      "mel_bytes": 2562448,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.36915083465672
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.53455399431593,
+        "high_db": 13.465446005684074
+      }
+    },
+    {
+      "asset_id": "ns-super-gaussian-fail",
+      "case_id": "noise-step-16000-validation-m1-snr+20",
+      "detail": "CAVEMOVE；16 kHz；SNR +20 dB；噪声阶跃；完整工程门限失败",
+      "before": "build/controlled-cavemove-20261017/cases/noise-step-16000-validation-m1-snr+20/before.wav",
+      "after": "build/ns-case-replay-20261020/super_gaussian_balanced/noise-step-16000-validation-m1-snr+20/result.after.wav",
+      "before_sha256": "11a3ef16f7adbf50eb5fcf17ff96c551da709a647cd4eead493bd0607347724d",
+      "after_sha256": "bb568d24f6a386027fc9d927c365eed75f9a5637d7868e1eedad7326cfcc0521",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        8.0,
+        16.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · Super-Gaussian",
+      "analysis": "同算法自己的失败输出；噪声阶跃门未通过",
+      "waveform": "/evaluation/pipeline-cases/ns-super-gaussian-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-super-gaussian-fail-mel.svg",
+      "waveform_bytes": 55067,
+      "mel_bytes": 2557882,
+      "waveform_rms_dbfs": {
+        "before": -32.20102243971863,
+        "after": -32.230964264844204
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.96558078446034,
+        "high_db": 13.034419215539652
+      }
+    },
+    {
+      "asset_id": "ns-hybrid-gru-pass",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗；完整工程门限通过",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-case-replay-20261020/conv_gain_gru32/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "fb3e4ce50c985b97bede3bf5faec588757fdafb6afc433e42bf81b1180e507bf",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 160,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · Conv-Gain GRU32",
+      "analysis": "同输入哈希、同门限；完整工程门限通过",
+      "waveform": "/evaluation/pipeline-cases/ns-hybrid-gru-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-hybrid-gru-pass-mel.svg",
+      "waveform_bytes": 55102,
+      "mel_bytes": 2561665,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.877417916483154
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.67415810212049,
+        "high_db": 13.325841897879513
+      }
+    },
+    {
+      "asset_id": "ns-hybrid-gru-fail",
+      "case_id": "sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-08",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +8 dB；后段语音窗；投影增益门失败",
+      "before": "build/controlled-cavemove-20261017/cases/sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-08/before.wav",
+      "after": "build/ns-case-replay-20261020/conv_gain_gru32/sweep-16000-validation-3b7f955f-cavemove_smart_forfour_s60_w0-snr-08/result.after.wav",
+      "before_sha256": "dbfc51f7a0a9d2a7c1efb515dd02bd6d801d94bf49875550ca5d5004a7f16b12",
+      "after_sha256": "3607a3f9e3f1ce4e28052df95cf2b7fd8cba43f89a9f4f8d67b58cea9d13e877",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 160,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · Conv-Gain GRU32",
+      "analysis": "同算法自己的失败输出；语音投影门未通过",
+      "waveform": "/evaluation/pipeline-cases/ns-hybrid-gru-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-hybrid-gru-fail-mel.svg",
+      "waveform_bytes": 55148,
+      "mel_bytes": 2562085,
+      "waveform_rms_dbfs": {
+        "before": -24.28387776920949,
+        "after": -31.709765628795882
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.608462633035224,
+        "high_db": 18.391537366964776
+      }
+    },
+    {
+      "asset_id": "ns-ulunas-pass",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗；完整工程门限通过",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-ulunas-dpcrn-20261019/runs/ulunas/full/ulunas_direct/91353b9fe0bd39c9732e/result.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "e169cefd9edef82e7f928461ccf13d95bf9a17d1ac827fb9fc3dbc8e66dd97d4",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · UL-UNAS",
+      "analysis": "同输入哈希、同门限；完整工程门限通过",
+      "waveform": "/evaluation/pipeline-cases/ns-ulunas-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-ulunas-pass-mel.svg",
+      "waveform_bytes": 55094,
+      "mel_bytes": 2559465,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.74381175195308
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.6332486517691,
+        "high_db": 13.36675134823091
+      }
+    },
+    {
+      "asset_id": "ns-ulunas-fail",
+      "case_id": "coverage-16000-validation-bae79cad-snr+30",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +30 dB；后段语音窗；噪声衰减门失败",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-bae79cad-snr+30/before.wav",
+      "after": "build/ns-ulunas-dpcrn-20261019/runs/ulunas/full/ulunas_direct/d274bb73b2d6392c08f3/result.after.wav",
+      "before_sha256": "36a98df79f28a17a94172424c7fabea89da7cc2408475908787d9ef5e4f3664f",
+      "after_sha256": "b5205bc2b85762b61ac31d153abf7a0450080f6569edef96e7129d8bc635c759",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · UL-UNAS",
+      "analysis": "同算法自己的失败输出；噪声衰减不足",
+      "waveform": "/evaluation/pipeline-cases/ns-ulunas-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-ulunas-fail-mel.svg",
+      "waveform_bytes": 55088,
+      "mel_bytes": 2563192,
+      "waveform_rms_dbfs": {
+        "before": -31.772935733830145,
+        "after": -32.01108587994286
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -65.2542797474309,
+        "high_db": 14.745720252569095
+      }
+    },
+    {
+      "asset_id": "ns-gtcrn-pass",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗；完整工程门限通过",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-gtcrn-direct-20261018/full/gtcrn_dns3_direct/91353b9fe0bd39c9732e/result.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "6879960d46a6b8e91b85449bdc9368e2c2d03d84e998b3d8985a0ac0158fc700",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · GTCRN DNS3",
+      "analysis": "同输入哈希、同门限；完整工程门限通过",
+      "waveform": "/evaluation/pipeline-cases/ns-gtcrn-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-gtcrn-pass-mel.svg",
+      "waveform_bytes": 55097,
+      "mel_bytes": 2557890,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.86133271567857
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.68482850181648,
+        "high_db": 13.315171498183513
+      }
+    },
+    {
+      "asset_id": "ns-gtcrn-fail",
+      "case_id": "coverage-16000-validation-755dfafe-snr+30",
+      "detail": "CAVEMOVE；16 kHz；SNR +30 dB；后段语音窗；早期与晚期 STOI 门失败",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-755dfafe-snr+30/before.wav",
+      "after": "build/ns-gtcrn-direct-20261018/full/gtcrn_dns3_direct/12a375d39d02b561b0a4/result.after.wav",
+      "before_sha256": "0c478bc64f3a187bc757a9ef13de4fc7d75085057a82c6e0769c887eedb814fd",
+      "after_sha256": "1dbac83a9142a06610ca048a9e839e342cf20064bea2458c0b13f8fd374366fd",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · GTCRN DNS3",
+      "analysis": "同算法自己的失败输出；高 SNR 语音可懂度退化",
+      "waveform": "/evaluation/pipeline-cases/ns-gtcrn-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-gtcrn-fail-mel.svg",
+      "waveform_bytes": 55091,
+      "mel_bytes": 2546316,
+      "waveform_rms_dbfs": {
+        "before": -32.89677621887907,
+        "after": -33.019315726849825
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.74456337901941,
+        "high_db": 13.255436620980582
+      }
+    },
+    {
+      "asset_id": "ns-dpcrn-pass",
+      "case_id": "coverage-16000-validation-2303b3f5-snr+10",
+      "detail": "CAVEMOVE · Smart；16 kHz；SNR +10 dB；后段语音窗；完整工程门限通过",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-2303b3f5-snr+10/before.wav",
+      "after": "build/ns-ulunas-dpcrn-20261019/runs/dpcrn/full/dpcrn_direct/91353b9fe0bd39c9732e/result.after.wav",
+      "before_sha256": "3e3d3cdf15bcd965225caefd38004c64b220f66262845b00eda8bb6da3ffd600",
+      "after_sha256": "6d33e6041ac84b484cf02a175e84af8d9cafe5bcb8c05f8ac1e325ef2f885661",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · DPCRN small",
+      "analysis": "同输入哈希、同门限；完整工程门限通过",
+      "waveform": "/evaluation/pipeline-cases/ns-dpcrn-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-dpcrn-pass-mel.svg",
+      "waveform_bytes": 55098,
+      "mel_bytes": 2558712,
+      "waveform_rms_dbfs": {
+        "before": -32.29295966540242,
+        "after": -32.66829330572301
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.53643074037859,
+        "high_db": 13.463569259621405
+      }
+    },
+    {
+      "asset_id": "ns-dpcrn-fail",
+      "case_id": "coverage-16000-validation-755dfafe-snr+30",
+      "detail": "CAVEMOVE；16 kHz；SNR +30 dB；后段语音窗；早期/晚期 STOI 与晚期 SI-SDR 失败",
+      "before": "build/controlled-cavemove-20261017/cases/coverage-16000-validation-755dfafe-snr+30/before.wav",
+      "after": "build/ns-ulunas-dpcrn-20261019/runs/dpcrn/full/dpcrn_direct/12a375d39d02b561b0a4/result.after.wav",
+      "before_sha256": "0c478bc64f3a187bc757a9ef13de4fc7d75085057a82c6e0769c887eedb814fd",
+      "after_sha256": "d5d08aff30e4f3ca7bcd4a85104c08dcc8828acbd4ab64f2504d6f5308933878",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · DPCRN small",
+      "analysis": "同算法自己的失败输出；高 SNR 语音质量与可懂度退化",
+      "waveform": "/evaluation/pipeline-cases/ns-dpcrn-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-dpcrn-fail-mel.svg",
+      "waveform_bytes": 55116,
+      "mel_bytes": 2546080,
+      "waveform_rms_dbfs": {
+        "before": -32.89677621887907,
+        "after": -32.98851386515554
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.73466548892145,
+        "high_db": 13.265334511078551
+      }
+    },
+    {
+      "asset_id": "ns-rnnoise-pass",
+      "case_id": "vehicle-16000-development-m1-10",
+      "detail": "CAVEMOVE · Alfa Romeo；16 kHz；SNR +20 dB；后段语音窗；代表性通过",
+      "before": "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+      "after": "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+      "before_sha256": "9779a988ca16e04fdfa7502fd8ad9c1bfcacd26efc9aac9671a21a702556b2f4",
+      "after_sha256": "395fbde4bcb768397a1ea2e20bce6cb964e7e73c67f98bfbf361f5c3b808c006",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · RNNoise",
+      "analysis": "代表性回放；完整工程门限通过",
+      "waveform": "/evaluation/pipeline-cases/ns-rnnoise-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-rnnoise-pass-mel.svg",
+      "waveform_bytes": 55066,
+      "mel_bytes": 2555339,
+      "waveform_rms_dbfs": {
+        "before": -45.49652897188389,
+        "after": -37.63657798733395
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -73.11500780963392,
+        "high_db": 6.884992190366078
+      }
+    },
+    {
+      "asset_id": "ns-rnnoise-fail",
+      "case_id": "vehicle-16000-holdout-m1-02",
+      "detail": "native；16 kHz；holdout；RNNoise 近端 SI-SDR、双讲投影与远端线性 ERLE 失败",
+      "before": "build/controlled-native-full-20261017/cases/vehicle-16000-holdout-m1-02/before.wav",
+      "after": "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-native-full-20261017/cases/vehicle-16000-holdout-m1-02/runs/full/result.after.wav",
+      "before_sha256": "6a2bf5fb6fe37e67281097589ae39f1907ebffc00f61fad1544e3b6096c3e278",
+      "after_sha256": "d079fb06a85dd7a58794932f07654241033978bdaa51e140b879ae9819e2628a",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 480,
+      "before_label": "输入 · 带噪麦克风",
+      "after_label": "输出 · RNNoise",
+      "analysis": "RNNoise 自己的代表性失败输出",
+      "waveform": "/evaluation/pipeline-cases/ns-rnnoise-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/ns-rnnoise-fail-mel.svg",
+      "waveform_bytes": 55080,
+      "mel_bytes": 2558861,
+      "waveform_rms_dbfs": {
+        "before": -28.52582556281451,
+        "after": -28.981429224150883
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -62.07504337006279,
+        "high_db": 17.924956629937213
+      }
+    },
+    {
+      "asset_id": "aec-aec3-pass",
+      "case_id": "factorial-16000-rt0.15-delay020",
+      "detail": "16 kHz；RT60 0.15 s；声学延迟 20 ms；SER −5 dB；双讲窗；完整工程门限通过",
+      "before": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-16000-rt0.15-delay020/before.wav",
+      "after": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-16000-rt0.15-delay020/runs/aec_config_probe/result.after.wav",
+      "before_sha256": "d84c57621939f51d5cfacdc1e29f2e10481e9b62cefcc9660042a6b24590df7c",
+      "after_sha256": "c0816358696e9842b1165fcecf9e8f9f27be2d19b2b9deace67cf330ade9bff5",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        17.0,
+        23.0
+      ],
+      "delay_samples": 224,
+      "before_label": "输入 · 麦克风 / 双讲",
+      "after_label": "输出 · aec3_off 冻结 VCP",
+      "analysis": "aec3_off 通过案例；双讲 ΔSI-SDR +9.762 dB，ΔSTOI +0.2015",
+      "waveform": "/evaluation/pipeline-cases/aec-aec3-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/aec-aec3-pass-mel.svg",
+      "waveform_bytes": 55109,
+      "mel_bytes": 2569260,
+      "waveform_rms_dbfs": {
+        "before": -25.82855506446879,
+        "after": -28.923249642327313
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -62.47391799079729,
+        "high_db": 17.526082009202707
+      }
+    },
+    {
+      "asset_id": "aec-aec3-fail",
+      "case_id": "factorial-48000-rt0.45-delay080",
+      "detail": "48 kHz；RT60 0.45 s；声学延迟 80 ms；SER −5 dB；远端单讲窗；远端衰减与线性 ERLE 失败",
+      "before": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-48000-rt0.45-delay080/before.wav",
+      "after": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-48000-rt0.45-delay080/runs/aec_config_probe/result.after.wav",
+      "before_sha256": "d1a7612e6d18b43e280f2ea55fe7b5d923db1a77f27adfe78daf67bf2e3f22a0",
+      "after_sha256": "ee7e48ad595c151898ac3d75814e38ec73b9b36d1bfd93703ae3306e2a233469",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        6.0,
+        9.0
+      ],
+      "delay_samples": 1248,
+      "before_label": "输入 · 麦克风 / 远端单讲",
+      "after_label": "输出 · aec3_off 冻结 VCP",
+      "analysis": "aec3_off 失败案例；远端衰减 11.522 dB，线性 ERLE 3.365 dB；双讲门通过",
+      "waveform": "/evaluation/pipeline-cases/aec-aec3-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/aec-aec3-fail-mel.svg",
+      "waveform_bytes": 55142,
+      "mel_bytes": 2537436,
+      "waveform_rms_dbfs": {
+        "before": -25.964489038271083,
+        "after": -37.486420921310305
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -62.303052959320965,
+        "high_db": 17.69694704067903
+      }
+    },
+    {
+      "asset_id": "aec-speex-pass",
+      "case_id": "factorial-16000-rt0.45-delay020",
+      "detail": "16 kHz；RT60 0.45 s；声学延迟 20 ms；SER −5 dB；双讲窗；完整工程门限通过",
+      "before": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.45-delay020/before.wav",
+      "after": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.45-delay020/runs/aec_config_probe/result.aec.wav",
+      "before_sha256": "d35ae0008c8d5b35e1c29d794e7086295ce23089f3ec01ee685f1f16ddeb72fb",
+      "after_sha256": "693efc7c0bca6d6c3b59b03113002e96cfe4de97a7758901e7cdc650b885c607",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        17.0,
+        23.0
+      ],
+      "delay_samples": 0,
+      "before_label": "输入 · 麦克风 / 双讲",
+      "after_label": "输出 · Speex MDF",
+      "analysis": "RES fallback 通过；双讲 SI-SDR +4.809 dB，STOI +0.1907",
+      "waveform": "/evaluation/pipeline-cases/aec-speex-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/aec-speex-pass-mel.svg",
+      "waveform_bytes": 55095,
+      "mel_bytes": 2569503,
+      "waveform_rms_dbfs": {
+        "before": -25.748953236815556,
+        "after": -30.980983505725078
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -63.80541173236586,
+        "high_db": 16.19458826763414
+      }
+    },
+    {
+      "asset_id": "aec-speex-fail",
+      "case_id": "factorial-16000-rt0.15-delay180",
+      "detail": "16 kHz；RT60 0.15 s；声学延迟 180 ms；SER −5 dB；双讲窗；运行时门失败",
+      "before": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.15-delay180/before.wav",
+      "after": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.15-delay180/runs/aec_config_probe/result.aec.wav",
+      "before_sha256": "ff169f19a371b0c32962fd1a6f7b6eee37da608496511c73fb20022944692ee1",
+      "after_sha256": "63085d529969c80a982a74390660151875d1056eea6600091801978d65be51c6",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        17.0,
+        23.0
+      ],
+      "delay_samples": 0,
+      "before_label": "输入 · 麦克风 / 双讲",
+      "after_label": "输出 · Speex MDF",
+      "analysis": "失败案例；process max 19.06 ms，6 帧超过 10 ms；不是双讲门失败",
+      "waveform": "/evaluation/pipeline-cases/aec-speex-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/aec-speex-fail-mel.svg",
+      "waveform_bytes": 55085,
+      "mel_bytes": 2568228,
+      "waveform_rms_dbfs": {
+        "before": -25.417223662948555,
+        "after": -30.86372465057969
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -62.31008061713686,
+        "high_db": 17.689919382863142
+      }
+    },
+    {
+      "asset_id": "aec-speex-coherence-pass",
+      "case_id": "factorial-16000-rt0.15-delay080",
+      "detail": "16 kHz；RT60 0.15 s；声学延迟 80 ms；SER −5 dB；双讲窗；相干残差候选通过",
+      "before": "build/aec-coherence-residual-20261023-r2/speex_coherence_residual/cases/factorial-16000-rt0.15-delay080/before.wav",
+      "after": "build/aec-coherence-residual-20261023-r2/speex_coherence_residual/cases/factorial-16000-rt0.15-delay080/runs/aec_config_probe/result.after.wav",
+      "before_sha256": "812d4d86e7d23b06ca52373aac6a1eeb5fb8460ea97a330aa93301f5ba4ac8af",
+      "after_sha256": "2e1438562249e0777f95e79b880ea175075266e65d4de414e6d9bb63e2630e7f",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        17.0,
+        23.0
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 麦克风 / 双讲",
+      "after_label": "输出 · Speex MDF + Coherence RES",
+      "analysis": "候选通过案例；far-only 衰减 26.734 dB，双讲门通过；r2 冻结矩阵",
+      "waveform": "/evaluation/pipeline-cases/aec-speex-coherence-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/aec-speex-coherence-pass-mel.svg",
+      "waveform_bytes": 55113,
+      "mel_bytes": 2567880,
+      "waveform_rms_dbfs": {
+        "before": -25.644029460984687,
+        "after": -29.28037481880675
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -62.364546267867674,
+        "high_db": 17.635453732132326
+      }
+    },
+    {
+      "asset_id": "aec-speex-coherence-fail",
+      "case_id": "factorial-48000-rt0.45-delay180",
+      "detail": "48 kHz；RT60 0.45 s；声学延迟 180 ms；SER −5 dB；双讲窗；运行时门失败",
+      "before": "build/aec-coherence-residual-20261023-r2/speex_coherence_residual/cases/factorial-48000-rt0.45-delay180/before.wav",
+      "after": "build/aec-coherence-residual-20261023-r2/speex_coherence_residual/cases/factorial-48000-rt0.45-delay180/runs/aec_config_probe/result.after.wav",
+      "before_sha256": "7b97df32927c3e65608e41dc898c53a22e2b4b59a625c736166e9348ca08b06a",
+      "after_sha256": "c998b2332801d57dcc3e50b5818293e689a923ea9d88d96b3d7dfc9f2c1c971d",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        17.0,
+        23.0
+      ],
+      "delay_samples": 336,
+      "before_label": "输入 · 麦克风 / 双讲",
+      "after_label": "输出 · Speex MDF + Coherence RES",
+      "analysis": "候选失败案例；process max 11.196 ms，1 帧超过 10 ms；质量门通过",
+      "waveform": "/evaluation/pipeline-cases/aec-speex-coherence-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/aec-speex-coherence-fail-mel.svg",
+      "waveform_bytes": 55105,
+      "mel_bytes": 2564252,
+      "waveform_rms_dbfs": {
+        "before": -26.34810884213945,
+        "after": -29.288349522282964
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -63.181535559434344,
+        "high_db": 16.818464440565656
+      }
+    },
+    {
+      "asset_id": "aec-aec3",
+      "case_id": "factorial-16000-rt0.15-delay020",
+      "detail": "16 kHz；RT60 0.15 s；声学延迟 20 ms；SER -5 dB；双讲窗",
+      "before": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-16000-rt0.15-delay020/before.wav",
+      "after": "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-16000-rt0.15-delay020/runs/aec_config_probe/result.aec.wav",
+      "before_sha256": "d84c57621939f51d5cfacdc1e29f2e10481e9b62cefcc9660042a6b24590df7c",
+      "after_sha256": "f27073d8aa3f2b514b9c91c08d1f44f092aed7e7c0237a5590d4be86f5dcaa9c",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        17.0,
+        23.0
+      ],
+      "delay_samples": 128,
+      "before_label": "输入 · 麦克风 / 双讲",
+      "after_label": "输出 · AEC3 tap",
+      "analysis": "双讲窗；线性滤波后仍有内部非线性抑制",
+      "waveform": "/evaluation/pipeline-cases/aec-aec3-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/aec-aec3-mel.svg",
+      "waveform_bytes": 55040,
+      "mel_bytes": 2555034,
+      "waveform_rms_dbfs": {
+        "before": -25.82855506446879,
+        "after": -33.37307840351875
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -63.37390632952275,
+        "high_db": 16.626093670477253
+      }
+    },
+    {
+      "asset_id": "aec-speex",
+      "case_id": "factorial-16000-rt0.15-delay020",
+      "detail": "16 kHz；RT60 0.15 s；声学延迟 20 ms；SER -5 dB；双讲窗",
+      "before": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.15-delay020/before.wav",
+      "after": "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.15-delay020/runs/aec_config_probe/result.aec.wav",
+      "before_sha256": "d84c57621939f51d5cfacdc1e29f2e10481e9b62cefcc9660042a6b24590df7c",
+      "after_sha256": "0219951c54049b4108e37687a99a7b893aeb48da6292b5321af9a25075213199",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        17.0,
+        23.0
+      ],
+      "delay_samples": 0,
+      "before_label": "输入 · 麦克风 / 双讲",
+      "after_label": "输出 · Speex MDF",
+      "analysis": "RES 关闭；原始 MDF 误差在 NS/AGC 前导出",
+      "waveform": "/evaluation/pipeline-cases/aec-speex-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/aec-speex-mel.svg",
+      "waveform_bytes": 55037,
+      "mel_bytes": 2568123,
+      "waveform_rms_dbfs": {
+        "before": -25.82855506446879,
+        "after": -31.18835728088125
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -63.06340816674242,
+        "high_db": 16.936591833257577
+      }
+    },
+    {
+      "asset_id": "aec-pre-beam",
+      "case_id": "16000-baseline / radio_and_road",
+      "detail": "4 麦连续流；16 kHz；radio_and_road 段；场景 17–23 s 双讲窗",
+      "before": "build/vehicle-v2-continuous-20261010/16000-baseline/stream.bf.wav",
+      "after": "build/vehicle-v2-continuous-20261010/16000-baseline/stream.aec.wav",
+      "before_sha256": "77b15415b88fe6f7489119126e87430460be5d293797418de3d96baa6f25dd44",
+      "after_sha256": "c252f74d90aadf18fb991428348f0f3ba8306a0283a42afc0a110a705cb71ff2",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        96.0,
+        102.0
+      ],
+      "delay_samples": 384,
+      "before_label": "BF 后输入 · 双讲",
+      "after_label": "输出 · AEC3 tap",
+      "analysis": "连续流原时间轴 96–102 s；BF 在 AEC 之前",
+      "waveform": "/evaluation/pipeline-cases/aec-pre-beam-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/aec-pre-beam-mel.svg",
+      "waveform_bytes": 55052,
+      "mel_bytes": 2572950,
+      "waveform_rms_dbfs": {
+        "before": -30.601121644952983,
+        "after": -31.59760895341193
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -64.32819313135836,
+        "high_db": 15.671806868641639
+      }
+    },
+    {
+      "asset_id": "agc-guarded5",
+      "case_id": "vehicle-noise-24000-m1-sim_rain_impulse-snr+30",
+      "detail": "24 kHz 原生场景；AGC2 内部 48 kHz；雨滴脉冲；SNR +30 dB；窗内可见 0↔8 dB 增益切换",
+      "before": "build/failure-cause-analysis-20261017/ablations/cases/vehicle-noise-24000-development-m1-sim_rain_impulse-snr+30/runs/diagnostic_full/result.nr-protected-agc-before.float.wav",
+      "after": "build/failure-cause-analysis-20261017/ablations/cases/vehicle-noise-24000-development-m1-sim_rain_impulse-snr+30/runs/diagnostic_full/result.agc-after.float.wav",
+      "before_sha256": "497cf17643d3a3706d2533f3a030580d4caa9bde9b17d433755ea000deb054d7",
+      "after_sha256": "db4c855155056dfc1f98d827b35836c617b28cb3538155b2e101a19dcbe56829",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        7.8,
+        9.2
+      ],
+      "delay_samples": 496,
+      "before_label": "AGC 前 · protected NR",
+      "after_label": "AGC 后 · core-rate tap",
+      "analysis": "真实 AGC 前后阶段 tap；窗内显示快速增益切换",
+      "waveform": "/evaluation/pipeline-cases/agc-guarded5-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-guarded5-mel.svg",
+      "waveform_bytes": 55146,
+      "mel_bytes": 2550393,
+      "waveform_rms_dbfs": {
+        "before": -40.94455865076271,
+        "after": -36.22976932894247
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -71.14631952897446,
+        "high_db": 8.853680471025534
+      }
+    },
+    {
+      "asset_id": "agc-utterance-v4",
+      "case_id": "vehicle-16000-development-m1-10",
+      "detail": "CAVEMOVE；16 kHz；−45 dBFS 弱语音代表；Stage4 代表失败集中的 2 个修复案例之一",
+      "before": "build/repair-sequential-20261017/final-r16-experimental/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.nr-protected-agc-before.float.wav",
+      "after": "build/repair-sequential-20261017/final-r16-experimental/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.agc-after.float.wav",
+      "before_sha256": "4ce3eb60ec76237a130d1e655e3081c219e86716b44cccdb948ec1bcd5ee4600",
+      "after_sha256": "749cd230dbfeeb1cc4df590e45aacb2bca18a87cbbc55bbae38397b8f1b188f8",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        10.5,
+        16.5
+      ],
+      "delay_samples": 96,
+      "before_label": "AGC 前 · protected NR",
+      "after_label": "AGC 后 · Stage4",
+      "analysis": "同一冻结案例；Stage4 在代表集内由 fail 转为 pass",
+      "waveform": "/evaluation/pipeline-cases/agc-utterance-v4-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-utterance-v4-mel.svg",
+      "waveform_bytes": 55104,
+      "mel_bytes": 2548136,
+      "waveform_rms_dbfs": {
+        "before": -46.90565139174788,
+        "after": -38.91681147020347
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -74.74387617273034,
+        "high_db": 5.2561238272696595
+      }
+    },
+    {
+      "asset_id": "agc-stage4-release",
+      "case_id": "vehicle-16000-development-m1-10",
+      "detail": "CAVEMOVE；16 kHz；−45 dBFS 弱语音；Stage4 噪声域释放代表修复",
+      "before": "build/agc-stage4-release-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.nr-protected-agc-before.float.wav",
+      "after": "build/agc-stage4-release-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.agc-after.float.wav",
+      "before_sha256": "3800dcc20e3a8e54e8bd867fb55012cf2f05d18e6a9e6fc008e99eab042494cf",
+      "after_sha256": "467da0584c6e70dea5eb8cb7b2139cf00db50f510c62543a456a5b5bf66e5c61",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        10.5,
+        16.5
+      ],
+      "delay_samples": 96,
+      "before_label": "AGC 前 · protected NR",
+      "after_label": "AGC 后 · Stage4 + release",
+      "analysis": "同一 AGC 前后 tap；持续噪声证据释放增益",
+      "waveform": "/evaluation/pipeline-cases/agc-stage4-release-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-stage4-release-mel.svg",
+      "waveform_bytes": 55066,
+      "mel_bytes": 2544536,
+      "waveform_rms_dbfs": {
+        "before": -46.89174733152864,
+        "after": -38.89778689627995
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -74.80518548363123,
+        "high_db": 5.194814516368764
+      }
+    },
+    {
+      "asset_id": "agc-best-candidate",
+      "case_id": "vehicle-16000-development-m1-12",
+      "detail": "native；16 kHz；−15 dBFS；单麦；关闭 TX DRC 后的代表性近端质量修复",
+      "before": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.nr-protected-agc-before.float.wav",
+      "after": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.agc-after.float.wav",
+      "before_sha256": "2a53b7d1c5c788062fad686b8081c27d246231f9a8ff4cb9d82b77a207cc7a35",
+      "after_sha256": "4200a6ad32e8951f4908be9f253a1fe6b170a97e8c5805c990cf314a5538e61c",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        10.5,
+        16.5
+      ],
+      "delay_samples": 96,
+      "before_label": "AGC 前 · protected NR",
+      "after_label": "AGC 后 · 组合候选",
+      "analysis": "修复近端 SI-SDR；不表示整个组合候选已准入",
+      "waveform": "/evaluation/pipeline-cases/agc-best-candidate-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-best-candidate-mel.svg",
+      "waveform_bytes": 55082,
+      "mel_bytes": 2547505,
+      "waveform_rms_dbfs": {
+        "before": -20.402514844150758,
+        "after": -20.40253796326576
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -53.72737810688767,
+        "high_db": 26.272621893112333
+      }
+    },
+    {
+      "asset_id": "agc-best-regression",
+      "case_id": "vehicle-48000-development-m1-11",
+      "detail": "native；48 kHz；−30 dBFS；tcar；组合候选近端 SI-SDR/STOI 回归",
+      "before": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-48000-development-m1-11/runs/full/result.nr-protected-agc-before.float.wav",
+      "after": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-48000-development-m1-11/runs/full/result.agc-after.float.wav",
+      "before_sha256": "9392568c5bfc0c4353c5060fd672a763796cef9f27f3bdf9e07bcff3edc7703e",
+      "after_sha256": "cc99634a8d705472f48980f3c54ac3c904a7ca3b9870ee7daadd5c46d69ebc1e",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        10.5,
+        16.5
+      ],
+      "delay_samples": 96,
+      "before_label": "AGC 前 · protected NR",
+      "after_label": "AGC 后 · 回归案例",
+      "analysis": "近端 SI-SDR 与晚期 STOI 退化；必须阻断准入",
+      "waveform": "/evaluation/pipeline-cases/agc-best-regression-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-best-regression-mel.svg",
+      "waveform_bytes": 55058,
+      "mel_bytes": 2538513,
+      "waveform_rms_dbfs": {
+        "before": -29.649234588184004,
+        "after": -21.647978131885925
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -56.9499954681705,
+        "high_db": 23.050004531829497
+      }
+    },
+    {
+      "asset_id": "eq-three-pass",
+      "case_id": "controlled-native-full-20261017__vehicle-16000-holdout-m2-11__tbus",
+      "detail": "native · tbus；16 kHz；近端 −45 dBFS；三段 EQ 在同案例配对中通过；ΔSI-SDR +0.3157 dB",
+      "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-holdout-m2-11__tbus/runs/full/result.after.wav",
+      "after": "build/eq-algorithm-matrix-linear-20261022-r1/three_band/cases/controlled-native-full-20261017__vehicle-16000-holdout-m2-11__tbus/runs/full/result.after.wav",
+      "before_sha256": "6e1fd55223a8389a3d50763991563cb08b6241300b4ec93869acd7c2593ff2f3",
+      "after_sha256": "196e0041b5f1432eab77da00f781d5fe792cc391e01d068dbb515ab3708ca8fe",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 98,
+      "before_label": "输入 · VCP bypass",
+      "after_label": "输出 · 三段 EQ",
+      "analysis": "通过：ΔSI-SDR +0.3157 dB；ΔSTOI −0.000197；同输入、同 VCP",
+      "waveform": "/evaluation/pipeline-cases/eq-three-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/eq-three-pass-mel.svg",
+      "waveform_bytes": 55181,
+      "mel_bytes": 2554210,
+      "waveform_rms_dbfs": {
+        "before": -36.83274467930185,
+        "after": -40.469589652651464
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -70.85238658455425,
+        "high_db": 9.147613415445752
+      }
+    },
+    {
+      "asset_id": "eq-three-fail",
+      "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus",
+      "detail": "native · tbus；48 kHz；近端 −30 dBFS；三段 EQ 的严重 SI-SDR 回归代表；ΔSI-SDR −14.0221 dB",
+      "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus/runs/full/result.after.wav",
+      "after": "build/eq-algorithm-matrix-linear-20261022-r1/three_band/cases/controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus/runs/full/result.after.wav",
+      "before_sha256": "16c8dffc06dd5618c0e195b89c76cd61f8327c5ec31ca0531bcfa2d6c419f8ae",
+      "after_sha256": "0c13c3eab0ab9830ab1566e72f42555b4e870cd8791fa2ee8cedbe65b4a2b059",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 349,
+      "before_label": "输入 · VCP bypass",
+      "after_label": "输出 · 三段 EQ",
+      "analysis": "失败：ΔSI-SDR −14.0221 dB；输出 SHA 已改变且无削波",
+      "waveform": "/evaluation/pipeline-cases/eq-three-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/eq-three-fail-mel.svg",
+      "waveform_bytes": 55193,
+      "mel_bytes": 2563442,
+      "waveform_rms_dbfs": {
+        "before": -30.02942032398718,
+        "after": -32.38938771246842
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.34775822755822,
+        "high_db": 13.652241772441776
+      }
+    },
+    {
+      "asset_id": "eq-low-shelf-fail",
+      "case_id": "controlled-native-full-20261017__vehicle-16000-holdout-m1-10__tbus",
+      "detail": "native · tbus；16 kHz；近端 −45 dBFS；低架削减的损失最小代表，仍为 −0.5881 dB",
+      "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-10__tbus/runs/full/result.after.wav",
+      "after": "build/eq-algorithm-matrix-linear-20261022-r1/low_shelf/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-10__tbus/runs/full/result.after.wav",
+      "before_sha256": "726b97b54bf69bf8347df08ac74d744cc0fc22912527309464f7e66ba4d1530e",
+      "after_sha256": "6da4165863e7fd5ef8c502e12232761fd0db22a592d290046d4fb01210add0ec",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · VCP bypass",
+      "after_label": "输出 · 低架 160 Hz −3 dB",
+      "analysis": "失败：ΔSI-SDR −0.5881 dB；本算法 108 个案例全部未达门限",
+      "waveform": "/evaluation/pipeline-cases/eq-low-shelf-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/eq-low-shelf-fail-mel.svg",
+      "waveform_bytes": 55185,
+      "mel_bytes": 2552263,
+      "waveform_rms_dbfs": {
+        "before": -36.70475982933986,
+        "after": -36.780666589973634
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -69.03554894951067,
+        "high_db": 10.964451050489332
+      }
+    },
+    {
+      "asset_id": "eq-parametric-fail",
+      "case_id": "controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic",
+      "detail": "native · straffic；48 kHz；近端 −15 dBFS；双峰 EQ 的损失最小代表，仍为 −0.9098 dB",
+      "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic/runs/full/result.after.wav",
+      "after": "build/eq-algorithm-matrix-linear-20261022-r1/parametric_peak/cases/controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic/runs/full/result.after.wav",
+      "before_sha256": "af736b1ca739d2b9f209718bb47adceff63e2a27525dd1038e6d7f869ab7854d",
+      "after_sha256": "2719dafe47b42b0586f036fdd5543f60f56221a0c636e49d2ee9387c8c4217e4",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 341,
+      "before_label": "输入 · VCP bypass",
+      "after_label": "输出 · 双参数峰",
+      "analysis": "失败：ΔSI-SDR −0.9098 dB；−3 dB preamp 防止削波但不保证质量",
+      "waveform": "/evaluation/pipeline-cases/eq-parametric-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/eq-parametric-fail-mel.svg",
+      "waveform_bytes": 55196,
+      "mel_bytes": 2562344,
+      "waveform_rms_dbfs": {
+        "before": -21.03461605562525,
+        "after": -22.61870729162329
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -57.200175991675096,
+        "high_db": 22.7998240083249
+      }
+    },
+    {
+      "asset_id": "eq-calibrated-fail",
+      "case_id": "controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic",
+      "detail": "校准反演；48 kHz；近端 −15 dBFS；合成共振拟合参数在语音语料中的最小损失代表，仍为 −3.7123 dB",
+      "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic/runs/full/result.after.wav",
+      "after": "build/eq-algorithm-matrix-linear-20261022-r1/calibrated_inverse/cases/controlled-native-full-20261017__vehicle-48000-validation-m2-13__straffic/runs/full/result.after.wav",
+      "before_sha256": "af736b1ca739d2b9f209718bb47adceff63e2a27525dd1038e6d7f869ab7854d",
+      "after_sha256": "5fcf7a25a317d1b6a4d4bc33da923b584c9dcc386f8f3941f4bd3a547e6d561b",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 341,
+      "before_label": "输入 · VCP bypass",
+      "after_label": "输出 · 校准反演",
+      "analysis": "失败：ΔSI-SDR −3.7123 dB；校准响应通过不等于语音质量通过",
+      "waveform": "/evaluation/pipeline-cases/eq-calibrated-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/eq-calibrated-fail-mel.svg",
+      "waveform_bytes": 55248,
+      "mel_bytes": 2565110,
+      "waveform_rms_dbfs": {
+        "before": -21.03461605562525,
+        "after": -24.001368085358745
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -57.83526697625861,
+        "high_db": 22.164733023741395
+      }
+    },
+    {
+      "asset_id": "aec-fusion-fail",
+      "case_id": "factorial-48000-rt0.45-delay080",
+      "detail": "AEC3 历史状态融合候选；48 kHz；RT60 0.45 s；80 ms；双讲 SI-SDR 新增失败；历史 7/27",
+      "before": "build/aec3-state-fusion-20261020-r3/aec3_fusion/cases/factorial-48000-rt0.45-delay080/before.wav",
+      "after": "build/aec3-state-fusion-20261020-r3/aec3_fusion/cases/factorial-48000-rt0.45-delay080/runs/aec_config_probe/result.after.wav",
+      "before_sha256": "d1a7612e6d18b43e280f2ea55fe7b5d923db1a77f27adfe78daf67bf2e3f22a0",
+      "after_sha256": "6f0786bdde75d384d308efbc3646d89a0d6571c895cbfe3bc8448848ed9adcb4",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        17.0,
+        23.0
+      ],
+      "delay_samples": 1248,
+      "before_label": "输入 · 双讲麦克风",
+      "after_label": "输出 · 历史 AEC3 状态融合",
+      "analysis": "历史负对照：双讲 raw SI-SDR −3.9075 dB，低于相对门限 −3.8213 dB；当前源码没有该 flag",
+      "waveform": "/evaluation/pipeline-cases/aec-fusion-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/aec-fusion-fail-mel.svg",
+      "waveform_bytes": 55131,
+      "mel_bytes": 2560691,
+      "waveform_rms_dbfs": {
+        "before": -26.695590959283876,
+        "after": -26.036582578585747
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.42015537363002,
+        "high_db": 18.579844626369983
+      }
+    },
+    {
+      "asset_id": "eq-linear-fail",
+      "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus",
+      "detail": "native · tbus；48 kHz；近端 −30 dBFS；线性相位三段 FIR；961 taps，固定 480 样本群延迟",
+      "before": "build/eq-algorithm-matrix-linear-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus/runs/full/result.after.wav",
+      "after": "build/eq-algorithm-matrix-linear-20261022-r1/linear_phase_three_band/cases/controlled-native-full-20261017__vehicle-48000-holdout-m4-12__tbus/runs/full/result.after.wav",
+      "before_sha256": "16c8dffc06dd5618c0e195b89c76cd61f8327c5ec31ca0531bcfa2d6c419f8ae",
+      "after_sha256": "72e57f727926a3b064195f6570ba2db3e6dfd405c24e3343d8094b1e46673075",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 829,
+      "before_label": "输入 · VCP bypass",
+      "after_label": "输出 · 线性相位 FIR",
+      "analysis": "失败：真实 FIR 输出改变且无削波；固定 480 样本 EQ 群延迟之外仍有语音质量回归",
+      "waveform": "/evaluation/pipeline-cases/eq-linear-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/eq-linear-fail-mel.svg",
+      "waveform_bytes": 55196,
+      "mel_bytes": 2563419,
+      "waveform_rms_dbfs": {
+        "before": -30.02942032398718,
+        "after": -32.518780163506094
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -66.35466957719694,
+        "high_db": 13.64533042280305
+      }
+    },
+    {
+      "asset_id": "bf-das-pass",
+      "case_id": "field-p0-m4-wind-snr15",
+      "detail": "Corcos 风场；4 麦；SNR +15 dB；DAS 通过增量门限",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-wind-snr15/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/delay_sum/cases/field-p0-m4-wind-snr15/runs/full/result.after.wav",
+      "before_sha256": "23cdc85fc84c3354bea14074e8ffecbfe023f0ed97603addfa3fbd8c3ede5851",
+      "after_sha256": "5f03b53b23b5dc69c2f958258524d0b2e69cc06dcc698ac25fe79502c5c65c99",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 5,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · DAS 延迟求和",
+      "analysis": "通过：ΔSI-SDR +2.0139 dB；ΔSTOI +0.000179",
+      "waveform": "/evaluation/pipeline-cases/bf-das-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-das-pass-mel.svg",
+      "waveform_bytes": 55022,
+      "mel_bytes": 2556006,
+      "waveform_rms_dbfs": {
+        "before": -25.94091188154474,
+        "after": -26.123148975213027
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.548582965959,
+        "high_db": 19.451417034040997
+      }
+    },
+    {
+      "asset_id": "bf-das-fail",
+      "case_id": "field-p0-m4-multirender-snr0",
+      "detail": "多声源；4 麦；SNR 0 dB；仅有 near_only 窗；DAS 回归代表",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-multirender-snr0/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/delay_sum/cases/field-p0-m4-multirender-snr0/runs/full/result.after.wav",
+      "before_sha256": "eefea417223c73de469375592772b8213f9d826ffb4e88b86d3772cd1ecbae90",
+      "after_sha256": "cbf1f25cec503bc68c22155ee4eba76122d19c11f75ea0a2d415c02e7afc4c87",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        12.0,
+        15.0
+      ],
+      "delay_samples": 5,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · DAS 延迟求和",
+      "analysis": "失败：ΔSI-SDR −1.0096 dB；目标语义仍按同案例 BF 控制配对",
+      "waveform": "/evaluation/pipeline-cases/bf-das-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-das-fail-mel.svg",
+      "waveform_bytes": 55056,
+      "mel_bytes": 2565358,
+      "waveform_rms_dbfs": {
+        "before": -23.126526427158907,
+        "after": -23.66163101298548
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -59.44843814741593,
+        "high_db": 20.55156185258407
+      }
+    },
+    {
+      "asset_id": "bf-mvdr-observed-pass",
+      "case_id": "field-p1-m4-wind-snr0",
+      "detail": "Corcos 风场；4 麦；SNR 0 dB；观测协方差 MVDR 通过",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_observed/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+      "before_sha256": "050734cde52f01cbc5f1cfff526978c852f8ec53da1422824836db03e8392462",
+      "after_sha256": "2bf1485ca2363a624568820107121542291e9594bf2df7441665634e83cd6798",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 357,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · observed-covariance MVDR",
+      "analysis": "通过：ΔSI-SDR +7.2895 dB；ΔSTOI +0.002041",
+      "waveform": "/evaluation/pipeline-cases/bf-mvdr-observed-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-mvdr-observed-pass-mel.svg",
+      "waveform_bytes": 55038,
+      "mel_bytes": 2548595,
+      "waveform_rms_dbfs": {
+        "before": -23.472967462093237,
+        "after": -26.270947609905736
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -59.706548393278496,
+        "high_db": 20.2934516067215
+      }
+    },
+    {
+      "asset_id": "bf-mvdr-observed-fail",
+      "case_id": "field-p0-m4-multirender-snr30",
+      "detail": "多声源；4 麦；SNR +30 dB；near_only 窗；观测协方差 MVDR 回归代表",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-multirender-snr30/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_observed/cases/field-p0-m4-multirender-snr30/runs/full/result.after.wav",
+      "before_sha256": "01f1d654c9938bc1029cae2c6fe0cac70ce47c096dc8efa2741a0b67d3b00765",
+      "after_sha256": "8b5c186091783653ffc82ce61f1782c94300e0bed861be99e25342bb47ebe9da",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        12.0,
+        15.0
+      ],
+      "delay_samples": 357,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · observed-covariance MVDR",
+      "analysis": "失败：ΔSI-SDR −10.7618 dB；近端高 SNR 时目标导向风险最大",
+      "waveform": "/evaluation/pipeline-cases/bf-mvdr-observed-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-mvdr-observed-fail-mel.svg",
+      "waveform_bytes": 55094,
+      "mel_bytes": 2565320,
+      "waveform_rms_dbfs": {
+        "before": -25.682494377573917,
+        "after": -26.652696704850595
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.663124602139206,
+        "high_db": 19.336875397860798
+      }
+    },
+    {
+      "asset_id": "bf-mvdr-fixed-pass",
+      "case_id": "field-p1-m4-wind-snr0",
+      "detail": "Corcos 风场；4 麦；SNR 0 dB；固定导向 MVDR 通过",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_fixed/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+      "before_sha256": "050734cde52f01cbc5f1cfff526978c852f8ec53da1422824836db03e8392462",
+      "after_sha256": "a99daebd7e66a9269711df587b6852076b8b9914f994fedee3fab897b66793b4",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 357,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · fixed-steering MVDR",
+      "analysis": "通过：ΔSI-SDR +7.2637 dB；ΔSTOI +0.001979",
+      "waveform": "/evaluation/pipeline-cases/bf-mvdr-fixed-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-mvdr-fixed-pass-mel.svg",
+      "waveform_bytes": 55027,
+      "mel_bytes": 2548208,
+      "waveform_rms_dbfs": {
+        "before": -23.472967462093237,
+        "after": -26.266495786124253
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -59.70101742369273,
+        "high_db": 20.29898257630727
+      }
+    },
+    {
+      "asset_id": "bf-mvdr-fixed-fail",
+      "case_id": "field-p0-m2-multirender-snr30",
+      "detail": "多声源；2 麦；SNR +30 dB；固定导向 MVDR 回归代表",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m2-multirender-snr30/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_fixed/cases/field-p0-m2-multirender-snr30/runs/full/result.after.wav",
+      "before_sha256": "538e806932db98f82916b677f0b218179a547b3597f1e2e4f5da9c152e887a97",
+      "after_sha256": "f0aa057410ee92de381a39138cba6f3fdb2d8df6d53ee60b27a2f8632e096b57",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        12.0,
+        15.0
+      ],
+      "delay_samples": 354,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · fixed-steering MVDR",
+      "analysis": "失败：ΔSI-SDR −19.5974 dB；导向误差和低阵列自由度暴露",
+      "waveform": "/evaluation/pipeline-cases/bf-mvdr-fixed-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-mvdr-fixed-fail-mel.svg",
+      "waveform_bytes": 55051,
+      "mel_bytes": 2565654,
+      "waveform_rms_dbfs": {
+        "before": -25.621332843671855,
+        "after": -26.83261610235018
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.766102067839086,
+        "high_db": 19.233897932160918
+      }
+    },
+    {
+      "asset_id": "bf-mpdr-pass",
+      "case_id": "field-p1-m4-wind-snr15",
+      "detail": "Corcos 风场；4 麦；SNR +15 dB；连续混合协方差 MPDR 通过",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p1-m4-wind-snr15/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/mpdr_continuous/cases/field-p1-m4-wind-snr15/runs/full/result.after.wav",
+      "before_sha256": "b4662147d07699088404b0958d63b4576f4764d77e92f720da7b91c0498c05ba",
+      "after_sha256": "33cd0ef54cd95e77355df8b5224df4db31b86d98cdc40900050e063e4cddf7f6",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 357,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · continuous-covariance MPDR",
+      "analysis": "通过：ΔSI-SDR +7.2573 dB；ΔSTOI +0.000092",
+      "waveform": "/evaluation/pipeline-cases/bf-mpdr-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-mpdr-pass-mel.svg",
+      "waveform_bytes": 55058,
+      "mel_bytes": 2548877,
+      "waveform_rms_dbfs": {
+        "before": -26.993671028186647,
+        "after": -27.219415731134085
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.53103641754318,
+        "high_db": 19.468963582456826
+      }
+    },
+    {
+      "asset_id": "bf-mpdr-fail",
+      "case_id": "field-p0-m2-multirender-snr30",
+      "detail": "多声源；2 麦；SNR +30 dB；连续协方差 MPDR 回归代表",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m2-multirender-snr30/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/mpdr_continuous/cases/field-p0-m2-multirender-snr30/runs/full/result.after.wav",
+      "before_sha256": "538e806932db98f82916b677f0b218179a547b3597f1e2e4f5da9c152e887a97",
+      "after_sha256": "7dd41bc4001d0436cacc1829d8e28e3ce39f635ca379928e78693fb8dd552456",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        12.0,
+        15.0
+      ],
+      "delay_samples": 354,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · continuous-covariance MPDR",
+      "analysis": "失败：ΔSI-SDR −19.6168 dB；连续训练不能替代准确导向",
+      "waveform": "/evaluation/pipeline-cases/bf-mpdr-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-mpdr-fail-mel.svg",
+      "waveform_bytes": 55064,
+      "mel_bytes": 2565449,
+      "waveform_rms_dbfs": {
+        "before": -25.621332843671855,
+        "after": -26.857670970466355
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.766102067839086,
+        "high_db": 19.233897932160918
+      }
+    },
+    {
+      "asset_id": "bf-das-wind-pass",
+      "case_id": "field-p0-m4-wind-snr15",
+      "detail": "Corcos 风场；4 麦；SNR +15 dB；DAS 风压权重通过",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-wind-snr15/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/das_wind/cases/field-p0-m4-wind-snr15/runs/full/result.after.wav",
+      "before_sha256": "23cdc85fc84c3354bea14074e8ffecbfe023f0ed97603addfa3fbd8c3ede5851",
+      "after_sha256": "04708558aa0cef03ba057991814c19dbab5799db73fd6a99bdd2a44271c8732a",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 357,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · DAS + 风压权重",
+      "analysis": "通过：ΔSI-SDR +2.0251 dB；平均噪声增量略高于 DAS",
+      "waveform": "/evaluation/pipeline-cases/bf-das-wind-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-das-wind-pass-mel.svg",
+      "waveform_bytes": 55028,
+      "mel_bytes": 2556022,
+      "waveform_rms_dbfs": {
+        "before": -25.94091188154474,
+        "after": -26.123365542122237
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.54860027686951,
+        "high_db": 19.451399723130493
+      }
+    },
+    {
+      "asset_id": "bf-das-wind-fail",
+      "case_id": "field-p0-m4-multirender-snr0",
+      "detail": "多声源；4 麦；SNR 0 dB；near_only 窗；风压权重未挽救回归",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-multirender-snr0/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/das_wind/cases/field-p0-m4-multirender-snr0/runs/full/result.after.wav",
+      "before_sha256": "eefea417223c73de469375592772b8213f9d826ffb4e88b86d3772cd1ecbae90",
+      "after_sha256": "57193bf4a16ef1986d2578a35805e320d9ff978bcfa6ae7e1b704e8e00980b6c",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        12.0,
+        15.0
+      ],
+      "delay_samples": 357,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · DAS + 风压权重",
+      "analysis": "失败：ΔSI-SDR −1.0097 dB；低频权重对多声源目标无帮助",
+      "waveform": "/evaluation/pipeline-cases/bf-das-wind-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-das-wind-fail-mel.svg",
+      "waveform_bytes": 55070,
+      "mel_bytes": 2565367,
+      "waveform_rms_dbfs": {
+        "before": -23.126526427158907,
+        "after": -23.6617212957226
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -59.44843010843986,
+        "high_db": 20.551569891560142
+      }
+    },
+    {
+      "asset_id": "bf-mvdr-wind-pass",
+      "case_id": "field-p1-m4-wind-snr0",
+      "detail": "Corcos 风场；4 麦；SNR 0 dB；MVDR 与风压联合路径通过",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_wind/cases/field-p1-m4-wind-snr0/runs/full/result.after.wav",
+      "before_sha256": "050734cde52f01cbc5f1cfff526978c852f8ec53da1422824836db03e8392462",
+      "after_sha256": "d494ba6cb6f77ae0b128dac5b34a68685207ad90e0a518ded22095e8651bc690",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 357,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · MVDR + 风压权重",
+      "analysis": "通过：ΔSI-SDR +6.7845 dB；ΔSTOI +0.002103",
+      "waveform": "/evaluation/pipeline-cases/bf-mvdr-wind-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-mvdr-wind-pass-mel.svg",
+      "waveform_bytes": 55043,
+      "mel_bytes": 2548618,
+      "waveform_rms_dbfs": {
+        "before": -23.472967462093237,
+        "after": -26.16453539541805
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -59.70582023244822,
+        "high_db": 20.294179767551782
+      }
+    },
+    {
+      "asset_id": "bf-mvdr-wind-fail",
+      "case_id": "field-p0-m4-multirender-snr30",
+      "detail": "多声源；4 麦；SNR +30 dB；MVDR + 风压联合路径回归代表",
+      "before": "build/bf-algorithm-matrix-20261021-r2/no_bf/cases/field-p0-m4-multirender-snr30/runs/full/result.after.wav",
+      "after": "build/bf-algorithm-matrix-20261021-r2/mvdr_wind/cases/field-p0-m4-multirender-snr30/runs/full/result.after.wav",
+      "before_sha256": "01f1d654c9938bc1029cae2c6fe0cac70ce47c096dc8efa2741a0b67d3b00765",
+      "after_sha256": "5722b8bbce760c01a31de4d0619144be797ff51b79aae39b58df2f4712bf0765",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        12.0,
+        15.0
+      ],
+      "delay_samples": 357,
+      "before_label": "配对控制 · BF 关闭 / 通道 0",
+      "after_label": "输出 · MVDR + 风压权重",
+      "analysis": "失败：ΔSI-SDR −10.7382 dB；组合不能跨所有空间场泛化",
+      "waveform": "/evaluation/pipeline-cases/bf-mvdr-wind-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/bf-mvdr-wind-fail-mel.svg",
+      "waveform_bytes": 55065,
+      "mel_bytes": 2565292,
+      "waveform_rms_dbfs": {
+        "before": -25.682494377573917,
+        "after": -26.653054740004542
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.66318344270191,
+        "high_db": 19.336816557298093
+      }
+    },
+    {
+      "asset_id": "drc-limiter-representative",
+      "case_id": "controlled-cavemove-20261017__vehicle-16000-holdout-m4-13__cavemove_volkswagen_golf_s60_w0",
+      "detail": "CAVEMOVE；16 kHz；4 麦；终级 limiter 保留；本案例未触发削顶",
+      "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-cavemove-20261017__vehicle-16000-holdout-m4-13__cavemove_volkswagen_golf_s60_w0/runs/full/result.after.wav",
+      "after": "build/drc-algorithm-matrix-20261022-r1/limiter_only/cases/controlled-cavemove-20261017__vehicle-16000-holdout-m4-13__cavemove_volkswagen_golf_s60_w0/runs/full/result.after.wav",
+      "before_sha256": "14be8ebd5b5e01e7d4767847c7570d9038e61fc5184c67ec21834ef73a9d0a9a",
+      "after_sha256": "14be8ebd5b5e01e7d4767847c7570d9038e61fc5184c67ec21834ef73a9d0a9a",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 5,
+      "before_label": "配对控制 · 无 TX DRC / 无 limiter",
+      "after_label": "输出 · 仅终级 limiter",
+      "analysis": "代表案例：输出 SHA 与控制相同；108 案例均未实际触发 limiter",
+      "waveform": "/evaluation/pipeline-cases/drc-limiter-representative-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/drc-limiter-representative-mel.svg",
+      "waveform_bytes": 55197,
+      "mel_bytes": 2561505,
+      "waveform_rms_dbfs": {
+        "before": -24.17816954224285,
+        "after": -24.178157035366542
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -56.26340450639755,
+        "high_db": 23.736595493602447
+      }
+    },
+    {
+      "asset_id": "drc-default-pass",
+      "case_id": "controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus",
+      "detail": "native；16 kHz；−15 dBFS；tbus；默认 TX DRC 通过且真实改变输出",
+      "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus/runs/full/result.after.wav",
+      "after": "build/drc-algorithm-matrix-20261022-r1/default/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus/runs/full/result.after.wav",
+      "before_sha256": "ff936f1c330abd1fe5609a16cac8cc325c4ef1cd2e8d6a897a8072333494daac",
+      "after_sha256": "f82ff6d9a9b33b789761a8e63baeaaa21cf81ca47b7912d4db239a91d80e0952",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 0,
+      "before_label": "配对控制 · 无 TX DRC / 无 limiter",
+      "after_label": "输出 · 默认 TX DRC",
+      "analysis": "通过：ΔSI-SDR −0.0063 dB；峰值下降 0.641 dB",
+      "waveform": "/evaluation/pipeline-cases/drc-default-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/drc-default-pass-mel.svg",
+      "waveform_bytes": 55151,
+      "mel_bytes": 2560952,
+      "waveform_rms_dbfs": {
+        "before": -29.690529563959977,
+        "after": -29.694969159356333
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.83832988076364,
+        "high_db": 18.161670119236362
+      }
+    },
+    {
+      "asset_id": "drc-default-fail",
+      "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus",
+      "detail": "native；48 kHz；−15 dBFS；tbus；默认 TX DRC 严重回归",
+      "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+      "after": "build/drc-algorithm-matrix-20261022-r1/default/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+      "before_sha256": "6ee2b922813863b5be7f2c7a47b79c7b69bcdac462745ceaf6b330f9c8050237",
+      "after_sha256": "6debae00d1d53748342daaff27ad63468d1b6b30d191f70307daaeb0dc348ce8",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 0,
+      "before_label": "配对控制 · 无 TX DRC / 无 limiter",
+      "after_label": "输出 · 默认 TX DRC",
+      "analysis": "失败：ΔSI-SDR −10.0886 dB；ΔSTOI −0.004614",
+      "waveform": "/evaluation/pipeline-cases/drc-default-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/drc-default-fail-mel.svg",
+      "waveform_bytes": 55121,
+      "mel_bytes": 2557829,
+      "waveform_rms_dbfs": {
+        "before": -17.187413059905413,
+        "after": -18.298152791519755
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -53.30867632830527,
+        "high_db": 26.691323671694732
+      }
+    },
+    {
+      "asset_id": "drc-gentle-pass",
+      "case_id": "controlled-native-full-20261017__vehicle-16000-holdout-m4-12__tbus",
+      "detail": "native；16 kHz；−15 dBFS；4 麦；gentle 2:1 压缩通过",
+      "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-holdout-m4-12__tbus/runs/full/result.after.wav",
+      "after": "build/drc-algorithm-matrix-20261022-r1/gentle/cases/controlled-native-full-20261017__vehicle-16000-holdout-m4-12__tbus/runs/full/result.after.wav",
+      "before_sha256": "94fd6e66b4c0b94a512186866424d81af248d85a9c31b29d87fe511f0737c7f9",
+      "after_sha256": "daa4ebec4be47e72ed64b55da936535e96991ac78f9c18bace31b7cbf4b84f40",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 5,
+      "before_label": "配对控制 · 无 TX DRC / 无 limiter",
+      "after_label": "输出 · gentle TX DRC",
+      "analysis": "通过：ΔSI-SDR −0.0013 dB；峰值下降 0.433 dB",
+      "waveform": "/evaluation/pipeline-cases/drc-gentle-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/drc-gentle-pass-mel.svg",
+      "waveform_bytes": 55117,
+      "mel_bytes": 2559750,
+      "waveform_rms_dbfs": {
+        "before": -29.81342984080261,
+        "after": -29.817269876418884
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.899780776039535,
+        "high_db": 18.100219223960462
+      }
+    },
+    {
+      "asset_id": "drc-gentle-fail",
+      "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus",
+      "detail": "native；48 kHz；−15 dBFS；tbus；gentle 仍越过语音门限",
+      "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+      "after": "build/drc-algorithm-matrix-20261022-r1/gentle/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+      "before_sha256": "6ee2b922813863b5be7f2c7a47b79c7b69bcdac462745ceaf6b330f9c8050237",
+      "after_sha256": "ca41a6bdaec672ce36d515c90930f8b2dbf477a7b056e448362a42d809bed3cf",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 0,
+      "before_label": "配对控制 · 无 TX DRC / 无 limiter",
+      "after_label": "输出 · gentle TX DRC",
+      "analysis": "失败：ΔSI-SDR −6.5662 dB；较默认路径更轻但仍回归",
+      "waveform": "/evaluation/pipeline-cases/drc-gentle-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/drc-gentle-fail-mel.svg",
+      "waveform_bytes": 55125,
+      "mel_bytes": 2557723,
+      "waveform_rms_dbfs": {
+        "before": -17.187413059905413,
+        "after": -17.95217473887249
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -53.1530801787507,
+        "high_db": 26.8469198212493
+      }
+    },
+    {
+      "asset_id": "drc-aggressive-pass",
+      "case_id": "controlled-native-full-20261017__vehicle-24000-validation-m2-12__pink",
+      "detail": "native；24 kHz；−15 dBFS；2 麦；aggressive 在峰值下降时仍通过",
+      "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-24000-validation-m2-12__pink/runs/full/result.after.wav",
+      "after": "build/drc-algorithm-matrix-20261022-r1/aggressive/cases/controlled-native-full-20261017__vehicle-24000-validation-m2-12__pink/runs/full/result.after.wav",
+      "before_sha256": "a0826ab18cd4ebea9fe922dc104bd536153c421c67333d7b4c951c63760645c2",
+      "after_sha256": "db7ea5a718dd0a126258428a18212aaee2d6a0b64d9a5986d83aa6b48ff54140",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 24000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 163,
+      "before_label": "配对控制 · 无 TX DRC / 无 limiter",
+      "after_label": "输出 · aggressive TX DRC",
+      "analysis": "通过：ΔSI-SDR −0.0102 dB；峰值下降 1.509 dB",
+      "waveform": "/evaluation/pipeline-cases/drc-aggressive-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/drc-aggressive-pass-mel.svg",
+      "waveform_bytes": 55161,
+      "mel_bytes": 2568219,
+      "waveform_rms_dbfs": {
+        "before": -31.552913682545146,
+        "after": -31.565566035281737
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -64.9369063822552,
+        "high_db": 15.063093617744794
+      }
+    },
+    {
+      "asset_id": "drc-aggressive-fail",
+      "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus",
+      "detail": "native；48 kHz；−15 dBFS；tbus；aggressive 同时失败 SI-SDR 与 STOI",
+      "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+      "after": "build/drc-algorithm-matrix-20261022-r1/aggressive/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+      "before_sha256": "6ee2b922813863b5be7f2c7a47b79c7b69bcdac462745ceaf6b330f9c8050237",
+      "after_sha256": "b48b59d113ab0fc98be638a1236fc6ad966d09c93a588da34f182ba08cfe7a43",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 0,
+      "before_label": "配对控制 · 无 TX DRC / 无 limiter",
+      "after_label": "输出 · aggressive TX DRC",
+      "analysis": "失败：ΔSI-SDR −18.3867 dB；ΔSTOI −0.054759；峰值下降 5.369 dB",
+      "waveform": "/evaluation/pipeline-cases/drc-aggressive-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/drc-aggressive-fail-mel.svg",
+      "waveform_bytes": 55151,
+      "mel_bytes": 2556503,
+      "waveform_rms_dbfs": {
+        "before": -17.187413059905413,
+        "after": -23.52068790216551
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -53.73648185164666,
+        "high_db": 26.26351814835334
+      }
+    },
+    {
+      "asset_id": "drc-fast-pass",
+      "case_id": "controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus",
+      "detail": "native；16 kHz；−15 dBFS；tbus；fast attack/release 通过",
+      "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus/runs/full/result.after.wav",
+      "after": "build/drc-algorithm-matrix-20261022-r1/fast/cases/controlled-native-full-20261017__vehicle-16000-holdout-m1-11__tbus/runs/full/result.after.wav",
+      "before_sha256": "ff936f1c330abd1fe5609a16cac8cc325c4ef1cd2e8d6a897a8072333494daac",
+      "after_sha256": "b56bd0ebfaa45e2704087142c08a778ecc24b0353c1427ddab327abf8ebe2401",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 0,
+      "before_label": "配对控制 · 无 TX DRC / 无 limiter",
+      "after_label": "输出 · fast TX DRC",
+      "analysis": "通过：ΔSI-SDR −0.0610 dB；峰值下降 1.317 dB",
+      "waveform": "/evaluation/pipeline-cases/drc-fast-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/drc-fast-pass-mel.svg",
+      "waveform_bytes": 55119,
+      "mel_bytes": 2560918,
+      "waveform_rms_dbfs": {
+        "before": -29.690529563959977,
+        "after": -29.71698696032491
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.83832988076364,
+        "high_db": 18.161670119236362
+      }
+    },
+    {
+      "asset_id": "drc-fast-fail",
+      "case_id": "controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus",
+      "detail": "native；48 kHz；−15 dBFS；tbus；快速增益平滑导致严重瞬态回归",
+      "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+      "after": "build/drc-algorithm-matrix-20261022-r1/fast/cases/controlled-native-full-20261017__vehicle-48000-holdout-m1-12__tbus/runs/full/result.after.wav",
+      "before_sha256": "6ee2b922813863b5be7f2c7a47b79c7b69bcdac462745ceaf6b330f9c8050237",
+      "after_sha256": "7a5fd169c406aa88562a6af45afad53293b2bd762e577d39956148f43c6a7679",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 48000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 0,
+      "before_label": "配对控制 · 无 TX DRC / 无 limiter",
+      "after_label": "输出 · fast TX DRC",
+      "analysis": "失败：ΔSI-SDR −11.8920 dB；STOI 仍未触发 −0.02 门限",
+      "waveform": "/evaluation/pipeline-cases/drc-fast-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/drc-fast-fail-mel.svg",
+      "waveform_bytes": 55151,
+      "mel_bytes": 2557945,
+      "waveform_rms_dbfs": {
+        "before": -17.187413059905413,
+        "after": -18.78752162947912
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -53.5075595807219,
+        "high_db": 26.492440419278093
+      }
+    },
+    {
+      "asset_id": "drc-lookahead-pass",
+      "case_id": "controlled-native-full-20261017__vehicle-16000-development-m1-10__tcar",
+      "detail": "native；tcar；16 kHz；−45 dBFS；look-ahead 2 ms",
+      "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-16000-development-m1-10__tcar/runs/full/result.after.wav",
+      "after": "build/drc-algorithm-matrix-20261022-r1/lookahead_2ms/cases/controlled-native-full-20261017__vehicle-16000-development-m1-10__tcar/runs/full/result.after.wav",
+      "before_sha256": "6641e98901623645a61a61cf628e99d72657c40932bd7fc20a0be83d6aaa790a",
+      "after_sha256": "de46ed6afc9a1951802eeb3d231e81c1584aa6f60b59bab542a966a497bb1956",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 32,
+      "before_label": "配对控制 · 无 TX DRC / 无 limiter",
+      "after_label": "输出 · Look-ahead limiter 2 ms",
+      "analysis": "通过：延迟 2 ms，语音与峰值门通过",
+      "waveform": "/evaluation/pipeline-cases/drc-lookahead-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/drc-lookahead-pass-mel.svg",
+      "waveform_bytes": 55119,
+      "mel_bytes": 2561370,
+      "waveform_rms_dbfs": {
+        "before": -45.48446994266281,
+        "after": -45.48446994266281
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -78.81570847743613,
+        "high_db": 1.184291522563868
+      }
+    },
+    {
+      "asset_id": "drc-lookahead-fail",
+      "case_id": "controlled-native-full-20261017__vehicle-24000-development-m1-10__pink",
+      "detail": "native；pink；24 kHz；−45 dBFS；look-ahead 2 ms",
+      "before": "build/drc-algorithm-matrix-20261022-r1/bypass/cases/controlled-native-full-20261017__vehicle-24000-development-m1-10__pink/runs/full/result.after.wav",
+      "after": "build/drc-algorithm-matrix-20261022-r1/lookahead_2ms/cases/controlled-native-full-20261017__vehicle-24000-development-m1-10__pink/runs/full/result.after.wav",
+      "before_sha256": "15bcaea2a732a5b87034c6596f858dde533fa8b70e9145a9e3ce7604ab706a28",
+      "after_sha256": "c0a9fbf9281ace4a10f56b166494f9b8df328cfb9664670b7e88ac173e0ea50f",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 24000,
+      "window_seconds": [
+        13.0,
+        21.0
+      ],
+      "delay_samples": 208,
+      "before_label": "配对控制 · 无 TX DRC / 无 limiter",
+      "after_label": "输出 · Look-ahead limiter 2 ms",
+      "analysis": "失败：声明总延迟 8.667 ms，超过 4.1 ms 门限",
+      "waveform": "/evaluation/pipeline-cases/drc-lookahead-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/drc-lookahead-fail-mel.svg",
+      "waveform_bytes": 55121,
+      "mel_bytes": 2567626,
+      "waveform_rms_dbfs": {
+        "before": -44.234557292242414,
+        "after": -44.23469915870893
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -79.407476806705,
+        "high_db": 0.5925231932949966
+      }
+    },
+    {
+      "asset_id": "chain-array_control-pass",
+      "case_id": "field-p1-m2-cold-snr0",
+      "detail": "2 麦 · cold · SNR 0 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m2-cold-snr0/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/array_control/cases/field-p1-m2-cold-snr0/runs/full/result.after.wav",
+      "before_sha256": "8181878a5b395794cb1c7cb399b14afd97e574dfbf6c582fe71ef10ac31eb3ad",
+      "after_sha256": "e3d83a4f2cef88e92e6ea9fb7cf59a49f6619cb5c8d8dc9214a41ae2602e174a",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 2,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "DAS 对照 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-array_control-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-array_control-pass-mel.svg",
+      "waveform_bytes": 54966,
+      "mel_bytes": 2581419,
+      "waveform_rms_dbfs": {
+        "before": -23.833291139405812,
+        "after": -24.02479324909293
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.08079994249664,
+        "high_db": 19.919200057503364
+      }
+    },
+    {
+      "asset_id": "chain-array_control-fail",
+      "case_id": "field-p1-m2-multirender-snr0",
+      "detail": "2 麦 · multirender · SNR 0 dB · far_only",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m2-multirender-snr0/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/array_control/cases/field-p1-m2-multirender-snr0/runs/full/result.after.wav",
+      "before_sha256": "ee85d1f2060394817c6a6e081c3e881249129f224294c74d2826e428191b7b9e",
+      "after_sha256": "49b442ceddce74d362919b3f485465f656b3d527c0468a0209e2194493fec095",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        6,
+        9
+      ],
+      "delay_samples": 2,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "DAS 对照 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-array_control-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-array_control-fail-mel.svg",
+      "waveform_bytes": 54987,
+      "mel_bytes": 2567958,
+      "waveform_rms_dbfs": {
+        "before": -20.746185642851888,
+        "after": -21.06092484451615
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -57.796703301682236,
+        "high_db": 22.203296698317764
+      }
+    },
+    {
+      "asset_id": "chain-vcp_default-pass",
+      "case_id": "field-p0-m4-diffuse-snr0",
+      "detail": "4 麦 · diffuse · SNR 0 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-diffuse-snr0/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/vcp_default/cases/field-p0-m4-diffuse-snr0/runs/full/result.after.wav",
+      "before_sha256": "ee21d159da6b93e563916ac80703f65bfebec66ab2809871494f8b0a8b96600c",
+      "after_sha256": "d0a886bfa8b45adfd10498e781ee59f7eb5fa0fd2821d2dfebd7c6359d8713e2",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 101,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "VCP 默认 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-vcp_default-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-vcp_default-pass-mel.svg",
+      "waveform_bytes": 54982,
+      "mel_bytes": 2559333,
+      "waveform_rms_dbfs": {
+        "before": -22.957475668358445,
+        "after": -26.176104668772314
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -59.66285387298555,
+        "high_db": 20.33714612701445
+      }
+    },
+    {
+      "asset_id": "chain-vcp_default-fail",
+      "case_id": "field-p0-m4-multirender-snr30",
+      "detail": "4 麦 · multirender · SNR 30 dB · near_only",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-multirender-snr30/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/vcp_default/cases/field-p0-m4-multirender-snr30/runs/full/result.after.wav",
+      "before_sha256": "a0360873e1c5494941ccd53cf91af496273886fde57de9407cc237e107b8cc98",
+      "after_sha256": "04653c6648f727054aec932d113c2649afdcd393f37c159ca840f1e4632d2a1c",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        12,
+        15
+      ],
+      "delay_samples": 101,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "VCP 默认 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-vcp_default-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-vcp_default-fail-mel.svg",
+      "waveform_bytes": 55002,
+      "mel_bytes": 2565615,
+      "waveform_rms_dbfs": {
+        "before": -25.682502078887275,
+        "after": -26.697980075166644
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.651742954800156,
+        "high_db": 19.348257045199844
+      }
+    },
+    {
+      "asset_id": "chain-super_gaussian_optimal-pass",
+      "case_id": "field-p0-m4-cylindrical-snr15",
+      "detail": "4 麦 · cylindrical · SNR 15 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-cylindrical-snr15/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/super_gaussian_optimal/cases/field-p0-m4-cylindrical-snr15/runs/full/result.after.wav",
+      "before_sha256": "e496ef5ee3e8602211512c1384b4d1d7c9f606d34fbdfaf641c0f150fe2f9eac",
+      "after_sha256": "ec5bdfc417a532086c75a0dacb9fecb24db508718d315c0139c8d9d9f32e67ca",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 165,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "Super-Gaussian 单级最优 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-super_gaussian_optimal-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-super_gaussian_optimal-pass-mel.svg",
+      "waveform_bytes": 55019,
+      "mel_bytes": 2556879,
+      "waveform_rms_dbfs": {
+        "before": -25.939530277481026,
+        "after": -26.678643844907874
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.51725117221281,
+        "high_db": 19.48274882778719
+      }
+    },
+    {
+      "asset_id": "chain-super_gaussian_optimal-fail",
+      "case_id": "field-p0-m2-multirender-snr30",
+      "detail": "2 麦 · multirender · SNR 30 dB · near_only",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m2-multirender-snr30/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/super_gaussian_optimal/cases/field-p0-m2-multirender-snr30/runs/full/result.after.wav",
+      "before_sha256": "514be3cd9b04eb8aa1d2bfc4066f0e7288096d75abb32043475235a7579bbd4a",
+      "after_sha256": "62e70b50f317f7c4002fd24c2d8e2dd0a6c6f4e7fc81db47a634dfbdd0a07e1f",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        12,
+        15
+      ],
+      "delay_samples": 162,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "Super-Gaussian 单级最优 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-super_gaussian_optimal-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-super_gaussian_optimal-fail-mel.svg",
+      "waveform_bytes": 55019,
+      "mel_bytes": 2565952,
+      "waveform_rms_dbfs": {
+        "before": -25.621329163249477,
+        "after": -26.374578135937817
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.73419054008289,
+        "high_db": 19.26580945991711
+      }
+    },
+    {
+      "asset_id": "chain-all_serial-pass",
+      "case_id": "field-p1-m4-noise_step-snr15",
+      "detail": "4 麦 · noise_step · SNR 15 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-noise_step-snr15/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/all_serial/cases/field-p1-m4-noise_step-snr15/runs/full/result.after.wav",
+      "before_sha256": "a88659bb4efe3659fff58319e6b4c72bf323246b716887e01a337d4ce1f55485",
+      "after_sha256": "ca913af861ac38c792744780f64e5bf368ca61ad44f129c55c9a3da9f24bbcb3",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 101,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "六级串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-all_serial-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-all_serial-pass-mel.svg",
+      "waveform_bytes": 55000,
+      "mel_bytes": 2551845,
+      "waveform_rms_dbfs": {
+        "before": -25.963482588306928,
+        "after": -29.763846775612585
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.857592272733825,
+        "high_db": 18.142407727266175
+      }
+    },
+    {
+      "asset_id": "chain-all_serial-fail",
+      "case_id": "field-p1-m4-noise_step-snr30",
+      "detail": "4 麦 · noise_step · SNR 30 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-noise_step-snr30/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/all_serial/cases/field-p1-m4-noise_step-snr30/runs/full/result.after.wav",
+      "before_sha256": "5b113c9e696e3400121942ea1f106948cc389840a9b71bdf062dae72bb6d694c",
+      "after_sha256": "a52ced22cc8afd7c9733735f5a38363e42e4cf495126dbade797897717afc688",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 101,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "六级串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-all_serial-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-all_serial-fail-mel.svg",
+      "waveform_bytes": 55000,
+      "mel_bytes": 2550153,
+      "waveform_rms_dbfs": {
+        "before": -27.122218746037742,
+        "after": -29.57545781312255
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.77812560395981,
+        "high_db": 18.221874396040192
+      }
+    },
+    {
+      "asset_id": "chain-mvdr_serial-pass",
+      "case_id": "field-p1-m2-noise_step-snr15",
+      "detail": "2 麦 · noise_step · SNR 15 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m2-noise_step-snr15/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/mvdr_serial/cases/field-p1-m2-noise_step-snr15/runs/full/result.after.wav",
+      "before_sha256": "ed0a53122d18ac3c260d94157ff2e433cd8ff4e2e27c503eea87276a7db910ae",
+      "after_sha256": "05f5f85fbf54b62e38df23be531c3c3731ce86fbc67ae636f854a655b504000b",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 450,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "MVDR 串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-mvdr_serial-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-mvdr_serial-pass-mel.svg",
+      "waveform_bytes": 54999,
+      "mel_bytes": 2551879,
+      "waveform_rms_dbfs": {
+        "before": -25.971605043758302,
+        "after": -29.67597093580015
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.83022525197063,
+        "high_db": 18.169774748029365
+      }
+    },
+    {
+      "asset_id": "chain-mvdr_serial-fail",
+      "case_id": "field-p0-m4-cold-snr15",
+      "detail": "4 麦 · cold · SNR 15 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-cold-snr15/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/mvdr_serial/cases/field-p0-m4-cold-snr15/runs/full/result.after.wav",
+      "before_sha256": "6c5ae4d036baa7aa87330d0dc0741336c9edf31fd5495d11734da18ff90b84fb",
+      "after_sha256": "5f846a233598e9908d540497791e98cf717f9241d316a106e52ea52d66b6c378",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 453,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "MVDR 串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-mvdr_serial-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-mvdr_serial-fail-mel.svg",
+      "waveform_bytes": 54975,
+      "mel_bytes": 2565741,
+      "waveform_rms_dbfs": {
+        "before": -25.719297258850233,
+        "after": -28.633314133601957
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.48558584479194,
+        "high_db": 18.514414155208055
+      }
+    },
+    {
+      "asset_id": "chain-speex_serial-pass",
+      "case_id": "field-p1-m4-cold-snr0",
+      "detail": "4 麦 · cold · SNR 0 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-cold-snr0/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/speex_serial/cases/field-p1-m4-cold-snr0/runs/full/result.after.wav",
+      "before_sha256": "5a451f8327ff5b05aa5bca2ecddbf1d5774f4b5f2c845f118f1e05554159be67",
+      "after_sha256": "a53e6a4609af22488991578d20a47d246eb87258b6690e37f877db0fe8fc08fe",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 165,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "Speex NS 串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-speex_serial-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-speex_serial-pass-mel.svg",
+      "waveform_bytes": 54975,
+      "mel_bytes": 2573900,
+      "waveform_rms_dbfs": {
+        "before": -21.86213359568907,
+        "after": -26.489947046309695
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -59.23268184554388,
+        "high_db": 20.767318154456117
+      }
+    },
+    {
+      "asset_id": "chain-speex_serial-fail",
+      "case_id": "field-p1-m2-noise_step-snr30",
+      "detail": "2 麦 · noise_step · SNR 30 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m2-noise_step-snr30/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/speex_serial/cases/field-p1-m2-noise_step-snr30/runs/full/result.after.wav",
+      "before_sha256": "086f20c341bdb69d4eda3c0df94d72a69983a9b0c4b0413ff150eabcef61eb6e",
+      "after_sha256": "55e82d710ca86c84f997477fb3ff8e689789201a070d197139f973c9c6edc7e4",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 162,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "Speex NS 串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-speex_serial-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-speex_serial-fail-mel.svg",
+      "waveform_bytes": 55003,
+      "mel_bytes": 2547235,
+      "waveform_rms_dbfs": {
+        "before": -27.12090202621792,
+        "after": -29.661158675435644
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.80279422230025,
+        "high_db": 18.19720577769975
+      }
+    },
+    {
+      "asset_id": "chain-rnnoise_serial-pass",
+      "case_id": "field-p1-m4-diffuse-snr0",
+      "detail": "4 麦 · diffuse · SNR 0 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-diffuse-snr0/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/rnnoise_serial/cases/field-p1-m4-diffuse-snr0/runs/full/result.after.wav",
+      "before_sha256": "71f2b85db0914edf5c00e937300c111699ffd89a901751c8d689be58415d1960",
+      "after_sha256": "75027cf2775e881640cebf3eddf0091ca2d39f97a64f312492c1396b621bde6f",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 485,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "RNNoise 串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-rnnoise_serial-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-rnnoise_serial-pass-mel.svg",
+      "waveform_bytes": 54986,
+      "mel_bytes": 2549077,
+      "waveform_rms_dbfs": {
+        "before": -23.776666751034575,
+        "after": -31.338319096992425
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -60.26517153558419,
+        "high_db": 19.734828464415816
+      }
+    },
+    {
+      "asset_id": "chain-rnnoise_serial-fail",
+      "case_id": "field-p0-m2-diffuse-snr15",
+      "detail": "2 麦 · diffuse · SNR 15 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m2-diffuse-snr15/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/rnnoise_serial/cases/field-p0-m2-diffuse-snr15/runs/full/result.after.wav",
+      "before_sha256": "252febe59e9066de7fb2d34134a101ce0f8c76d98e594a133f0e3be24a4302ad",
+      "after_sha256": "0507c374061f8c7d1ededfd26ea1982e061787225b38e53148c8fe37b14e5aca",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 482,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "RNNoise 串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-rnnoise_serial-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-rnnoise_serial-fail-mel.svg",
+      "waveform_bytes": 54990,
+      "mel_bytes": 2554583,
+      "waveform_rms_dbfs": {
+        "before": -26.020430492479978,
+        "after": -29.206833695266766
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.38832323917537,
+        "high_db": 18.61167676082463
+      }
+    },
+    {
+      "asset_id": "chain-omlsa_serial-pass",
+      "case_id": "field-p0-m4-diffuse-snr0",
+      "detail": "4 麦 · diffuse · SNR 0 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-diffuse-snr0/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/omlsa_serial/cases/field-p0-m4-diffuse-snr0/runs/full/result.after.wav",
+      "before_sha256": "ee21d159da6b93e563916ac80703f65bfebec66ab2809871494f8b0a8b96600c",
+      "after_sha256": "a4b336251953e1da238b720de20fed87fb2a38103c023914563a3e841db4b3e5",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 165,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "OM-LSA 串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-omlsa_serial-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-omlsa_serial-pass-mel.svg",
+      "waveform_bytes": 54985,
+      "mel_bytes": 2558359,
+      "waveform_rms_dbfs": {
+        "before": -22.957475668358445,
+        "after": -28.940721528702777
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -59.97848303591188,
+        "high_db": 20.021516964088118
+      }
+    },
+    {
+      "asset_id": "chain-omlsa_serial-fail",
+      "case_id": "field-p1-m4-diffuse-snr30",
+      "detail": "4 麦 · diffuse · SNR 30 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-diffuse-snr30/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/omlsa_serial/cases/field-p1-m4-diffuse-snr30/runs/full/result.after.wav",
+      "before_sha256": "ecc11e18e417b4fd0519278ed77e9c86eb7924a905ffde95d1417079c3b3c79c",
+      "after_sha256": "77e6c904262e61e0fd0e638bc1aeb804b9654976fdb7322fd38323de322dd985",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 165,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "OM-LSA 串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-omlsa_serial-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-omlsa_serial-fail-mel.svg",
+      "waveform_bytes": 54989,
+      "mel_bytes": 2549794,
+      "waveform_rms_dbfs": {
+        "before": -27.593961592453407,
+        "after": -30.987357051308535
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -62.107127078482954,
+        "high_db": 17.892872921517046
+      }
+    },
+    {
+      "asset_id": "chain-stage4_serial-pass",
+      "case_id": "field-p0-m4-wind-snr0",
+      "detail": "4 麦 · wind · SNR 0 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-wind-snr0/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/stage4_serial/cases/field-p0-m4-wind-snr0/runs/full/result.after.wav",
+      "before_sha256": "fb1d12e201282a1c3dc84334850310eaa46408369d45c7d82df5ec14d805d36f",
+      "after_sha256": "26dc1fd95d7f3d9167f069cc920eed45cbde5b539deaa6c4d25e1c4e42ecf7d3",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 101,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "Stage4 串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-stage4_serial-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-stage4_serial-pass-mel.svg",
+      "waveform_bytes": 54973,
+      "mel_bytes": 2554887,
+      "waveform_rms_dbfs": {
+        "before": -22.844005478531834,
+        "after": -28.607270209477683
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -59.721382139664215,
+        "high_db": 20.278617860335782
+      }
+    },
+    {
+      "asset_id": "chain-stage4_serial-fail",
+      "case_id": "field-p1-m4-noise_step-snr30",
+      "detail": "4 麦 · noise_step · SNR 30 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-noise_step-snr30/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/stage4_serial/cases/field-p1-m4-noise_step-snr30/runs/full/result.after.wav",
+      "before_sha256": "5b113c9e696e3400121942ea1f106948cc389840a9b71bdf062dae72bb6d694c",
+      "after_sha256": "4e284871d7c14129757a8c566167fcfd4c4ab24ae91342eccecc9d041bfd3331",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 101,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "Stage4 串联 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-stage4_serial-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-stage4_serial-fail-mel.svg",
+      "waveform_bytes": 55001,
+      "mel_bytes": 2550312,
+      "waveform_rms_dbfs": {
+        "before": -27.122218746037742,
+        "after": -29.57548653698359
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.77812560395981,
+        "high_db": 18.221874396040192
+      }
+    },
+    {
+      "asset_id": "chain-aec3_serial-pass",
+      "case_id": "field-p1-m4-noise_step-snr15",
+      "detail": "4 麦 · noise_step · SNR 15 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p1-m4-noise_step-snr15/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/aec3_serial/cases/field-p1-m4-noise_step-snr15/runs/full/result.after.wav",
+      "before_sha256": "a88659bb4efe3659fff58319e6b4c72bf323246b716887e01a337d4ce1f55485",
+      "after_sha256": "db91fe7d203bd17375d181b34a122b870c07bac32cb2b7c4c9a4881e737798ca",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 229,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "AEC3 串联候选 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-aec3_serial-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-aec3_serial-pass-mel.svg",
+      "waveform_bytes": 55005,
+      "mel_bytes": 2552095,
+      "waveform_rms_dbfs": {
+        "before": -25.963482588306928,
+        "after": -29.756170933639407
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.860826428565964,
+        "high_db": 18.139173571434036
+      }
+    },
+    {
+      "asset_id": "chain-aec3_serial-fail",
+      "case_id": "field-p0-m4-noise_step-snr30",
+      "detail": "4 麦 · noise_step · SNR 30 dB · near_late",
+      "before": "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m4-noise_step-snr30/before.wav",
+      "after": "build/enhancement-chain-matrix-20261023-r5/aec3_serial/cases/field-p0-m4-noise_step-snr30/runs/full/result.after.wav",
+      "before_sha256": "bdc198051712a789812010ab6eeb05ca5d52a00f46d8cec55bfa6e8fe8640446",
+      "after_sha256": "c2c892de73d6920dd0ac0744ecbbbef945100a68e3718be41641fd48983b8c80",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 229,
+      "before_label": "原始麦克风 · 通道 0",
+      "after_label": "AEC3 串联候选 · TX 输出",
+      "analysis": "图为原始通道 0 与整链输出；分数相对同案例 DAS 对照，非图中两路直接相减。",
+      "waveform": "/evaluation/pipeline-cases/chain-aec3_serial-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/chain-aec3_serial-fail-mel.svg",
+      "waveform_bytes": 55005,
+      "mel_bytes": 2556509,
+      "waveform_rms_dbfs": {
+        "before": -26.04562466486669,
+        "after": -28.727826827078545
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -61.62316922820148,
+        "high_db": 18.376830771798517
+      }
+    },
+    {
+      "asset_id": "agc-guarded5-pass",
+      "case_id": "vehicle-16000-development-m1-11",
+      "detail": "Guarded5；16 kHz；-30 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+      "before_sha256": "d3ffbc656a8af43f30adc394749e4033a84ea03266a9553d461fc1767d0e87ed",
+      "after_sha256": "0a49a307ded51c7e92c5e02a3c1f6294beffb8803da6c82ee341d2e23d29ccf2",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Guarded5 冻结 VCP",
+      "analysis": "通过案例；SI-SDR (dB) 20.6092 >= 19.0000（通过）；ΔSTOI -0.0000 >= -0.0200（通过）；投影增益下限 (dB) 0.0000 >= -3.0000（通过）",
+      "waveform": "/evaluation/pipeline-cases/agc-guarded5-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-guarded5-pass-mel.svg",
+      "waveform_bytes": 55047,
+      "mel_bytes": 2560159,
+      "waveform_rms_dbfs": {
+        "before": -30.505908630091216,
+        "after": -30.50820741098732
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -63.81515762589665,
+        "high_db": 16.184842374103347
+      }
+    },
+    {
+      "asset_id": "agc-guarded5-fail",
+      "case_id": "vehicle-16000-development-m1-10",
+      "detail": "Guarded5；16 kHz；-45 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/guarded5/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+      "before_sha256": "5a2076075231e058e5f6ad4835b21f649cce6e8d699ccc7cce6854ca5e14aa4d",
+      "after_sha256": "1f5929f70514263b464e0adeb47a71e9edd66db9da14d38f7d8e619817268e24",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Guarded5 冻结 VCP",
+      "analysis": "失败案例；投影增益下限 (dB) -0.0014 >= 6.0000（失败）",
+      "waveform": "/evaluation/pipeline-cases/agc-guarded5-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-guarded5-fail-mel.svg",
+      "waveform_bytes": 55047,
+      "mel_bytes": 2560423,
+      "waveform_rms_dbfs": {
+        "before": -45.48447681603031,
+        "after": -45.48781274032816
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -78.81548375684443,
+        "high_db": 1.1845162431555698
+      }
+    },
+    {
+      "asset_id": "agc-agc2-adaptive-pass",
+      "case_id": "vehicle-16000-development-m2-13",
+      "detail": "AGC2 Adaptive；16 kHz；-15 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m2-13/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m2-13/runs/full/result.after.wav",
+      "before_sha256": "a0dd78d8ca4a2901c5e04f8663e002e9768d55360d104285aa639a620af7c699",
+      "after_sha256": "edfd2c56843a54ed41a30a61f910960213fc7352f0ab87ae85d225ff8f8051f6",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 98,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · AGC2 Adaptive 冻结 VCP",
+      "analysis": "通过案例；SI-SDR (dB) 13.1254 >= 11.6530（通过）；ΔSTOI -0.0088 >= -0.0200（通过）；投影增益下限 (dB) -1.6976 >= -3.0000（通过）",
+      "waveform": "/evaluation/pipeline-cases/agc-agc2-adaptive-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-agc2-adaptive-pass-mel.svg",
+      "waveform_bytes": 55062,
+      "mel_bytes": 2564297,
+      "waveform_rms_dbfs": {
+        "before": -18.950093348181642,
+        "after": -20.63445370476424
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -53.12214561236682,
+        "high_db": 26.877854387633175
+      }
+    },
+    {
+      "asset_id": "agc-agc2-adaptive-fail",
+      "case_id": "vehicle-16000-development-m1-12",
+      "detail": "AGC2 Adaptive；16 kHz；-15 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/agc2_adaptive/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+      "before_sha256": "0eef60af590bbd7c01940a25aa5c758746096d6637baba2c437cd9bd86e24084",
+      "after_sha256": "df291f0755ab02f58c19e6c0457f61adf04027573d44cceac9504f719425ee9c",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · AGC2 Adaptive 冻结 VCP",
+      "analysis": "失败案例；SI-SDR (dB) 13.5127 >= 19.0000（失败）",
+      "waveform": "/evaluation/pipeline-cases/agc-agc2-adaptive-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-agc2-adaptive-fail-mel.svg",
+      "waveform_bytes": 55062,
+      "mel_bytes": 2559574,
+      "waveform_rms_dbfs": {
+        "before": -18.935118670621357,
+        "after": -20.567448520119672
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -53.08765069227502,
+        "high_db": 26.912349307724984
+      }
+    },
+    {
+      "asset_id": "agc-fixed-0-pass",
+      "case_id": "vehicle-16000-development-m1-11",
+      "detail": "Fixed 0 dB；16 kHz；-30 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+      "before_sha256": "d3ffbc656a8af43f30adc394749e4033a84ea03266a9553d461fc1767d0e87ed",
+      "after_sha256": "0a49a307ded51c7e92c5e02a3c1f6294beffb8803da6c82ee341d2e23d29ccf2",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Fixed 0 dB 冻结 VCP",
+      "analysis": "通过案例；SI-SDR (dB) 20.6092 >= 19.0000（通过）；ΔSTOI -0.0000 >= -0.0200（通过）；投影增益下限 (dB) 0.0000 >= -3.0000（通过）",
+      "waveform": "/evaluation/pipeline-cases/agc-fixed-0-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-fixed-0-pass-mel.svg",
+      "waveform_bytes": 55053,
+      "mel_bytes": 2560165,
+      "waveform_rms_dbfs": {
+        "before": -30.505908630091216,
+        "after": -30.50820741098732
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -63.81515762589665,
+        "high_db": 16.184842374103347
+      }
+    },
+    {
+      "asset_id": "agc-fixed-0-fail",
+      "case_id": "vehicle-16000-development-m1-12",
+      "detail": "Fixed 0 dB；16 kHz；-15 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/fixed_0/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+      "before_sha256": "0eef60af590bbd7c01940a25aa5c758746096d6637baba2c437cd9bd86e24084",
+      "after_sha256": "df291f0755ab02f58c19e6c0457f61adf04027573d44cceac9504f719425ee9c",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Fixed 0 dB 冻结 VCP",
+      "analysis": "失败案例；SI-SDR (dB) 13.5127 >= 19.0000（失败）",
+      "waveform": "/evaluation/pipeline-cases/agc-fixed-0-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-fixed-0-fail-mel.svg",
+      "waveform_bytes": 55053,
+      "mel_bytes": 2559565,
+      "waveform_rms_dbfs": {
+        "before": -18.935118670621357,
+        "after": -20.567448520119672
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -53.08765069227502,
+        "high_db": 26.912349307724984
+      }
+    },
+    {
+      "asset_id": "agc-fixed-3-pass",
+      "case_id": "vehicle-16000-development-m1-11",
+      "detail": "Fixed 3 dB；16 kHz；-30 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+      "before_sha256": "d3ffbc656a8af43f30adc394749e4033a84ea03266a9553d461fc1767d0e87ed",
+      "after_sha256": "597764e09feb002f10fbaa64322b6bcec12fcc05759f59cba629e104a7c778d3",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Fixed 3 dB 冻结 VCP",
+      "analysis": "通过案例；SI-SDR (dB) 20.5148 >= 19.0000（通过）；ΔSTOI -0.0000 >= -0.0200（通过）；投影增益下限 (dB) 2.9662 >= -3.0000（通过）",
+      "waveform": "/evaluation/pipeline-cases/agc-fixed-3-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-fixed-3-pass-mel.svg",
+      "waveform_bytes": 55053,
+      "mel_bytes": 2559858,
+      "waveform_rms_dbfs": {
+        "before": -30.505908630091216,
+        "after": -27.541177360757274
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -62.07917436442391,
+        "high_db": 17.920825635576087
+      }
+    },
+    {
+      "asset_id": "agc-fixed-3-fail",
+      "case_id": "vehicle-16000-development-m1-10",
+      "detail": "Fixed 3 dB；16 kHz；-45 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/fixed_3/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+      "before_sha256": "5a2076075231e058e5f6ad4835b21f649cce6e8d699ccc7cce6854ca5e14aa4d",
+      "after_sha256": "5cdc09bccb7e655ce20cc237c0367c2e3c2b57d2f337baa56bd4b1d93741b4ea",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Fixed 3 dB 冻结 VCP",
+      "analysis": "失败案例；投影增益下限 (dB) 2.9986 >= 6.0000（失败）",
+      "waveform": "/evaluation/pipeline-cases/agc-fixed-3-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-fixed-3-fail-mel.svg",
+      "waveform_bytes": 55053,
+      "mel_bytes": 2559987,
+      "waveform_rms_dbfs": {
+        "before": -45.48447681603031,
+        "after": -42.48782131277369
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -77.07620849333203,
+        "high_db": 2.9237915066679725
+      }
+    },
+    {
+      "asset_id": "agc-fixed-6-pass",
+      "case_id": "vehicle-16000-development-m1-11",
+      "detail": "Fixed 6 dB；16 kHz；-30 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+      "before_sha256": "d3ffbc656a8af43f30adc394749e4033a84ea03266a9553d461fc1767d0e87ed",
+      "after_sha256": "589828c79193f268a459105d8b90eccadab93f4bddbd89da761b854e7257a8f6",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Fixed 6 dB 冻结 VCP",
+      "analysis": "通过案例；SI-SDR (dB) 19.0445 >= 19.0000（通过）；ΔSTOI -0.0004 >= -0.0200（通过）；投影增益下限 (dB) 5.7620 >= -3.0000（通过）",
+      "waveform": "/evaluation/pipeline-cases/agc-fixed-6-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-fixed-6-pass-mel.svg",
+      "waveform_bytes": 55053,
+      "mel_bytes": 2558836,
+      "waveform_rms_dbfs": {
+        "before": -30.505908630091216,
+        "after": -24.730043539579434
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -59.74601615479885,
+        "high_db": 20.25398384520115
+      }
+    },
+    {
+      "asset_id": "agc-fixed-6-fail",
+      "case_id": "vehicle-16000-development-m1-12",
+      "detail": "Fixed 6 dB；16 kHz；-15 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/fixed_6/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+      "before_sha256": "0eef60af590bbd7c01940a25aa5c758746096d6637baba2c437cd9bd86e24084",
+      "after_sha256": "de40c66b9552550e01c57408e91a15bb48255cb8745d839e8a0d658b0846062d",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Fixed 6 dB 冻结 VCP",
+      "analysis": "失败案例；SI-SDR (dB) 7.5558 >= 19.0000（失败）；ΔSTOI -0.0444 >= -0.0200（失败）",
+      "waveform": "/evaluation/pipeline-cases/agc-fixed-6-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-fixed-6-fail-mel.svg",
+      "waveform_bytes": 55053,
+      "mel_bytes": 2560985,
+      "waveform_rms_dbfs": {
+        "before": -18.935118670621357,
+        "after": -17.60444871530442
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -51.9193031425107,
+        "high_db": 28.0806968574893
+      }
+    },
+    {
+      "asset_id": "agc-fixed-8-pass",
+      "case_id": "vehicle-16000-development-m4-11",
+      "detail": "Fixed 8 dB；16 kHz；-45 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m4-11/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m4-11/runs/full/result.after.wav",
+      "before_sha256": "7bc2be56372fcf6d415f50d066033dc8e61fa57ea2403efb6f95c64a840b0ed3",
+      "after_sha256": "912892e844d1e36d3f7cebcb4bb9686aeab2a9862a3e371f58b36fd055140f2d",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 101,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Fixed 8 dB 冻结 VCP",
+      "analysis": "通过案例；SI-SDR (dB) 19.5838 >= 10.5154（通过）；ΔSTOI 0.0012 >= -0.0200（通过）；投影增益下限 (dB) 8.0006 >= 6.0000（通过）",
+      "waveform": "/evaluation/pipeline-cases/agc-fixed-8-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-fixed-8-pass-mel.svg",
+      "waveform_bytes": 55055,
+      "mel_bytes": 2565591,
+      "waveform_rms_dbfs": {
+        "before": -45.492040823484245,
+        "after": -37.64529601935899
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -73.14638558692762,
+        "high_db": 6.853614413072378
+      }
+    },
+    {
+      "asset_id": "agc-fixed-8-fail",
+      "case_id": "vehicle-16000-development-m1-11",
+      "detail": "Fixed 8 dB；16 kHz；-30 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/fixed_8/controlled-native-full-20261017/cases/vehicle-16000-development-m1-11/runs/full/result.after.wav",
+      "before_sha256": "d3ffbc656a8af43f30adc394749e4033a84ea03266a9553d461fc1767d0e87ed",
+      "after_sha256": "d5cec3506241bfa27b8334c90247640abb8cf827cdbac74817b3ea792644b790",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Fixed 8 dB 冻结 VCP",
+      "analysis": "失败案例；SI-SDR (dB) 16.8255 >= 19.0000（失败）",
+      "waveform": "/evaluation/pipeline-cases/agc-fixed-8-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-fixed-8-fail-mel.svg",
+      "waveform_bytes": 55053,
+      "mel_bytes": 2558394,
+      "waveform_rms_dbfs": {
+        "before": -30.505908630091216,
+        "after": -23.022147919001522
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -58.43743590769579,
+        "high_db": 21.562564092304207
+      }
+    },
+    {
+      "asset_id": "agc-no-tx-drc-pass",
+      "case_id": "vehicle-16000-development-m1-12",
+      "detail": "No TX DRC；16 kHz；-15 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-12/runs/full/result.after.wav",
+      "before_sha256": "0eef60af590bbd7c01940a25aa5c758746096d6637baba2c437cd9bd86e24084",
+      "after_sha256": "0e87f18fdb274abf8e9109b7272d5da8ceddf0292b51ad3ecf2a320e882e1d41",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · No TX DRC 冻结 VCP",
+      "analysis": "通过案例；SI-SDR (dB) 22.1702 >= 19.0000（通过）；ΔSTOI -0.0031 >= -0.0200（通过）；投影增益下限 (dB) -0.1332 >= -3.0000（通过）",
+      "waveform": "/evaluation/pipeline-cases/agc-no-tx-drc-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-no-tx-drc-pass-mel.svg",
+      "waveform_bytes": 55050,
+      "mel_bytes": 2558832,
+      "waveform_rms_dbfs": {
+        "before": -18.935118670621357,
+        "after": -19.082137116287473
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -52.25469519303209,
+        "high_db": 27.745304806967912
+      }
+    },
+    {
+      "asset_id": "agc-no-tx-drc-fail",
+      "case_id": "vehicle-16000-development-m1-10",
+      "detail": "No TX DRC；16 kHz；-45 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/before.wav",
+      "after": "build/agc-tech-matrix-agc108-20261020/no_tx_drc/controlled-native-full-20261017/cases/vehicle-16000-development-m1-10/runs/full/result.after.wav",
+      "before_sha256": "5a2076075231e058e5f6ad4835b21f649cce6e8d699ccc7cce6854ca5e14aa4d",
+      "after_sha256": "1f5929f70514263b464e0adeb47a71e9edd66db9da14d38f7d8e619817268e24",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · No TX DRC 冻结 VCP",
+      "analysis": "失败案例；投影增益下限 (dB) -0.0014 >= 6.0000（失败）",
+      "waveform": "/evaluation/pipeline-cases/agc-no-tx-drc-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-no-tx-drc-fail-mel.svg",
+      "waveform_bytes": 55050,
+      "mel_bytes": 2560426,
+      "waveform_rms_dbfs": {
+        "before": -45.48447681603031,
+        "after": -45.48781274032816
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -78.81548375684443,
+        "high_db": 1.1845162431555698
+      }
+    },
+    {
+      "asset_id": "agc-stage4-release-no-tx-drc-pass",
+      "case_id": "vehicle-16000-development-m2-11",
+      "detail": "Stage4 + release + No TX DRC；16 kHz；-45 dBFS；tcar；SNR +20 dB；near_late",
+      "before": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m2-11/before.wav",
+      "after": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-development-m2-11/runs/full/result.after.wav",
+      "before_sha256": "1b5e2b5a32b71aa7c713e3f72937e1cce0e554f10d41b60d178a39f4d00eeb8b",
+      "after_sha256": "22bd83d41e7d85708b1e24287a56de649b8da9fb1ebc5342b689ff7317ee5d9b",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        13,
+        21
+      ],
+      "delay_samples": 98,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Stage4 + release + No TX DRC 冻结 VCP",
+      "analysis": "通过案例；SI-SDR (dB) 19.8763 >= 11.8359（通过）；ΔSTOI -0.0004 >= -0.0200（通过）；投影增益下限 (dB) 7.9922 >= 6.0000（通过）",
+      "waveform": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-pass-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-pass-mel.svg",
+      "waveform_bytes": 55107,
+      "mel_bytes": 2564968,
+      "waveform_rms_dbfs": {
+        "before": -45.493566626118664,
+        "after": -37.64026426888192
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -73.14612446126978,
+        "high_db": 6.853875538730224
+      }
+    },
+    {
+      "asset_id": "agc-stage4-release-no-tx-drc-fail",
+      "case_id": "vehicle-16000-validation-m1-10",
+      "detail": "Stage4 + release + No TX DRC；16 kHz；-45 dBFS；straffic；SNR +20 dB；noise_only",
+      "before": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-validation-m1-10/before.wav",
+      "after": "build/agc-stage4-release-no-tx-drc-20261020/controlled-native-full-20261017/cases/vehicle-16000-validation-m1-10/runs/full/result.after.wav",
+      "before_sha256": "dae8598885cb4ce9f07d6a20c61afe56aaf8a067b3812731e8945f62c3c7b25c",
+      "after_sha256": "da0b3e723417c1b5b4d3ca211a2cf7b829185d156fbc6fd6f9502a3146a4b0ea",
+      "before_channel": 0,
+      "after_channel": 0,
+      "before_crop_samples": 0,
+      "sample_rate": 16000,
+      "window_seconds": [
+        22,
+        24
+      ],
+      "delay_samples": 96,
+      "before_label": "输入 · 冻结麦克风 / 通道 0",
+      "after_label": "输出 · Stage4 + release + No TX DRC 冻结 VCP",
+      "analysis": "失败案例；噪声衰减 (dB) 5.6296 >= 6.0000（失败）",
+      "waveform": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-fail-waveform.svg",
+      "mel": "/evaluation/pipeline-cases/agc-stage4-release-no-tx-drc-fail-mel.svg",
+      "waveform_bytes": 55115,
+      "mel_bytes": 2112244,
+      "waveform_rms_dbfs": {
+        "before": -68.82521387434332,
+        "after": -74.45480033699693
+      },
+      "mel_scope": {
+        "fft_size": 512,
+        "hop_size": 160,
+        "bands": 64,
+        "db_range": 80.0,
+        "low_db": -104.27029687617521,
+        "high_db": -24.270296876175212
+      }
+    }
+  ]
+}

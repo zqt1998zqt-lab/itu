@@ -59,18 +59,19 @@ class Audio:
     data: np.ndarray
     rate: int
     original_channels: int
-    channel: int
+    channel: int | None
     format: str
     sha256: str
     byte_count: int
 
 
-def decode(role: str, name: str, blob: bytes, channel: int = 0) -> Audio:
+def decode(role: str, name: str, blob: bytes, channel: int | None = 0) -> Audio:
+    """Decode one measurement channel, or preserve every channel when None."""
     if Path(name).suffix.lower() not in EXTENSIONS:
         raise AudioError(f"{ROLES[role]}：请上传 WAV、FLAC、MP3、OGG、M4A、AAC 或 AIFF 音频")
     if not blob or len(blob) > MAX_BYTES:
         raise AudioError(f"{ROLES[role]}：文件为空或超过 32 MB")
-    if channel < 0 or channel > 7:
+    if channel is not None and (channel < 0 or channel > 7):
         raise AudioError("声道编号无效")
     try:
         with sf.SoundFile(io.BytesIO(blob)) as f:
@@ -100,9 +101,9 @@ def decode(role: str, name: str, blob: bytes, channel: int = 0) -> Audio:
             raise
         except (OSError, subprocess.SubprocessError, KeyError, IndexError, ValueError) as error:
             raise AudioError(f"{ROLES[role]}：音频无法解码，文件可能损坏或并非音频") from error
-    if channel >= channels:
+    if channel is not None and channel >= channels:
         raise AudioError(f"{ROLES[role]}：文件只有 {channels} 个声道，所选声道不存在")
-    mono = data[:, channel].astype(np.float64)
+    mono = (data if channel is None else data[:, channel]).astype(np.float64)
     if not np.all(np.isfinite(mono)):
         raise AudioError(f"{ROLES[role]}：音频含有非有限样本")
     return Audio(role, Path(name).name, mono, rate, channels, channel, fmt, hashlib.sha256(blob).hexdigest(), len(blob))
