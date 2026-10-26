@@ -1,14 +1,16 @@
 #pragma once
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <string>
 
 namespace itu {
-enum class VehicleNsBackend { webrtc, speex, bypass, filterbank, omlsa_imcra, super_gaussian };
+enum class VehicleNsBackend { webrtc, speex, bypass, filterbank, omlsa_imcra, super_gaussian, unified };
 // Explicit operating envelope; all adaptation uses current/past capture only.
 // No external VAD. 24 kHz WebRTC requires the explicitly selected 48 kHz bridge.
 // OM-LSA and Super-Gaussian keep the I/O rate; strength 0/1/2/3 sets
 // -9/-12/-18/-24 dB. Super-Gaussian is joint MAP H1 gain with shared IMCRA.
+// Unified keeps the native rate and causally fuses four shared-spectrum experts.
 struct VehicleNsConfig {
   VehicleNsBackend backend=VehicleNsBackend::webrtc;
   int strength=1, mild_strength=0;
@@ -67,6 +69,9 @@ struct VehicleNsConfig {
   // processed donors, so they explicitly reject this raw-only mode. Use
   // aligned/fixedblend/legacy; statistical parallel_start remains supported.
   bool unified_raw_budget=false;
+  // Online convex fusion rate for VehicleNsBackend::unified. Zero freezes the
+  // initial four-expert weights exactly; one follows the bounded target.
+  float unified_learning_rate=.08f;
 };
 struct VehicleNsStatistics {
   bool unified_raw_budget=false;
@@ -88,6 +93,17 @@ struct VehicleNsStatistics {
   std::size_t imcra_excluded_bins=0,imcra_noise_updates=0;
   unsigned imcra_minima_rotations=0;
   unsigned student_state=0; // TinyNsCorrector::State; 1=ready, 2..5=fallback reason.
+  std::array<float,4> unified_weights{};
+  std::array<float,4> unified_target_weights{};
+  float unified_weight_entropy=0;
+  float unified_frame_snr_db=-60;
+  float unified_flatness=0,unified_tonality=0;
+  float unified_minima_confidence=0;
+  float unified_transient_evidence=0,unified_noise_step_evidence=0;
+  float unified_probability=0,unified_gain=1,unified_noise_power=0;
+  float unified_bootstrap_seed=1;
+  std::size_t unified_noise_updates=0;
+  unsigned unified_minima_rotations=0;
   std::size_t student_inferences=0,student_fallback_frames=0;
   bool student_applied=false;
   float residual_speech_probability=0,residual_attenuation_db=0;

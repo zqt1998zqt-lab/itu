@@ -90,6 +90,25 @@ def check_joint_cli(cli, root):
         assert report["speex_multirender_context"] is False
 
 
+def check_unified_cli(cli, root):
+    first = root / "16000-2mic"
+    prefix = first / "unified-ns"
+    run([cli, "--profile", "vcp_unified", "--mic", str(first/"mic.wav"),
+         "--beam-delays", "0,0", "--no-aec", "--out", str(prefix)],
+        first / "unified-ns.log")
+    report = json.loads(Path(str(prefix) + ".json").read_text())
+    assert report["ns_backend"] == "unified"
+    assert len(report["unified_ns_weights"]) == 4
+    assert len(report["unified_ns_target_weights"]) == 4
+    assert report["unified_ns_noise_updates"] >= 0
+    with Path(str(prefix) + ".frames.csv").open() as stream:
+        fields = next(csv.reader(stream))
+    required = {"unified_ns_w0", "unified_ns_target_w3", "unified_ns_weight_entropy",
+                "unified_ns_probability", "unified_ns_noise_updates"}
+    assert required.issubset(fields)
+    print("CLI unified NS JSON/CSV diagnostics: PASS")
+
+
 def main():
     cli = str(Path(sys.argv[1]).resolve())
     root = Path(sys.argv[2]).resolve()
@@ -144,6 +163,7 @@ def main():
                          "dsp_delay_samples": report["dsp_delay_samples"], "passed": True})
             print(f"CLI duplex {rate} Hz, {m} mic, {refs} refs: PASS")
     check_joint_cli(cli, root)
+    check_unified_cli(cli, root)
     first = root/"16000-2mic"
     run([cli, "--profile", "vcp", "--mic", str(first/"mic.wav"),
          "--beam-delays", "0,0", "--rx-in", str(first/"rx.wav"),

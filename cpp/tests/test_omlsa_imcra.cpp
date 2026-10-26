@@ -101,7 +101,7 @@ void c_api() {
     require(itu_audio_process(e,x.data(),x.size(),nullptr,0,y.data(),y.size(),&f,nullptr,nullptr,nullptr)==ITU_AUDIO_OK,"C API new backend process");
     require(f.latency_samples==c.frame_size,"C API native NS delay changed");
     itu_audio_destroy(e);
-    require(!itu_audio_create_with_backend(&c,0,6,error,sizeof(error)),"invalid C backend accepted");
+    require(!itu_audio_create_with_backend(&c,0,7,error,sizeof(error)),"invalid C backend accepted");
   }
 }
 }

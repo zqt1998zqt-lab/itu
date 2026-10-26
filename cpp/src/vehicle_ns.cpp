@@ -5,6 +5,7 @@
 #include "speex_ns.hpp"
 #include "rate_converter.hpp"
 #include "omlsa_imcra.hpp"
+#include "unified_ns.hpp"
 #include "hybrid_ns_control.hpp"
 #include "residual_noise_suppressor.hpp"
 #include "modules/audio_processing/audio_buffer.h"
@@ -87,6 +88,7 @@ struct VehicleNsProcessor::Impl {
   LinearRumbleFilter linear_filter;
   std::unique_ptr<SpeexNs> speex,mild_speex,steady_speex;
   std::unique_ptr<detail::OmlsaImcra> omlsa;
+  std::unique_ptr<detail::UnifiedNs> unified;
   std::unique_ptr<detail::HybridNsControl> student;
   std::unique_ptr<detail::SpeechBandProtection> speech_band;
   std::unique_ptr<TransientSpectralGuard> transient_spectral;
@@ -110,7 +112,8 @@ struct VehicleNsProcessor::Impl {
     switch(b) {case VehicleNsBackend::webrtc:return "webrtc"; case VehicleNsBackend::speex:return "speex";
       case VehicleNsBackend::bypass:return "bypass";case VehicleNsBackend::filterbank:return "filterbank";
       case VehicleNsBackend::omlsa_imcra:return "omlsa_imcra";
-      case VehicleNsBackend::super_gaussian:return "super_gaussian";}
+      case VehicleNsBackend::super_gaussian:return "super_gaussian";
+      case VehicleNsBackend::unified:return "unified";}
     throw std::invalid_argument("invalid vehicle NS backend");
   }
   static unsigned checked_rate(unsigned r,const VehicleNsConfig& c) {
@@ -125,9 +128,9 @@ struct VehicleNsProcessor::Impl {
     if(!c.student_model_path.empty() && c.backend!=VehicleNsBackend::omlsa_imcra)
       throw std::invalid_argument("hybrid student requires the native OM-LSA backend");
     if((r!=16000 && r!=24000 && r!=48000) ||
-       (c.native_24 && (r!=24000 || (c.backend!=VehicleNsBackend::speex && c.backend!=VehicleNsBackend::omlsa_imcra && c.backend!=VehicleNsBackend::super_gaussian))) ||
+       (c.native_24 && (r!=24000 || (c.backend!=VehicleNsBackend::speex && c.backend!=VehicleNsBackend::omlsa_imcra && c.backend!=VehicleNsBackend::super_gaussian && c.backend!=VehicleNsBackend::unified))) ||
        c.repair_mode>4 || c.floor_guard>2 || c.startup_ms>500 ||
-       !std::isfinite(c.dry_max+c.snr_threshold_db+c.noise_gain+c.slew_ms+c.release_ms+c.quiet_floor_db+c.spectral_dry_guard) ||
+       !std::isfinite(c.dry_max+c.snr_threshold_db+c.noise_gain+c.slew_ms+c.release_ms+c.quiet_floor_db+c.spectral_dry_guard+c.unified_learning_rate) ||
        c.spectral_dry_guard<0 || c.spectral_dry_guard>1 ||
        (c.spectral_dry_guard>0 && c.backend!=VehicleNsBackend::omlsa_imcra && c.backend!=VehicleNsBackend::super_gaussian) ||
        c.dry_max<0 || c.dry_max>1 || c.snr_threshold_db<0 || c.snr_threshold_db>30 ||
@@ -154,19 +157,20 @@ struct VehicleNsProcessor::Impl {
        (c.transient_spectral_guard_db>0 &&
         c.backend!=VehicleNsBackend::omlsa_imcra) ||
        (c.backend==VehicleNsBackend::webrtc && (c.strength<0 || c.strength>3 || c.mild_strength<0 || c.mild_strength>3)) ||
-       ((c.backend==VehicleNsBackend::omlsa_imcra || c.backend==VehicleNsBackend::super_gaussian) && (c.strength<0 || c.strength>3)) ||
+       ((c.backend==VehicleNsBackend::omlsa_imcra || c.backend==VehicleNsBackend::super_gaussian || c.backend==VehicleNsBackend::unified) && (c.strength<0 || c.strength>3)) ||
        (c.backend==VehicleNsBackend::speex && (c.strength< -40 || c.strength>0 || c.mild_strength< -40 || c.mild_strength>0)) ||
        (c.policy!="legacy" && c.policy!="aligned" && c.policy!="parallel" && c.policy!="dynamic" && c.policy!="steady_dynamic" && c.policy!="fixedblend" && c.policy!="parallel_start") ||
        ((c.policy=="dynamic" || c.policy=="steady_dynamic") && c.backend!=VehicleNsBackend::speex) ||
        c.steady_suppression_db < -40 || c.steady_suppression_db>0 ||
+       c.unified_learning_rate<0 || c.unified_learning_rate>1 ||
        (c.adaptive_rumble && (!c.linear_rumble || !(c.rumble_hz>0))))
       throw std::invalid_argument("invalid vehicle NS operating envelope");
     return r;
   }
   Impl(unsigned r,const VehicleNsConfig& c,bool quantize)
-    : rate(checked_rate(r,c)),hop(rate/100),core_rate(rate==24000 && !c.native_24 && c.backend!=VehicleNsBackend::omlsa_imcra && c.backend!=VehicleNsBackend::super_gaussian ? 48000:rate),core_hop(core_rate/100),
+    : rate(checked_rate(r,c)),hop(rate/100),core_rate(rate==24000 && !c.native_24 && c.backend!=VehicleNsBackend::omlsa_imcra && c.backend!=VehicleNsBackend::super_gaussian && c.backend!=VehicleNsBackend::unified ? 48000:rate),core_hop(core_rate/100),
       repair_mode(c.repair_mode),startup_ms(c.startup_ms),
-      core_delay(c.backend==VehicleNsBackend::speex || c.backend==VehicleNsBackend::omlsa_imcra || c.backend==VehicleNsBackend::super_gaussian ? core_hop:c.backend==VehicleNsBackend::webrtc ? (core_rate==48000?336:96):c.backend==VehicleNsBackend::filterbank && core_rate==48000?48:0),
+      core_delay(c.backend==VehicleNsBackend::speex || c.backend==VehicleNsBackend::omlsa_imcra || c.backend==VehicleNsBackend::super_gaussian || c.backend==VehicleNsBackend::unified ? core_hop:c.backend==VehicleNsBackend::webrtc ? (core_rate==48000?336:96):c.backend==VehicleNsBackend::filterbank && core_rate==48000?48:0),
       delay(0),strength(c.strength),mild_strength(c.mild_strength),dry_max(c.dry_max),snr_threshold(c.snr_threshold_db),noise_gain(c.noise_gain),
       slew_ms(c.slew_ms),release_ms(c.release_ms),quiet_floor_db(c.quiet_floor_db),floor_guard(c.floor_guard),backend(name(c.backend)),policy(c.policy),
       direct_fullband(c.unified_raw_budget || repair_mode>=2),quiet_enabled(quiet_floor_db> -200 || repair_mode>=3),adaptive_rumble(c.adaptive_rumble),quantize_input(quantize),src_delay(0),
@@ -221,10 +225,16 @@ struct VehicleNsProcessor::Impl {
             student.get(),speech_band.get(),transient_spectral.get());
     }
     if(policy=="steady_dynamic") steady_speex=std::make_unique<itu::SpeexNs>(core_rate,c.steady_suppression_db);
-    if(residual_enabled)
+    if(backend=="unified") {
+      constexpr float floors[]={-9.f,-12.f,-18.f,-24.f};
+      unified=std::make_unique<detail::UnifiedNs>(
+          core_rate,floors[strength],c.unified_learning_rate);
+    }
+    if(residual_enabled) {
       residual=std::make_unique<ResidualNoiseSuppressor>(
           core_rate,residual_max_db,residual_speech_guard,
           residual_gate_snr_db,residual_gate_width_db);
+    }
     if(backend=="webrtc") {
       webrtc::NsConfig config;
       config.target_level=static_cast<webrtc::NsConfig::SuppressionLevel>(strength);
@@ -312,6 +322,7 @@ struct VehicleNsProcessor::Impl {
           spectral_chain ? static_cast<detail::NsSpectralControl*>(spectral_chain.get()) :
           student ? static_cast<detail::NsSpectralControl*>(student.get()) : nullptr;
       if(omlsa) omlsa->process(core.data(),spectral_control,noise_step_recovery*(controller?controller->noise_step_probability():0.f));
+      if(unified) unified->process(core.data());
       if(buffer) {
         const float* in[]={core.data()};float* out[]={core.data()};
         buffer->CopyFrom(in,webrtc::StreamConfig(core_rate,1));
@@ -497,6 +508,19 @@ VehicleNsStatistics VehicleNsProcessor::statistics() const noexcept {
   if(s.student) {
     x.student_state=unsigned(s.student->corrector.state());x.student_applied=s.student->applied;
     x.student_inferences=s.student->inferences;x.student_fallback_frames=s.student->fallback_frames;
+  }
+  if(s.unified) {
+    x.unified_weights=s.unified->weights();
+    x.unified_target_weights=s.unified->target_weights();
+    x.unified_weight_entropy=s.unified->weight_entropy();
+    x.unified_frame_snr_db=s.unified->frame_snr_db();
+    x.unified_flatness=s.unified->flatness();x.unified_tonality=s.unified->tonality();
+    x.unified_minima_confidence=s.unified->minima_confidence();
+    x.unified_transient_evidence=s.unified->transient_evidence();
+    x.unified_noise_step_evidence=s.unified->noise_step_evidence();
+    x.unified_probability=s.unified->mean_probability();x.unified_gain=s.unified->mean_gain();
+    x.unified_noise_power=s.unified->noise_power();x.unified_bootstrap_seed=s.unified->bootstrap_seed();
+    x.unified_noise_updates=s.unified->noise_updates();x.unified_minima_rotations=s.unified->minima_rotations();
   }
   if(s.speech_band) {
     x.speech_band_frames=s.speech_band->frames();

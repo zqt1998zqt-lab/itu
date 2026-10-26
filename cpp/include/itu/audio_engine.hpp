@@ -13,7 +13,7 @@ constexpr unsigned kAecOutputDelaySamples=128, kLinearAecDelaySamples=64, kNsDel
 // Minimum-delay IIR low-cut is causal and does not contribute a fixed sample
 // offset to stream alignment. Keep this constant for ABI/source compatibility.
 constexpr unsigned kLowCutDelaySamples=0;
-enum class NoiseBackend { webrtc, rnnoise, speex, ulunas, omlsa_imcra, super_gaussian };
+enum class NoiseBackend { webrtc, rnnoise, speex, ulunas, omlsa_imcra, super_gaussian, unified };
 enum class AecBackend { webrtc, speex };
 enum class GainFault { none, previous_frame, inverted, always_boost };
 // The caller selects the operating envelope. Runtime adaptation is bounded by
@@ -177,6 +177,8 @@ struct Config {
 Config barrot_vcp_config();
 // Explicit joint-control candidate; the established VCP preset is unchanged.
 Config barrot_vcp_joint_config();
+// Experimental VCP preset using causal unsupervised shared-spectrum NS fusion.
+Config barrot_vcp_unified_config();
 void apply_vcp_joint_control(Config& config);
 Config referenced_radio_config();
 Config vehicle_stream_config();
@@ -295,6 +297,15 @@ struct FrameInfo {
   unsigned noise_transition_events = 0;
   float startup_dry_mix = 0;
   unsigned neural_inferences = 0;
+  std::array<float,4> unified_ns_weights{};
+  std::array<float,4> unified_ns_target_weights{};
+  float unified_ns_weight_entropy=0,unified_ns_frame_snr_db=-60;
+  float unified_ns_flatness=0,unified_ns_tonality=0;
+  float unified_ns_minima_confidence=0;
+  float unified_ns_transient_evidence=0,unified_ns_noise_step_evidence=0;
+  float unified_ns_probability=0,unified_ns_gain=1,unified_ns_noise_power=0;
+  float unified_ns_bootstrap_seed=1;
+  std::size_t unified_ns_noise_updates=0;
 };
 
 // Per-call observations from an upstream AEC. No PCM queue, scene metadata or

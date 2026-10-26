@@ -101,7 +101,7 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
   if(c.aec_backend==AecBackend::speex &&
       (c.multirender_nearend_policy || c.multirender_speech_protection || c.linear_output_diagnostic))
     throw std::invalid_argument("AEC3 diagnostic protection options require the WebRTC AEC backend");
-  if(c.noise_backend!=NoiseBackend::webrtc && c.noise_backend!=NoiseBackend::rnnoise && c.noise_backend!=NoiseBackend::speex && c.noise_backend!=NoiseBackend::ulunas && c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian)
+  if(c.noise_backend!=NoiseBackend::webrtc && c.noise_backend!=NoiseBackend::rnnoise && c.noise_backend!=NoiseBackend::speex && c.noise_backend!=NoiseBackend::ulunas && c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian && c.noise_backend!=NoiseBackend::unified)
     throw std::invalid_argument("unknown noise backend");
   if(!c.vehicle_ns.student_model_path.empty()) {
     if(!c.noise_suppression || c.noise_backend!=NoiseBackend::omlsa_imcra)
@@ -223,6 +223,16 @@ void apply_vcp_joint_control(Config& c) {
 Config barrot_vcp_joint_config() {
   auto c=barrot_vcp_config();
   apply_vcp_joint_control(c);
+  return c;
+}
+Config barrot_vcp_unified_config() {
+  auto c=barrot_vcp_config();
+  c.vehicle_ns_control=true;
+  c.noise_backend=NoiseBackend::unified;
+  c.vehicle_ns.unified_raw_budget=false;
+  c.vehicle_ns.dry_max=0.f;
+  c.vehicle_ns.noise_gain=1.f;
+  c.vehicle_ns.unified_learning_rate=.08f;
   return c;
 }
 struct AudioEngine::Impl {
@@ -393,18 +403,18 @@ struct AudioEngine::Impl {
     }
     // The standalone OM-LSA path and Speex MDF's native post chain retain
     // native 24 kHz. AEC3 still owns its explicit legacy 48 kHz bridge.
-    if((c.sample_rate==24000 && ((c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian) || c.aec)) || (c.sample_rate==16000 && c.noise_backend==NoiseBackend::rnnoise)) {
+    if((c.sample_rate==24000 && ((c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian && c.noise_backend!=NoiseBackend::unified) || c.aec)) || (c.sample_rate==16000 && c.noise_backend==NoiseBackend::rnnoise)) {
       if(c.vehicle_ns_control && c.vehicle_ns.native_24)
         throw std::invalid_argument("AudioEngine uses the 48 kHz core at 24 kHz; native24 is available through VehicleNsProcessor");
       native=std::make_unique<NativePipeline>(c);
       return;
     }
     if(ParametricEq::enabled(c.output_eq)) output_eq=std::make_unique<EqProcessor>(c.output_eq,c.sample_rate);
-    if((c.vehicle_ns_control || c.noise_backend==NoiseBackend::omlsa_imcra || c.noise_backend==NoiseBackend::super_gaussian) && c.noise_suppression) {
-      if(c.noise_backend!=NoiseBackend::webrtc && c.noise_backend!=NoiseBackend::speex && c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian)
-        throw std::invalid_argument("vehicle NS supports WebRTC, Speex, OM-LSA/IMCRA or Super-Gaussian");
+    if((c.vehicle_ns_control || c.noise_backend==NoiseBackend::omlsa_imcra || c.noise_backend==NoiseBackend::super_gaussian || c.noise_backend==NoiseBackend::unified) && c.noise_suppression) {
+      if(c.noise_backend!=NoiseBackend::webrtc && c.noise_backend!=NoiseBackend::speex && c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian && c.noise_backend!=NoiseBackend::unified)
+        throw std::invalid_argument("vehicle NS supports WebRTC, Speex, OM-LSA/IMCRA, Super-Gaussian or unified fusion");
       auto options=c.vehicle_ns;
-      options.backend=c.noise_backend==NoiseBackend::super_gaussian ? VehicleNsBackend::super_gaussian : c.noise_backend==NoiseBackend::omlsa_imcra ? VehicleNsBackend::omlsa_imcra : c.noise_backend==NoiseBackend::speex ? VehicleNsBackend::speex : VehicleNsBackend::webrtc;
+      options.backend=c.noise_backend==NoiseBackend::unified ? VehicleNsBackend::unified : c.noise_backend==NoiseBackend::super_gaussian ? VehicleNsBackend::super_gaussian : c.noise_backend==NoiseBackend::omlsa_imcra ? VehicleNsBackend::omlsa_imcra : c.noise_backend==NoiseBackend::speex ? VehicleNsBackend::speex : VehicleNsBackend::webrtc;
       options.strength=c.noise_backend==NoiseBackend::speex ? c.speex_suppression_db : int(c.noise_level);
       if(!c.vehicle_ns_control) {
         // Raw backend selection must not silently enable the optional common
@@ -1406,6 +1416,15 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
     info.vehicle_ns_raw_mix_max=state.raw_mix_applied_max;
     info.noise_speech_mix=state.dry_mix_target;
     info.startup_dry_mix=state.quiet_mix_target;
+    info.unified_ns_weights=state.unified_weights;
+    info.unified_ns_target_weights=state.unified_target_weights;
+    info.unified_ns_weight_entropy=state.unified_weight_entropy;
+    info.unified_ns_frame_snr_db=state.unified_frame_snr_db;
+    info.unified_ns_flatness=state.unified_flatness;info.unified_ns_tonality=state.unified_tonality;
+    info.unified_ns_minima_confidence=state.unified_minima_confidence;
+    info.unified_ns_transient_evidence=state.unified_transient_evidence;info.unified_ns_noise_step_evidence=state.unified_noise_step_evidence;
+    info.unified_ns_probability=state.unified_probability;info.unified_ns_gain=state.unified_gain;info.unified_ns_noise_power=state.unified_noise_power;
+    info.unified_ns_bootstrap_seed=state.unified_bootstrap_seed;info.unified_ns_noise_updates=state.unified_noise_updates;
     if(c.diagnostic_stages) std::copy_n(s.mono.data(),h,c.diagnostic_stages->nr_selected.data());
   }
   if(s.ns) {

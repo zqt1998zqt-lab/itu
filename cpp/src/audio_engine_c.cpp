@@ -20,6 +20,7 @@ itu::Config convert(const itu_audio_config& c,int profile) {
     case ITU_AUDIO_PROFILE_REFERENCED_RADIO: r=itu::referenced_radio_config(); break;
     case ITU_AUDIO_PROFILE_VEHICLE_STREAM: r=itu::vehicle_stream_config(); break;
     case ITU_AUDIO_PROFILE_VCP: r=itu::barrot_vcp_config(); break;
+    case ITU_AUDIO_PROFILE_VCP_UNIFIED: r=itu::barrot_vcp_unified_config(); break;
     default: throw std::invalid_argument("unknown processing profile");
   }
   r.sample_rate=c.sample_rate; r.frame_size=c.frame_size; r.microphones=c.microphones;
@@ -50,7 +51,9 @@ itu_audio_engine* itu_audio_create(const itu_audio_config* c, char* error, size_
   return itu_audio_create_with_profile(c,ITU_AUDIO_PROFILE_GENERAL,error,capacity);
 }
 itu_audio_engine* itu_audio_create_with_profile(const itu_audio_config* c,int profile,char* error,size_t capacity) {
-  return itu_audio_create_with_backend(c,profile,ITU_AUDIO_NS_WEBRTC,error,capacity);
+  const int backend = profile==ITU_AUDIO_PROFILE_VCP_UNIFIED ?
+      ITU_AUDIO_NS_UNIFIED : ITU_AUDIO_NS_WEBRTC;
+  return itu_audio_create_with_backend(c,profile,backend,error,capacity);
 }
 itu_audio_engine* itu_audio_create_with_backend(const itu_audio_config* c,int profile,int backend,char* error,size_t capacity) {
   return itu_audio_create_with_tuning(c,profile,backend,nullptr,error,capacity);
@@ -70,7 +73,7 @@ itu_audio_engine* itu_audio_create_extended(const itu_audio_config* c,int profil
       throw std::invalid_argument("configuration ABI mismatch");
     for (int v : {c->aec,c->beamforming,c->noise_suppression,c->automatic_gain,c->limiter})
       if (v!=0 && v!=1) throw std::invalid_argument("boolean flag must be 0 or 1");
-    if(backend<ITU_AUDIO_NS_WEBRTC || backend>ITU_AUDIO_NS_SUPER_GAUSSIAN)
+    if(backend<ITU_AUDIO_NS_WEBRTC || backend>ITU_AUDIO_NS_UNIFIED)
       throw std::invalid_argument("unknown noise backend");
     auto config=convert(*c,profile);
     if(x) {
