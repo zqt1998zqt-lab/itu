@@ -171,6 +171,7 @@ struct Config {
   EqConfig output_eq{}; // Opt-in uplink EQ; eq_before_agc selects its position.
   DrcConfig tx_drc{};
   bool eq_before_agc = false; // Barrot VCP topology: BF -> AEC -> NR -> EQ -> AGC/DRC
+  bool unified_eq_agc = false; // Opt-in causal fusion of configured/flat EQ and two gain experts.
   bool rx_processing = false; // Barrot VCP Downlink processing: NR -> EQ -> DRC -> Speaker & AEC Reference
   DownlinkConfig rx_config{};
   // NativePipeline keeps this outer I/O rate when its core runs at 48 kHz.
@@ -319,6 +320,7 @@ struct FrameInfo {
   float unified_ns_probability=0,unified_ns_gain=1,unified_ns_noise_power=0;
   float unified_ns_bootstrap_seed=1;
   std::size_t unified_ns_noise_updates=0;
+  float unified_eq_weight=0,unified_agc_fused_weight=0,unified_agc_gain_db=0;
 };
 
 // Per-call observations from an upstream AEC. No PCM queue, scene metadata or

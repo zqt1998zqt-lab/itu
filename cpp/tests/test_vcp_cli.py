@@ -102,6 +102,9 @@ def check_unified_cli(cli, root):
     report = json.loads(Path(str(prefix) + ".json").read_text())
     assert report["ns_backend"] == "unified"
     assert report["aec_backend"] == "speex_mdf_nlms_fused"
+    assert report["unified_eq_agc"] is True
+    assert all(key in report for key in
+               ("unified_eq_weight", "unified_agc_fused_weight", "unified_agc_gain_db"))
     assert len(report["unified_ns_weights"]) == 4
     assert len(report["unified_ns_target_weights"]) == 4
     assert report["unified_ns_noise_updates"] >= 0

@@ -22,6 +22,7 @@
 #include "eq_processor.hpp"
 #include "linear_phase_eq.hpp"
 #include "parametric_eq.hpp"
+#include "unified_eq_agc.hpp"
 #include "spatial_frontend.hpp"
 #include "noise_transition.hpp"
 #include "residual_noise_gate.hpp"
@@ -249,6 +250,7 @@ Config barrot_vcp_unified_config() {
   c.vehicle_ns.dry_max=0.f;
   c.vehicle_ns.noise_gain=1.f;
   c.vehicle_ns.unified_learning_rate=.08f;
+  c.unified_eq_agc=true;
   return c;
 }
 struct AudioEngine::Impl {
@@ -268,6 +270,7 @@ struct AudioEngine::Impl {
   std::unique_ptr<NativePipeline> native;
   std::unique_ptr<SpeexAecPipeline> speex_aec;
   std::unique_ptr<EqProcessor> output_eq;
+  std::unique_ptr<UnifiedEqAgc> unified_eq_agc;
   std::unique_ptr<SpatialFrontend> spatial;
   std::unique_ptr<NeuralNs> neural;
   NoiseTransition noise_transition;
@@ -425,7 +428,10 @@ struct AudioEngine::Impl {
       native=std::make_unique<NativePipeline>(c);
       return;
     }
-    if(ParametricEq::enabled(c.output_eq)) output_eq=std::make_unique<EqProcessor>(c.output_eq,c.sample_rate);
+    if(c.unified_eq_agc)
+      unified_eq_agc=std::make_unique<UnifiedEqAgc>(c.output_eq,c.sample_rate,c.frame_size);
+    else if(ParametricEq::enabled(c.output_eq))
+      output_eq=std::make_unique<EqProcessor>(c.output_eq,c.sample_rate);
     if((c.vehicle_ns_control || c.noise_backend==NoiseBackend::omlsa_imcra || c.noise_backend==NoiseBackend::super_gaussian || c.noise_backend==NoiseBackend::unified) && c.noise_suppression) {
       if(c.noise_backend!=NoiseBackend::webrtc && c.noise_backend!=NoiseBackend::speex && c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian && c.noise_backend!=NoiseBackend::unified)
         throw std::invalid_argument("vehicle NS supports WebRTC, Speex, OM-LSA/IMCRA, Super-Gaussian or unified fusion");
@@ -671,6 +677,7 @@ std::size_t AudioEngine::working_memory_bytes() const noexcept {
   if(s.tx_drc) bytes+=s.tx_drc->memory_bytes();
   if(s.adaptive_controller) bytes+=sizeof(AdaptiveController);
   if(s.output_eq) bytes+=s.output_eq->memory_bytes();
+  if(s.unified_eq_agc) bytes+=s.unified_eq_agc->memory_bytes();
   bytes+=(s.planar.capacity()+s.taps.capacity()+s.bf_history.capacity()+
       s.mono.capacity()+s.conditioned_capture.capacity()+s.raw_history.capacity()+
       s.protected_capture.capacity()+s.aligned_linear.capacity()+
@@ -1640,7 +1647,12 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
   if(c.diagnostic_stages) std::copy_n(s.mono.data(),h,c.diagnostic_stages->nr_protected.data());
   if(c.eq_before_agc) {
     if(c.diagnostic_stages) std::copy_n(s.mono.data(),h,c.diagnostic_stages->pre_eq.data());
-    if(s.output_eq) s.output_eq->process(s.mono.data(),h);
+    if(s.unified_eq_agc) {
+      info.unified_eq_weight=s.unified_eq_agc->process_eq(
+          s.mono.data(),h,control,info.unified_ns_probability,
+          info.linear_speech_probability,info.nonlinear_speech_probability,
+          post_far_active,adaptive_decision.near_confidence);
+    } else if(s.output_eq) s.output_eq->process(s.mono.data(),h);
     if(c.diagnostic_stages) std::copy_n(s.mono.data(),h,c.diagnostic_stages->post_eq.data());
   }
   if(s.post) {
@@ -1653,7 +1665,7 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
           c.ecnr_coordinated_control ? std::min(3.f,controller_gain_limit) : controller_gain_limit,c.max_gain_change_db_per_second,
           c.ecnr_coordinated_control && fullband_near && s.fullband_noise_frames>=10 ? s.fullband_noise_power : -1,
           c.ecnr_coordinated_control && fullband_near ? gain_qualification_power : -1);
-      const float target=c.repair_stage>=4 ? s.utterance_gain.observe(info.microphone_rms,
+      const float utterance_target=c.repair_stage>=4 ? s.utterance_gain.observe(info.microphone_rms,
           control,post_far_active,controller_gain_limit,
           fullband_near && s.fullband_noise_frames>=10 ? s.fullband_noise_power : -1,conservative,
           c.max_gain_change_db_per_second,c.stage4_noise_release) : c.repair_stage>=1 ?
@@ -1661,6 +1673,18 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
           post_far_active,controller_gain_limit,
           fullband_near && s.fullband_noise_frames>=10 ? s.fullband_noise_power : -1,conservative,
           c.low_level_projection_gain,info.microphone_rms) : conservative;
+      const bool utterance_qualified=c.repair_stage>=4 ? s.utterance_gain.qualified() :
+          c.repair_stage>=1 ? s.legacy_utterance_gain.qualified() : s.speech_gain.qualified();
+      float target=utterance_target;
+      if(s.unified_eq_agc) {
+        target=s.unified_eq_agc->fuse_gain(
+            conservative,utterance_target,controller_gain_limit,control,
+            info.unified_ns_probability,info.linear_speech_probability,
+            info.nonlinear_speech_probability,adaptive_decision.near_confidence,
+            post_far_active,s.speech_gain.qualified(),utterance_qualified);
+        info.unified_agc_fused_weight=s.unified_eq_agc->agc_weight();
+        info.unified_agc_gain_db=target;
+      }
       info.gain_control_noise_power=c.repair_stage>=4 ? s.utterance_gain.noise() :
           c.repair_stage>=1 ? s.legacy_utterance_gain.noise() : s.speech_gain.noise_power();
       info.gain_speech_qualified=c.repair_stage>=4 ? s.utterance_gain.qualified() :
@@ -1742,7 +1766,14 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
     std::copy_n(out,h,c.diagnostic_stages->post_agc.data());
     if(!c.eq_before_agc) std::copy_n(out,h,c.diagnostic_stages->pre_eq.data());
   }
-  if(!c.eq_before_agc && s.output_eq) s.output_eq->process(out,h);
+  if(!c.eq_before_agc) {
+    if(s.unified_eq_agc) {
+      info.unified_eq_weight=s.unified_eq_agc->process_eq(
+          out,h,control,info.unified_ns_probability,
+          info.linear_speech_probability,info.nonlinear_speech_probability,
+          post_far_active,adaptive_decision.near_confidence);
+    } else if(s.output_eq) s.output_eq->process(out,h);
+  }
   if(c.tx_drc.enabled && s.tx_drc && s.tx_drc->delay_samples() != 0) {
     s.tx_drc->process(out,h);
   } else if(c.tx_drc.enabled && s.tx_drc) {
@@ -1780,7 +1811,8 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
   info.ns_delay_samples=c.noise_suppression ? (s.speex ? h : kNsDelaySamples) : 0;
   info.tx_drc_delay_samples=(c.tx_drc.enabled && s.tx_drc) ?
       static_cast<unsigned>(s.tx_drc->delay_samples()) : 0;
-  const unsigned eq_delay=s.output_eq ? s.output_eq->delay() : 0;
+  const unsigned eq_delay=s.unified_eq_agc ? s.unified_eq_agc->delay() :
+      (s.output_eq ? s.output_eq->delay() : 0);
   info.latency_samples=info.aec_output_delay_samples+info.ns_delay_samples+
       info.spatial_delay_samples+(c.aec ? 0 : info.low_cut_delay_samples)+
       info.tx_drc_delay_samples+eq_delay+

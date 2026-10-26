@@ -1,4 +1,5 @@
 #include "unified_ns.hpp"
+#include "unified_eq_agc.hpp"
 #include "itu/audio_engine.hpp"
 #include "itu/audio_engine_c.h"
 #include "itu/vehicle_ns.hpp"
@@ -106,6 +107,23 @@ void weights_and_causality() {
   require(suffix_difference > 0, "unified causal negative control was vacuous");
 }
 
+void eq_agc_fusion() {
+  itu::EqConfig eq;
+  eq.preamp_db=-3.f;
+  eq.bands=1;
+  eq.band[0]={itu::EqKind::peak,1000.f,3.f,.70710678f};
+  itu::UnifiedEqAgc fusion(eq,16000,160);
+  std::vector<float> frame(160,.01f);
+  const float speech_weight=fusion.process_eq(frame.data(),160,1.f,.8f,.7f,.7f,false,.9f);
+  require(speech_weight>.1f && speech_weight<=1.f,"unified EQ did not follow speech evidence");
+  const float far_weight=fusion.process_eq(frame.data(),160,0.f,0.f,0.f,0.f,true,0.f);
+  require(far_weight<speech_weight,"unified EQ did not leave far/uncertain mode");
+  const float gain=fusion.fuse_gain(0.f,8.f,18.f,1.f,.8f,.7f,.7f,.9f,false,true,true);
+  require(gain>0.f && gain<=18.f,"unified AGC fusion rejected qualified gain");
+  require(fusion.fuse_gain(0.f,8.f,18.f,1.f,.8f,.7f,.7f,.9f,true,true,true)==0.f,
+          "unified AGC applied gain during far activity");
+}
+
 void wrappers_and_engine() {
   for (unsigned rate : {16000u, 24000u, 48000u}) {
     const unsigned hop = rate / 100;
@@ -202,6 +220,7 @@ int main() {
   try {
     reconstruction();
     weights_and_causality();
+    eq_agc_fusion();
     wrappers_and_engine();
     c_api();
     std::cout << "Unified NS checks passed\n";
