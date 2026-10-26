@@ -60,9 +60,9 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
   if(c.aec_backend!=AecBackend::webrtc && c.aec_backend!=AecBackend::speex &&
      c.aec_backend!=AecBackend::speex_fused)
     throw std::invalid_argument("unknown AEC backend");
-  if(c.aec_backend==AecBackend::speex_fused &&
-      (!c.aec || c.microphones!=1 || c.reference_channels!=1 || c.speex_residual_suppression))
-    throw std::invalid_argument("fused Speex AEC requires enabled mono MDF without RES");
+  if(c.aec && c.aec_backend==AecBackend::speex_fused &&
+      (c.microphones!=1 || c.reference_channels!=1 || c.speex_residual_suppression))
+    throw std::invalid_argument("fused Speex AEC requires mono MDF without RES when AEC is enabled");
   if(c.speex_echo_tail_ms<100 || c.speex_echo_tail_ms>500)
     throw std::invalid_argument("Speex MDF tail must be 100..500 ms");
   if(c.speex_multirender_context &&
@@ -242,7 +242,7 @@ Config barrot_vcp_fused_aec_config() {
   return c;
 }
 Config barrot_vcp_unified_config() {
-  auto c=barrot_vcp_config();
+  auto c=barrot_vcp_fused_aec_config();
   c.vehicle_ns_control=true;
   c.noise_backend=NoiseBackend::unified;
   c.vehicle_ns.unified_raw_budget=false;

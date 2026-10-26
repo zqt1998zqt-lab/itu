@@ -158,6 +158,9 @@ void wrappers_and_engine() {
   const itu::Config preset = itu::barrot_vcp_unified_config();
   require(preset.vehicle_ns_control && preset.noise_backend == itu::NoiseBackend::unified,
           "unified VCP preset did not select unified backend");
+  require(preset.aec && preset.aec_backend == itu::AecBackend::speex_fused &&
+              preset.speex_fused_shadow_taps_ms == 32,
+          "unified VCP preset did not select fused Speex AEC");
   require(preset.vehicle_ns.dry_max == 0.f && preset.vehicle_ns.noise_gain == 1.f,
           "unified VCP preset is not pure NS");
 }

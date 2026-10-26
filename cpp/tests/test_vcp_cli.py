@@ -91,13 +91,17 @@ def check_joint_cli(cli, root):
 
 
 def check_unified_cli(cli, root):
-    first = root / "16000-2mic"
+    # The fused Speex AEC shadow is intentionally mono-reference. Exercise
+    # the actual unified profile with its required playback reference rather
+    # than disabling AEC and silently testing only the NS backend.
+    first = root / "16000-1mic"
     prefix = first / "unified-ns"
     run([cli, "--profile", "vcp_unified", "--mic", str(first/"mic.wav"),
-         "--beam-delays", "0,0", "--no-aec", "--out", str(prefix)],
+         "--rx-in", str(first/"rx.wav"), "--out", str(prefix)],
         first / "unified-ns.log")
     report = json.loads(Path(str(prefix) + ".json").read_text())
     assert report["ns_backend"] == "unified"
+    assert report["aec_backend"] == "speex_mdf_nlms_fused"
     assert len(report["unified_ns_weights"]) == 4
     assert len(report["unified_ns_target_weights"]) == 4
     assert report["unified_ns_noise_updates"] >= 0

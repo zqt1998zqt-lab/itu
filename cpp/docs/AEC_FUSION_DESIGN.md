@@ -1,4 +1,4 @@
-# Fused Speex AEC (opt-in)
+# Fused Speex AEC
 
 `vcp_fused_aec` keeps Speex MDF as the primary long-tail canceller and adds a
 causal short-tail NLMS shadow estimator. The two PCM outputs are never added.
@@ -18,11 +18,15 @@ coverage while the shadow can react to short path changes without replacing
 the established post-AEC context, coherence residual suppression, NS, EQ,
 AGC, DRC, or limiter stages.
 
-The experimental path is deliberately restricted to one microphone and one
-synchronous render channel and does not support Speex RES. The normal `vcp`,
-`vcp_unified`, and WebRTC profiles are unchanged. The C++ preset is
-`barrot_vcp_fused_aec_config()`, the C API profile is
-`ITU_AUDIO_PROFILE_VCP_FUSED_AEC`, and the CLI profile is `vcp_fused_aec`.
+The fused path is deliberately restricted to one microphone and one
+synchronous render channel and does not support Speex RES. The normal `vcp`
+and WebRTC profiles remain unchanged. Both `vcp_fused_aec` and `vcp_unified`
+use the fused AEC; `vcp_unified` additionally selects the UnifiedNs four-expert
+noise suppressor. The C++ presets are
+`barrot_vcp_fused_aec_config()` and `barrot_vcp_unified_config()`. The C API
+profiles are `ITU_AUDIO_PROFILE_VCP_FUSED_AEC` and
+`ITU_AUDIO_PROFILE_VCP_UNIFIED`; the matching CLI profiles are
+`vcp_fused_aec` and `vcp_unified`.
 The CLI also accepts `--aec-fused-learning-rate` and
 `--aec-fused-shadow-taps-ms` (1..64 ms, clamped internally to 16..1024 taps).
 
