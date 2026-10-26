@@ -253,6 +253,8 @@ struct FrameInfo {
   float aec_fused_reference_confidence = 0;
   bool aec_fused_double_talk = false;
   unsigned aec_fused_updates = 0;
+  unsigned aec_fused_delay_samples = 0, aec_fused_path_changes = 0;
+  bool aec_fused_delay_valid = false;
   float linear_speech_probability = 0;
   float nearend_mix = 0;
   bool v2_double_evidence_eligible = false;

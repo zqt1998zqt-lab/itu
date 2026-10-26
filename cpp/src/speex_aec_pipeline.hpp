@@ -172,10 +172,6 @@ class SpeexAecPipeline {
     if(render_power/render_.size()>c_.activity_floor)
       render_hold_=(c_.speex_echo_tail_ms+c_.stream_delay_ms+9)/10;
     else if(render_hold_) --render_hold_;
-    if(fused_aec_) {
-      const bool adapt=render_power/render_.size()>c_.activity_floor && render_hold_>0 && near_hold_==0;
-      fused_aec_->process(conditioned_.data(),filtered_render_.data(),adapt);
-    }
     double capture_power=0,error_power=0;
     for(std::size_t i=0;i<linear_native_.size();++i) {
       capture_power+=double(conditioned_[i])*conditioned_[i];
@@ -235,9 +231,12 @@ class SpeexAecPipeline {
       }
     }
     if(fused_aec_) {
-      fused_aec_->blend(linear_native_.data(),context.far_active,context.reference_state,
-          context.reference_confidence,context.incoherent_ratio,
-          context.nonlinear_speech_probability,near_hold_);
+      // The linear evidence above belongs to this frame. The nonlinear speech
+      // observation is produced below and cannot be consumed here yet.
+      const bool protect=near_hold_>0;
+      fused_aec_->process(conditioned_.data(),filtered_render_.data(),
+          render_power/render_.size()>c_.activity_floor,protect);
+      fused_aec_->blend(linear_native_.data(),context.far_active,context.reference_state,near_hold_);
     }
     const bool dry_idle=c_.speex_post_context ? !context.far_active : !render_hold_;
     // An idle render has reference_state=unknown, while the monitor retains
@@ -278,7 +277,7 @@ class SpeexAecPipeline {
           std::max(1e-20, render_power_now + residual_power));
       const float coherent_echo = std::clamp((correlation - .12f) / .35f, 0.f, 1.f) *
           std::clamp(render_fraction * 2.f, 0.f, 1.f);
-      const bool protect_near = near_hold_ > 0 || (c_.speex_post_context &&
+      const bool protect_near = near_hold_ > 0 || (fused_aec_ && fused_aec_->frame().double_talk) || (c_.speex_post_context &&
           (context.incoherent_ratio > .45f || context.linear_speech_probability > .75f));
       const bool trusted = context.far_active && context.reference_state == 1 &&
           !dry_unrelated && !protect_near;
@@ -347,6 +346,8 @@ class SpeexAecPipeline {
       }
       }
       context.near_hold_frames=near_hold_;
+      if(fused_aec_ && fused_aec_->frame().double_talk)
+        context.near_hold_frames=std::max(context.near_hold_frames,3u);
     }
     const auto status=post_.process_impl(audio_.data(),audio_.size(),ref,render_.size(),
         out,post_.config().frame_size,info,at,bt,nullptr,it,c_.speex_post_context ? &context : nullptr);
@@ -400,6 +401,9 @@ class SpeexAecPipeline {
       info.aec_fused_reference_confidence=fused.reference_confidence;
       info.aec_fused_double_talk=fused.double_talk;
       info.aec_fused_updates=fused.updates;
+      info.aec_fused_delay_samples=fused.delay_samples;
+      info.aec_fused_path_changes=fused.path_changes;
+      info.aec_fused_delay_valid=fused.delay_valid;
     }
     info.post_aec_reference_evidence_valid=context.reference_evidence_valid;
     info.post_aec_near_state=context.near_state;
