@@ -8,6 +8,7 @@
 #include "echo_coherence.hpp"
 #include "speex_multirender_context.hpp"
 #include "ns_evidence.hpp"
+#include "aec_fusion.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -56,6 +57,9 @@ class SpeexAecPipeline {
     }
     if(c.linear_phase_low_cut && !c.speex_native_conditioning)
       lowcut_=std::make_unique<LinearPhaseLowCut>(c.microphones+c.reference_channels,c.low_cut_hz,c.sample_rate);
+    if(c.aec_backend==AecBackend::speex_fused)
+      fused_aec_=std::make_unique<AecFusion>(c.sample_rate,c.frame_size,
+          c.speex_fused_learning_rate,c.speex_fused_shadow_taps_ms);
     if(c.speex_residual_suppression) {
       // Upstream get_residual() is mono-capture only (mdf.c MC FIXME). Each
       // microphone therefore owns a mono-capture MDF with all render channels.
@@ -168,6 +172,10 @@ class SpeexAecPipeline {
     if(render_power/render_.size()>c_.activity_floor)
       render_hold_=(c_.speex_echo_tail_ms+c_.stream_delay_ms+9)/10;
     else if(render_hold_) --render_hold_;
+    if(fused_aec_) {
+      const bool adapt=render_power/render_.size()>c_.activity_floor && render_hold_>0 && near_hold_==0;
+      fused_aec_->process(conditioned_.data(),filtered_render_.data(),adapt);
+    }
     double capture_power=0,error_power=0;
     for(std::size_t i=0;i<linear_native_.size();++i) {
       capture_power+=double(conditioned_[i])*conditioned_[i];
@@ -226,6 +234,11 @@ class SpeexAecPipeline {
         previous_multirender_path_changed_=multirender_evidence.path_changed;
       }
     }
+    if(fused_aec_) {
+      fused_aec_->blend(linear_native_.data(),context.far_active,context.reference_state,
+          context.reference_confidence,context.incoherent_ratio,
+          context.nonlinear_speech_probability,near_hold_);
+    }
     const bool dry_idle=c_.speex_post_context ? !context.far_active : !render_hold_;
     // An idle render has reference_state=unknown, while the monitor retains
     // its unrelated-reference verdict across silence. Keep that independent
@@ -279,7 +292,8 @@ class SpeexAecPipeline {
       if(!dry_history_.empty()) {
         dry_history_[dry_head_]=mic[i];dry_head_=(dry_head_+1)%dry_history_.size();
       }
-      audio_[i]=(1-dry_mix_)*(residual_gain*residual_[i]/32768.f)+dry_mix_*dry;
+      const float wet=fused_aec_ ? linear_native_[i] : residual_[i]/32768.f;
+      audio_[i]=(1-dry_mix_)*(residual_gain*wet)+dry_mix_*dry;
     }
     if(c_.speex_post_context) {
       for(unsigned i=0;i<c_.frame_size;++i) {
@@ -378,6 +392,15 @@ class SpeexAecPipeline {
       info.post_aec_echo_clear_frames=near_clear_frames_;
     }
     if(reference_monitor_ || multirender_reference_) info.reference_confidence=context.reference_confidence;
+    if(fused_aec_) {
+      const auto fused=fused_aec_->frame();
+      info.aec_fused_shadow_weight=fused.shadow_weight;
+      info.aec_fused_primary_error_power=fused.primary_error_power;
+      info.aec_fused_shadow_error_power=fused.shadow_error_power;
+      info.aec_fused_reference_confidence=fused.reference_confidence;
+      info.aec_fused_double_talk=fused.double_talk;
+      info.aec_fused_updates=fused.updates;
+    }
     info.post_aec_reference_evidence_valid=context.reference_evidence_valid;
     info.post_aec_near_state=context.near_state;
     info.post_aec_multirender_frames=context.multirender_frames;
@@ -419,6 +442,7 @@ class SpeexAecPipeline {
         +(linear_evidence_ ? sizeof(NsEvidence)*2 : 0)+(post_down_ ? sizeof(RateConverter) : 0)
         +(cancellation_band_ ? cancellation_band_->memory_bytes() : 0)
         +echoes_.capacity()*sizeof(Echo)+res_.capacity()*sizeof(Preprocess)+(lowcut_ ? lowcut_->memory_bytes() : 0)
+        +(fused_aec_ ? fused_aec_->memory_bytes() : 0)
         +post_.working_memory_bytes();
   }
  private:
@@ -443,6 +467,7 @@ class SpeexAecPipeline {
   Config c_;
   SpeexEchoState* state_=nullptr;
   std::unique_ptr<LinearPhaseLowCut> lowcut_;
+  std::unique_ptr<AecFusion> fused_aec_;
   unsigned render_hold_=0;
   std::size_t dry_head_=0;
   float dry_mix_=0;

@@ -21,6 +21,7 @@ itu::Config convert(const itu_audio_config& c,int profile) {
     case ITU_AUDIO_PROFILE_VEHICLE_STREAM: r=itu::vehicle_stream_config(); break;
     case ITU_AUDIO_PROFILE_VCP: r=itu::barrot_vcp_config(); break;
     case ITU_AUDIO_PROFILE_VCP_UNIFIED: r=itu::barrot_vcp_unified_config(); break;
+    case ITU_AUDIO_PROFILE_VCP_FUSED_AEC: r=itu::barrot_vcp_fused_aec_config(); break;
     default: throw std::invalid_argument("unknown processing profile");
   }
   r.sample_rate=c.sample_rate; r.frame_size=c.frame_size; r.microphones=c.microphones;

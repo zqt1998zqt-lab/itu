@@ -163,8 +163,9 @@ int main(int argc,char** argv) {
           else if(v=="vcp_joint") c=itu::barrot_vcp_joint_config();
           else if(v=="vehicle_stream") c=itu::barrot_vcp_config();
           else if(v=="vcp_unified") c=itu::barrot_vcp_unified_config();
+          else if(v=="vcp_fused_aec") c=itu::barrot_vcp_fused_aec_config();
           else if(v=="general") c=itu::Config{};
-          else throw std::runtime_error("supported profiles: vcp, vcp_joint, vcp_unified, vehicle_stream, general");
+          else throw std::runtime_error("supported profiles: vcp, vcp_joint, vcp_unified, vcp_fused_aec, vehicle_stream, general");
           profile=v;
         }
         else if(a=="--mic") mic_path=v; else if(a=="--echo") echo_path=v; else if(a=="--out") prefix=v;
@@ -195,9 +196,12 @@ int main(int argc,char** argv) {
             c.speex_coherence_residual_suppression=false;
           }
           else if(v=="speex") c.aec_backend=itu::AecBackend::speex;
+          else if(v=="speex_fused") { c.aec_backend=itu::AecBackend::speex_fused; c.speex_post_context=true; c.speex_native_conditioning=true; }
           else throw std::runtime_error("unknown AEC backend: "+v);
         }
         else if(a=="--speex-echo-tail-ms") c.speex_echo_tail_ms=std::stoul(v);
+        else if(a=="--aec-fused-learning-rate") c.speex_fused_learning_rate=std::stof(v);
+        else if(a=="--aec-fused-shadow-taps-ms") c.speex_fused_shadow_taps_ms=std::stoul(v);
         else if(a=="--speex-active-echo-suppression-db") c.speex_active_echo_suppression_db=std::stoi(v);
         else if(a=="--multirender-innovation-threshold") c.multirender_innovation_threshold=std::stof(v);
         else if(a=="--ecnr-v2-nonlinear-vad-min") c.ecnr_v2_nonlinear_vad_min=std::stof(v);
@@ -375,6 +379,7 @@ int main(int argc,char** argv) {
     const bool has_playback=!echo.samples.empty() || !rx_in_path.empty();
     if(c.aec && !has_playback) throw std::runtime_error("AEC3 needs actual playback reference or --rx-in; otherwise use --no-aec");
     c=engine.config(); // Report effective multi-render safeguards, not requested mono heuristics.
+    const bool speex_aec=c.aec_backend==itu::AecBackend::speex || c.aec_backend==itu::AecBackend::speex_fused;
     if((disable_clock && !simulate_clock) || !std::isfinite(clock_ppm) || std::abs(clock_ppm)>1500 ||
         (simulate_clock && echo.samples.empty())) throw std::runtime_error("simulated clock requires playback PCM and finite drift within +/-1500 ppm");
     if(simulate_clock && c.reference_channels>1) throw std::runtime_error("CLI simulated ASRC currently requires mono render; synchronous multi-render PCM is supported");
@@ -401,7 +406,7 @@ int main(int argc,char** argv) {
     std::vector<float> frame(h*c.microphones),ref(h*c.reference_channels),out(h),at(frame.size()),bt(h),lt(160*c.microphones),it(frame.size());
     std::vector<float> after,aec,bf,linear,conditioned; std::vector<double> times;
     std::ofstream csv(prefix+".frames.csv"); if(!csv) throw std::runtime_error("cannot write frames CSV; create directory first");
-    csv<<"frame,time_s,far_active,linear_aec_available,statistics_valid,mic_rms,aec_rms,out_rms,erl_db,erle_db,estimated_delay_ms,limited_samples,process_ms,speech_probability,applied_gain_db,reference_state,reference_residual_ratio,reference_confidence,linear_speech_probability,nearend_mix,linear_residual_ratio,nonlinear_speech_probability,echo_subtraction_gain,noise_speech_mix,noise_flatness,incoherent_ratio,echo_coherence_baseline,internal_delay_mix,lowband_restore_mix,coherence_learning_frames,fullband_ns_mix,fullband_noise_power,highband_energy_fraction,release_lateness_ms,completion_late,clock_locked,clock_estimated_ppm,clock_queued_samples,clock_capture_hz,clock_render_hz,clock_desired_ppm,clock_capture_valid,clock_render_valid,spatial_delay_samples,spatial_noise_updates,spatial_fallback_bins,wind_score,noise_control_state,noise_transition_events,startup_dry_mix,neural_inferences,native_capture_ms,native_render_ms,native_core_ms,native_output_ms,native_taps_ms,pre_ns_rms,post_ns_rms,min_stat_gain,gain_control_noise_power,gain_speech_qualified,gain_control_state,gain_gate_level,gain_input_level,gain_limit_db,gain_votes,gain_voiced_rms,gain_peak,gain_max_voiced,gain_target_db,gain_hold_db,noise_profile_observations,noise_profile_mix,v2_double_evidence_eligible,v2_near_confirmation,g1_strict_near_age,g1_startup_echo_frames,g1_startup_clear_threshold,g1_startup_clear_deferred,near_protection_hold_frames,startup_echo_confirmation,g1_echo_evidence_frames,g1_echo_clear_threshold,g1_echo_clear_deferred,g1_strong_near_confirmation,g1_near_latch_active,g1_original_confirmed_echo,g1_original_coherent_clear,ns_residual_gain,ns_residual_flatness,ns_residual_quiet_frames,ns_residual_observations,tone_frequency_hz,tone_mix,tone_concentration,tone_repeats,external_vad_active,external_vad_calls,input_excess_score,input_excess_fraction,control_evidence_probability,gain_noise_evidence,gain_noise_compensation,post_aec_context_applied,post_aec_cancellation_ratio,post_aec_echo_floor,post_aec_coherence_floor,post_aec_near_observed,post_aec_echo_clear_frames,hybrid_ns_state,hybrid_ns_inferences,hybrid_ns_fallback_frames,hybrid_ns_applied,vehicle_ns_raw_mix_budget,vehicle_ns_raw_mix_min,vehicle_ns_raw_mix_max,post_aec_reference_evidence_valid,post_aec_near_state,post_aec_multirender_frames,unified_ns_w0,unified_ns_w1,unified_ns_w2,unified_ns_w3,unified_ns_target_w0,unified_ns_target_w1,unified_ns_target_w2,unified_ns_target_w3,unified_ns_weight_entropy,unified_ns_frame_snr_db,unified_ns_flatness,unified_ns_tonality,unified_ns_minima_confidence,unified_ns_transient_evidence,unified_ns_noise_step_evidence,unified_ns_probability,unified_ns_gain,unified_ns_noise_power,unified_ns_bootstrap_seed,unified_ns_noise_updates\n";
+    csv<<"frame,time_s,far_active,linear_aec_available,statistics_valid,mic_rms,aec_rms,out_rms,erl_db,erle_db,estimated_delay_ms,limited_samples,process_ms,speech_probability,applied_gain_db,reference_state,reference_residual_ratio,reference_confidence,aec_fused_shadow_weight,aec_fused_primary_error_power,aec_fused_shadow_error_power,aec_fused_reference_confidence,aec_fused_double_talk,aec_fused_updates,linear_speech_probability,nearend_mix,linear_residual_ratio,nonlinear_speech_probability,echo_subtraction_gain,noise_speech_mix,noise_flatness,incoherent_ratio,echo_coherence_baseline,internal_delay_mix,lowband_restore_mix,coherence_learning_frames,fullband_ns_mix,fullband_noise_power,highband_energy_fraction,release_lateness_ms,completion_late,clock_locked,clock_estimated_ppm,clock_queued_samples,clock_capture_hz,clock_render_hz,clock_desired_ppm,clock_capture_valid,clock_render_valid,spatial_delay_samples,spatial_noise_updates,spatial_fallback_bins,wind_score,noise_control_state,noise_transition_events,startup_dry_mix,neural_inferences,native_capture_ms,native_render_ms,native_core_ms,native_output_ms,native_taps_ms,pre_ns_rms,post_ns_rms,min_stat_gain,gain_control_noise_power,gain_speech_qualified,gain_control_state,gain_gate_level,gain_input_level,gain_limit_db,gain_votes,gain_voiced_rms,gain_peak,gain_max_voiced,gain_target_db,gain_hold_db,noise_profile_observations,noise_profile_mix,v2_double_evidence_eligible,v2_near_confirmation,g1_strict_near_age,g1_startup_echo_frames,g1_startup_clear_threshold,g1_startup_clear_deferred,near_protection_hold_frames,startup_echo_confirmation,g1_echo_evidence_frames,g1_echo_clear_threshold,g1_echo_clear_deferred,g1_strong_near_confirmation,g1_near_latch_active,g1_original_confirmed_echo,g1_original_coherent_clear,ns_residual_gain,ns_residual_flatness,ns_residual_quiet_frames,ns_residual_observations,tone_frequency_hz,tone_mix,tone_concentration,tone_repeats,external_vad_active,external_vad_calls,input_excess_score,input_excess_fraction,control_evidence_probability,gain_noise_evidence,gain_noise_compensation,post_aec_context_applied,post_aec_cancellation_ratio,post_aec_echo_floor,post_aec_coherence_floor,post_aec_near_observed,post_aec_echo_clear_frames,hybrid_ns_state,hybrid_ns_inferences,hybrid_ns_fallback_frames,hybrid_ns_applied,vehicle_ns_raw_mix_budget,vehicle_ns_raw_mix_min,vehicle_ns_raw_mix_max,post_aec_reference_evidence_valid,post_aec_near_state,post_aec_multirender_frames,unified_ns_w0,unified_ns_w1,unified_ns_w2,unified_ns_w3,unified_ns_target_w0,unified_ns_target_w1,unified_ns_target_w2,unified_ns_target_w3,unified_ns_weight_entropy,unified_ns_frame_snr_db,unified_ns_flatness,unified_ns_tonality,unified_ns_minima_confidence,unified_ns_transient_evidence,unified_ns_noise_step_evidence,unified_ns_probability,unified_ns_gain,unified_ns_noise_power,unified_ns_bootstrap_seed,unified_ns_noise_updates\n";
     std::size_t frames=(n+h-1)/h,total_frames=frames,limited=0,unreliable=0; bool all_linear=c.aec;
     // Include the largest legal causal BF compensation and DSP drain before replay.
     const auto drain_capacity=std::size_t(4096/h+16);
@@ -411,7 +416,7 @@ int main(int argc,char** argv) {
     aec.reserve(capacity*c.microphones); linear.reserve(capacity*c.microphones);
     conditioned.reserve(capacity*c.microphones);
     std::vector<RecordedFrame> recorded(frames+drain_capacity);
-    const bool core_bridge=(c.sample_rate==24000 && ((c.noise_backend!=itu::NoiseBackend::omlsa_imcra && c.noise_backend!=itu::NoiseBackend::super_gaussian && c.noise_backend!=itu::NoiseBackend::unified) || (c.aec && c.aec_backend!=itu::AecBackend::speex))) || (c.sample_rate==16000 && c.noise_backend==itu::NoiseBackend::rnnoise);
+    const bool core_bridge=(c.sample_rate==24000 && ((c.noise_backend!=itu::NoiseBackend::omlsa_imcra && c.noise_backend!=itu::NoiseBackend::super_gaussian && c.noise_backend!=itu::NoiseBackend::unified) || (c.aec && c.aec_backend!=itu::AecBackend::speex && c.aec_backend!=itu::AecBackend::speex_fused))) || (c.sample_rate==16000 && c.noise_backend==itu::NoiseBackend::rnnoise);
     const unsigned core_h=core_bridge ? 480 : h;
     std::array<std::vector<float>,5> stages;
     if(diagnostic_stages) for(unsigned j=0;j<stages.size();++j)
@@ -498,7 +503,7 @@ int main(int argc,char** argv) {
       if(info.statistics_valid & itu::erl_valid) csv<<info.echo_return_loss_db;
       csv<<','; if(info.statistics_valid & itu::erle_valid) csv<<info.echo_return_loss_enhancement_db;
       csv<<','; if(info.statistics_valid & itu::delay_valid) csv<<info.estimated_delay_ms;
-      csv<<','<<info.limited_samples<<','<<ms<<','<<info.speech_probability<<','<<info.applied_gain_db<<','<<info.reference_state<<','<<info.reference_residual_ratio<<','<<info.reference_confidence<<','<<info.linear_speech_probability<<','<<info.nearend_mix<<','<<info.linear_residual_ratio<<','<<info.nonlinear_speech_probability<<','<<info.echo_subtraction_gain<<','<<info.noise_speech_mix<<','<<info.noise_flatness<<','<<info.incoherent_ratio<<','<<info.echo_coherence_baseline<<','<<info.internal_delay_mix<<','<<info.lowband_restore_mix<<','<<info.coherence_learning_frames<<','<<info.fullband_ns_mix<<','<<info.fullband_noise_power<<','<<info.highband_energy_fraction<<','<<recorded[k].release_lateness_ms<<','<<recorded[k].completion_late<<','<<recorded[k].clock.locked<<','<<recorded[k].clock.drift_ppm<<','<<recorded[k].clock.queued_samples<<','<<recorded[k].clock.capture_rate_hz<<','<<recorded[k].clock.render_rate_hz<<','<<recorded[k].clock.desired_ppm<<','<<recorded[k].clock.capture_valid<<','<<recorded[k].clock.render_valid
+      csv<<','<<info.limited_samples<<','<<ms<<','<<info.speech_probability<<','<<info.applied_gain_db<<','<<info.reference_state<<','<<info.reference_residual_ratio<<','<<info.reference_confidence<<','<<info.aec_fused_shadow_weight<<','<<info.aec_fused_primary_error_power<<','<<info.aec_fused_shadow_error_power<<','<<info.aec_fused_reference_confidence<<','<<info.aec_fused_double_talk<<','<<info.aec_fused_updates<<','<<info.linear_speech_probability<<','<<info.nearend_mix<<','<<info.linear_residual_ratio<<','<<info.nonlinear_speech_probability<<','<<info.echo_subtraction_gain<<','<<info.noise_speech_mix<<','<<info.noise_flatness<<','<<info.incoherent_ratio<<','<<info.echo_coherence_baseline<<','<<info.internal_delay_mix<<','<<info.lowband_restore_mix<<','<<info.coherence_learning_frames<<','<<info.fullband_ns_mix<<','<<info.fullband_noise_power<<','<<info.highband_energy_fraction<<','<<recorded[k].release_lateness_ms<<','<<recorded[k].completion_late<<','<<recorded[k].clock.locked<<','<<recorded[k].clock.drift_ppm<<','<<recorded[k].clock.queued_samples<<','<<recorded[k].clock.capture_rate_hz<<','<<recorded[k].clock.render_rate_hz<<','<<recorded[k].clock.desired_ppm<<','<<recorded[k].clock.capture_valid<<','<<recorded[k].clock.render_valid
          <<','<<info.spatial_delay_samples<<','<<info.spatial_noise_updates<<','<<info.spatial_fallback_bins<<','<<info.wind_score<<','<<info.noise_control_state<<','<<info.noise_transition_events<<','<<info.startup_dry_mix<<','<<info.neural_inferences
          <<','<<info.native_capture_ms<<','<<info.native_render_ms<<','<<info.native_core_ms<<','<<info.native_output_ms<<','<<info.native_taps_ms<<','<<info.pre_ns_rms<<','<<info.post_ns_rms<<','<<info.min_stat_gain<<','<<info.gain_control_noise_power<<','<<info.gain_speech_qualified<<','<<info.gain_control_state<<','<<info.gain_gate_level<<','<<info.gain_input_level<<','<<info.gain_limit_db<<','<<info.gain_votes<<','<<info.gain_voiced_rms<<','<<info.gain_peak<<','<<info.gain_max_voiced<<','<<info.gain_target_db<<','<<info.gain_hold_db<<','<<info.noise_profile_observations<<','<<info.noise_profile_mix<<','<<info.v2_double_evidence_eligible<<','<<info.v2_near_confirmation<<','<<info.g1_strict_near_age<<','<<info.g1_startup_echo_frames<<','<<info.g1_startup_clear_threshold<<','<<info.g1_startup_clear_deferred<<','<<info.near_protection_hold_frames<<','<<info.startup_echo_confirmation<<','<<info.g1_echo_evidence_frames<<','<<info.g1_echo_clear_threshold<<','<<info.g1_echo_clear_deferred<<','<<info.g1_strong_near_confirmation<<','<<info.g1_near_latch_active<<','<<info.g1_original_confirmed_echo<<','<<info.g1_original_coherent_clear<<','<<info.ns_residual_gain<<','<<info.ns_residual_flatness<<','<<info.ns_residual_quiet_frames<<','<<info.ns_residual_observations<<','<<info.tone_frequency_hz<<','<<info.tone_mix<<','<<info.tone_concentration<<','<<info.tone_repeats<<','<<info.external_vad_active<<','<<info.external_vad_calls<<','<<info.input_excess_score<<','<<info.input_excess_fraction<<','<<info.control_evidence_probability<<','<<info.gain_noise_evidence<<','<<info.gain_noise_compensation<<','<<info.post_aec_context_applied<<','<<info.post_aec_cancellation_ratio<<','<<info.post_aec_echo_floor<<','<<info.post_aec_coherence_floor<<','<<info.post_aec_near_observed<<','<<info.post_aec_echo_clear_frames<<','<<info.hybrid_ns_state<<','<<info.hybrid_ns_inferences<<','<<info.hybrid_ns_fallback_frames<<','<<info.hybrid_ns_applied<<','<<info.vehicle_ns_raw_mix_budget<<','<<info.vehicle_ns_raw_mix_min<<','<<info.vehicle_ns_raw_mix_max<<','<<info.post_aec_reference_evidence_valid<<','<<info.post_aec_near_state<<','<<info.post_aec_multirender_frames<<','
          <<info.unified_ns_weights[0]<<','<<info.unified_ns_weights[1]<<','<<info.unified_ns_weights[2]<<','<<info.unified_ns_weights[3]<<','
@@ -686,10 +691,17 @@ int main(int argc,char** argv) {
       <<",\n  \"diagnostic_stages\":"<<(diagnostic_stages?"true":"false")
       <<",\n  \"stage_rms_sample_rate\":"<<(core_bridge ? 48000 : c.sample_rate)
       <<",\n  \"profile_stages\":"<<(c.profile_stages?"true":"false")
-      <<",\n  \"aec_backend\":\""<<(c.aec_backend==itu::AecBackend::speex?"speex_mdf":"webrtc_aec3")<<"\""
+      <<",\n  \"aec_backend\":\""<<(c.aec_backend==itu::AecBackend::speex?"speex_mdf":c.aec_backend==itu::AecBackend::speex_fused?"speex_mdf_nlms_fused":"webrtc_aec3")<<"\""
       <<",\n  \"aec_filter_blocks\":"<<c.aec_filter_blocks
       <<",\n  \"aec_tail_ms\":"<<(c.aec_filter_blocks*4)
       <<",\n  \"speex_echo_tail_ms\":"<<c.speex_echo_tail_ms
+      <<",\n  \"speex_fused_learning_rate\":"<<c.speex_fused_learning_rate
+      <<",\n  \"speex_fused_shadow_taps_ms\":"<<c.speex_fused_shadow_taps_ms
+      <<",\n  \"aec_fused_shadow_weight\":"<<info.aec_fused_shadow_weight
+      <<",\n  \"aec_fused_primary_error_power\":"<<info.aec_fused_primary_error_power
+      <<",\n  \"aec_fused_shadow_error_power\":"<<info.aec_fused_shadow_error_power
+      <<",\n  \"aec_fused_double_talk\":"<<(info.aec_fused_double_talk?"true":"false")
+      <<",\n  \"aec_fused_updates\":"<<info.aec_fused_updates
       <<",\n  \"speex_native_conditioning\":"<<(c.speex_native_conditioning?"true":"false")
       <<",\n  \"speex_post_context\":"<<(c.speex_post_context?"true":"false")
       <<",\n  \"post_aec_evidence_window\":"<<(c.post_aec_evidence_window?"true":"false")
@@ -703,7 +715,7 @@ int main(int argc,char** argv) {
       <<",\n  \"speex_active_echo_suppression_db\":"<<c.speex_active_echo_suppression_db
       <<",\n  \"analyze_linear_noise\":"<<(c.analyze_linear_noise?"true":"false")
       <<",\n  \"aec_input_delay_samples\":"<<info.aec_input_delay_samples<<",\n  \"linear_erle_uses_conditioned_input\":"<<("true")
-      <<",\n  \"aec_input_conditioning\":\""<<(!c.aec ? "AEC disabled" : c.aec_backend==itu::AecBackend::speex ?
+      <<",\n  \"aec_input_conditioning\":\""<<(!c.aec ? "AEC disabled" : speex_aec ?
            (c.speex_native_conditioning ?
             "native MDF DC notch; external capture/render and post-chain HPF skipped" :
             c.linear_phase_low_cut ?
@@ -750,17 +762,17 @@ int main(int argc,char** argv) {
       if(p>1e-12 && q>1e-12) report<<db(p)-db(q); else report<<"null";
     } else report<<"null";
     report<<",\n  \"erle_scope\":\"caller-labelled far-only, latency-aligned "
-          <<(c.aec_backend==itu::AecBackend::speex ? "raw Speex MDF error before RES/dry blend/NS/AGC2; " :
+          <<(speex_aec ? "raw Speex MDF error before RES/dry blend/NS/AGC2; " :
              "WebRTC linear AEC output after optional pre-AEC BF and before nonlinear suppression/NS/AGC2; ")
           <<("conditioned input path")<<"; engineering estimate only\",\n  \"aec_tap_scope\":\""
-          <<(c.aec && c.aec_backend==itu::AecBackend::speex ?
+          <<(c.aec && speex_aec ?
              "Speex MDF/optional RES after aligned near-speech protection; separate raw MDF error is exported as linear tap" :
              c.aec ? "AEC3 output includes internal residual suppression; not a linear ERLE tap" :
              "capture path with AEC disabled; conversion delay retained")
           <<"\",\n  \"dtd_status_available\":false,\n  \"noise_estimation\":\""
           <<(!c.noise_suppression?"disabled":c.noise_backend==itu::NoiseBackend::unified?"Causal unsupervised online fusion of four shared-spectrum NS experts; no labels, future PCM, or external VAD":c.noise_backend==itu::NoiseBackend::super_gaussian?"Super-Gaussian joint MAP H1 gain with IMCRA and shared Gaussian soft evidence; no external VAD":c.noise_backend==itu::NoiseBackend::omlsa_imcra?"Causal OM-LSA with two-stage IMCRA; continuous soft speech probability; no external VAD":c.noise_backend==itu::NoiseBackend::ulunas?"UL-UNAS recurrent spectral model; 16 kHz enhancement bandwidth":c.noise_backend==itu::NoiseBackend::rnnoise?"RNNoise recurrent model; 48 kHz internal":c.noise_backend==itu::NoiseBackend::speex?"SpeexDSP online noise estimator":"WebRTC online adaptive; no user noise-only learning phase")
           <<"\",\n  \"internal_sample_rate\":"<<(core_bridge || c.noise_backend==itu::NoiseBackend::rnnoise?48000:c.sample_rate)
-          <<",\n  \"aec_internal_sample_rate\":"<<(!c.aec ? 0 : c.aec_backend==itu::AecBackend::speex ? c.sample_rate : c.sample_rate==24000 ? 48000 : c.sample_rate)
+          <<",\n  \"aec_internal_sample_rate\":"<<(!c.aec ? 0 : speex_aec ? c.sample_rate : c.sample_rate==24000 ? 48000 : c.sample_rate)
           <<",\n  \"ns_internal_sample_rate\":"<<(c.noise_backend==itu::NoiseBackend::ulunas?16000:core_bridge || c.noise_backend==itu::NoiseBackend::rnnoise?48000:c.sample_rate)
           <<",\n  \"rate_converter\":\""<<(core_bridge || (c.sample_rate!=16000 && c.noise_backend==itu::NoiseBackend::ulunas)?"SpeexDSP quality 8":c.sample_rate==24000 && (c.noise_backend==itu::NoiseBackend::omlsa_imcra || c.noise_backend==itu::NoiseBackend::super_gaussian || c.noise_backend==itu::NoiseBackend::unified) && c.automatic_gain?"AGC2 may convert internally; native statistical NS PCM path":"none")<<"\""
           <<",\n  \"ns_delay_samples\":"<<info.ns_delay_samples

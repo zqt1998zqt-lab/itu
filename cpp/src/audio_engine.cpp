@@ -57,8 +57,12 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
     throw std::invalid_argument("unknown processing mode");
   if(!c.reference_channels || c.reference_channels>8)
     throw std::invalid_argument("render channels must be 1..8");
-  if(c.aec_backend!=AecBackend::webrtc && c.aec_backend!=AecBackend::speex)
+  if(c.aec_backend!=AecBackend::webrtc && c.aec_backend!=AecBackend::speex &&
+     c.aec_backend!=AecBackend::speex_fused)
     throw std::invalid_argument("unknown AEC backend");
+  if(c.aec_backend==AecBackend::speex_fused &&
+      (!c.aec || c.microphones!=1 || c.reference_channels!=1 || c.speex_residual_suppression))
+    throw std::invalid_argument("fused Speex AEC requires enabled mono MDF without RES");
   if(c.speex_echo_tail_ms<100 || c.speex_echo_tail_ms>500)
     throw std::invalid_argument("Speex MDF tail must be 100..500 ms");
   if(c.speex_multirender_context &&
@@ -68,7 +72,8 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
   }
   if(c.speex_active_echo_suppression_db>0 || c.speex_active_echo_suppression_db<-30)
     throw std::invalid_argument("Speex active echo suppression must be -30..0 dB");
-  if(c.speex_coherence_residual_suppression && c.aec_backend!=AecBackend::speex) {
+  if(c.speex_coherence_residual_suppression &&
+     c.aec_backend!=AecBackend::speex && c.aec_backend!=AecBackend::speex_fused) {
     if(c.mode==ProcessingMode::vehicle_stream) c.speex_coherence_residual_suppression=false;
     else throw std::invalid_argument("coherence residual suppression requires Speex MDF");
   }
@@ -98,7 +103,7 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
     c.analyze_linear_noise=false; c.correlation_delay=false;
     if(c.multirender_speech_protection) c.linear_speech_protection=true;
   }
-  if(c.aec_backend==AecBackend::speex &&
+  if((c.aec_backend==AecBackend::speex || c.aec_backend==AecBackend::speex_fused) &&
       (c.multirender_nearend_policy || c.multirender_speech_protection || c.linear_output_diagnostic))
     throw std::invalid_argument("AEC3 diagnostic protection options require the WebRTC AEC backend");
   if(c.noise_backend!=NoiseBackend::webrtc && c.noise_backend!=NoiseBackend::rnnoise && c.noise_backend!=NoiseBackend::speex && c.noise_backend!=NoiseBackend::ulunas && c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian && c.noise_backend!=NoiseBackend::unified)
@@ -110,6 +115,9 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
       throw std::invalid_argument("native24 hybrid NS cannot use AEC3's 48 kHz bridge; use native Speex AEC or standalone NS");
   }
   if(c.speex_suppression_db>0 || c.speex_suppression_db<-40) throw std::invalid_argument("Speex suppression must be -40..0 dB");
+  if(!std::isfinite(c.speex_fused_learning_rate) || c.speex_fused_learning_rate<.005f || c.speex_fused_learning_rate>.5f ||
+     c.speex_fused_shadow_taps_ms<1 || c.speex_fused_shadow_taps_ms>64)
+    throw std::invalid_argument("fused AEC learning rate/taps out of range");
   if(c.hybrid_speech_suppression_db>0 || c.hybrid_speech_suppression_db<-40)
     throw std::invalid_argument("hybrid speech suppression must be -40..0 dB");
   if(!std::isfinite(c.high_snr_dry_mix) || c.high_snr_dry_mix<0 || c.high_snr_dry_mix>1)
@@ -223,6 +231,14 @@ void apply_vcp_joint_control(Config& c) {
 Config barrot_vcp_joint_config() {
   auto c=barrot_vcp_config();
   apply_vcp_joint_control(c);
+  return c;
+}
+Config barrot_vcp_fused_aec_config() {
+  auto c=barrot_vcp_config();
+  c.aec_backend=AecBackend::speex_fused;
+  c.speex_fused_learning_rate=.12f;
+  c.speex_fused_shadow_taps_ms=32;
+  c.speex_coherence_residual_suppression=true;
   return c;
 }
 Config barrot_vcp_unified_config() {
@@ -398,7 +414,7 @@ struct AudioEngine::Impl {
       adaptive_controller=std::make_unique<AdaptiveController>(AdaptiveController::Context{
           c.mode,policy_rate,c.frame_size,c.microphones,c.reference_channels});
     }
-    if(c.aec && c.aec_backend==AecBackend::speex) {
+    if(c.aec && (c.aec_backend==AecBackend::speex || c.aec_backend==AecBackend::speex_fused)) {
       speex_aec=std::make_unique<SpeexAecPipeline>(c); return;
     }
     // The standalone OM-LSA path and Speex MDF's native post chain retain

@@ -14,7 +14,7 @@ constexpr unsigned kAecOutputDelaySamples=128, kLinearAecDelaySamples=64, kNsDel
 // offset to stream alignment. Keep this constant for ABI/source compatibility.
 constexpr unsigned kLowCutDelaySamples=0;
 enum class NoiseBackend { webrtc, rnnoise, speex, ulunas, omlsa_imcra, super_gaussian, unified };
-enum class AecBackend { webrtc, speex };
+enum class AecBackend { webrtc, speex, speex_fused };
 enum class GainFault { none, previous_frame, inverted, always_boost };
 // The caller selects the operating envelope. Runtime adaptation is bounded by
 // this mode; it never infers a product mode from PCM alone.
@@ -116,6 +116,9 @@ struct Config {
   bool speex_residual_suppression = false; // Opt-in MDF-linked RES, separate from downstream NS.
   bool speex_coherence_residual_suppression = false; // Opt-in coherence-gated MDF residual postfilter.
   int speex_active_echo_suppression_db = -3;
+  // Opt-in short-tail NLMS shadow branch for Speex MDF residual fusion.
+  float speex_fused_learning_rate = .12f;
+  unsigned speex_fused_shadow_taps_ms = 32;
   bool beamforming = false;
   bool noise_suppression = true;
   bool vehicle_ns_control = false; // Opt-in shared streaming NS; replaces legacy NS-local blends.
@@ -179,6 +182,8 @@ Config barrot_vcp_config();
 Config barrot_vcp_joint_config();
 // Experimental VCP preset using causal unsupervised shared-spectrum NS fusion.
 Config barrot_vcp_unified_config();
+// Experimental VCP preset: Speex MDF plus a bounded short-tail NLMS shadow.
+Config barrot_vcp_fused_aec_config();
 void apply_vcp_joint_control(Config& config);
 Config referenced_radio_config();
 Config vehicle_stream_config();
@@ -242,6 +247,12 @@ struct FrameInfo {
   unsigned post_aec_echo_clear_frames = 0;
   float reference_residual_ratio = 1;
   float reference_confidence = 0;
+  float aec_fused_shadow_weight = 0;
+  float aec_fused_primary_error_power = 0;
+  float aec_fused_shadow_error_power = 0;
+  float aec_fused_reference_confidence = 0;
+  bool aec_fused_double_talk = false;
+  unsigned aec_fused_updates = 0;
   float linear_speech_probability = 0;
   float nearend_mix = 0;
   bool v2_double_evidence_eligible = false;
