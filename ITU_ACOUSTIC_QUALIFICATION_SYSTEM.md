@@ -119,6 +119,18 @@ P.1120 提供的示例门限包括：无 SRW 的 RTD 应低于 170 ms；SRW 下�
 7. 正式结论由测试所独立复核。系统仍保留 `standard_compliance=false`，直到所有官方条款和
    认证证据完成签署。
 
+## 一键工程自检边界
+
+`POST /api/alignment/run` 是工程自检入口，不是正式声学验收：
+
+- `full`：对固定车辆场景运行一次 CLI，再执行契约、方法指标和声学门禁三组 pytest。
+- `methods` / `contract`：只运行对应 pytest，不启动音频 CLI。
+- 严格模式会把所选测试中的跳过项判为失败；普通模式允许跳过项但仍如实显示。
+- `vcp_default` 在 API 中保留原 id，实际调用固定 CLI 的 `vcp` profile。
+- 只有 CLI 退出码、profile、报告字段、输出 WAV 与 pytest/JUnit 结果同时有效，工程自检才通过。
+- 所有结果始终是 `standard_compliance=false`、`formal_test_status=not_measured`。该按钮不执行
+  8 模式或 336 项正式测量，也不能替代校准、原始 trace、实验室复核和标准条款对齐。
+
 ## 测量包契约
 
 `measurement-bundle` 是一个 JSON evidence 文件：

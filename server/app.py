@@ -21,12 +21,14 @@ from server.ns_failures import router as ns_failures_router
 from server.quality.api import router as quality_router
 from server.acoustic.api import router as acoustic_router
 from server.graph_engine.api import router as audio_graphics_router, _FIGURE_GENERATION_LOCK, _publish_result
+from server.alignment_runner import router as alignment_router
 
 app = FastAPI(title="ITU Audio Lab", version="2.0.0")
 app.include_router(ns_failures_router)
 app.include_router(quality_router)
 app.include_router(acoustic_router)
 app.include_router(audio_graphics_router)
+app.include_router(alignment_router)
 
 
 @app.get("/api/health")
