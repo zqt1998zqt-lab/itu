@@ -8,6 +8,7 @@
 #include <array>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <stdexcept>
 #include <vector>
@@ -107,6 +108,86 @@ void weights_and_causality() {
   require(suffix_difference > 0, "unified causal negative control was vacuous");
 }
 
+void minima_history_and_slew() {
+  const unsigned hop = 160, frames = 193;
+  std::vector<float> a(hop), b(hop);
+  itu::detail::UnifiedNs implicit_zero(16000, -18.f, .08f);
+  itu::detail::UnifiedNs explicit_zero(16000, -18.f, .08f, 0.f, 8u, 8u);
+  itu::detail::UnifiedNs shallow(16000, -18.f, .08f, 0.f, 4u, 8u);
+  itu::detail::UnifiedNs conditional_shallow(16000, -18.f, .08f, 0.f, 8u, 4u);
+  require(implicit_zero.minima_history_depth() == 8u &&
+              implicit_zero.conditional_minima_history_depth() == 8u &&
+              shallow.minima_history_depth() == 4u &&
+              conditional_shallow.conditional_minima_history_depth() == 4u,
+          "unified history depth configuration was not retained");
+  float psd_after_first = 0.f, psd_before_rotation = 0.f;
+  for (unsigned frame = 0; frame < frames; ++frame) {
+    for (unsigned i = 0; i < hop; ++i)
+      a[i] = b[i] = sample(frame * hop + i, 16000);
+    implicit_zero.process(a.data());
+    explicit_zero.process(b.data());
+    for (unsigned i = 0; i < hop; ++i)
+      require(a[i] == b[i], "zero minima slew changed PCM");
+    require(std::isfinite(implicit_zero.noise_psd_band_db()) &&
+                std::isfinite(implicit_zero.smooth_band_db()) &&
+                std::isfinite(implicit_zero.conditional_band_db()) &&
+                std::isfinite(implicit_zero.dd_prior_band_db()) &&
+                std::isfinite(implicit_zero.xi_band_db()) &&
+                std::isfinite(implicit_zero.gamma_band_db()) &&
+                std::isfinite(implicit_zero.gain_band_db()),
+            "unified diagnostic state is nonfinite");
+    if (frame == 1) psd_after_first = implicit_zero.noise_psd_band_db();
+    if (frame == 12) psd_before_rotation = implicit_zero.noise_psd_band_db();
+  }
+  require(implicit_zero.minima_rotations() == frames / 12,
+          "unified minima rotation count mismatch");
+  require(std::isfinite(psd_after_first) && psd_after_first > -199.f,
+          "noise PSD telemetry did not update after initialization");
+  require(std::isfinite(psd_before_rotation) && psd_before_rotation > -199.f,
+          "noise PSD telemetry stopped after first frame");
+  require(implicit_zero.minima_rebuild_jump_db() == 0.f &&
+              implicit_zero.conditional_minima_rebuild_jump_db() == 0.f,
+          "rebuild jump telemetry leaked across non-rotation frames");
+
+  const unsigned bins = 32;
+  std::vector<float> low(bins, 1e-6f), high(bins, 1.f);
+  std::vector<float> xi(bins, 1.f), gamma(bins, 1.f);
+  itu::detail::ImcraNoiseEstimator legacy(bins);
+  itu::detail::ImcraNoiseEstimator bounded(bins, 1.66f, 1.f);
+  legacy.initialize(low.data());
+  bounded.initialize(low.data());
+  for (unsigned frame = 0; frame < 204; ++frame) {
+    const float* power = frame < 96 ? low.data() : high.data();
+    legacy.update(power, xi.data(), gamma.data());
+    bounded.update(power, xi.data(), gamma.data());
+  }
+  require(legacy.rotations() == 17 && bounded.rotations() == 17,
+          "IMCRA test did not reach the expected rotations");
+  const float legacy_jump = legacy.minimum_rebuild_jump_db(0);
+  const float bounded_jump = bounded.minimum_rebuild_jump_db(0);
+  require(std::isfinite(legacy_jump) && legacy_jump > 5.f,
+          "legacy minima rebuild did not expose an upward jump");
+  require(std::isfinite(bounded_jump) && bounded_jump <= 1.001f &&
+              bounded_jump > 0.f,
+          "minima rebuild slew did not cap the upward jump");
+
+  bool rejected_low = false, rejected_high = false, rejected_nan = false;
+  bool rejected_depth_low = false, rejected_depth_high = false;
+  try { itu::detail::UnifiedNs invalid(16000, -18.f, .08f, -1.f); }
+  catch (const std::invalid_argument&) { rejected_low = true; }
+  try { itu::detail::UnifiedNs invalid(16000, -18.f, .08f, 25.f); }
+  catch (const std::invalid_argument&) { rejected_high = true; }
+  try { itu::detail::UnifiedNs invalid(16000, -18.f, .08f,
+                                        std::numeric_limits<float>::quiet_NaN()); }
+  catch (const std::invalid_argument&) { rejected_nan = true; }
+  try { itu::detail::UnifiedNs invalid(16000, -18.f, .08f, 0.f, 0u, 8u); }
+  catch (const std::invalid_argument&) { rejected_depth_low = true; }
+  try { itu::detail::UnifiedNs invalid(16000, -18.f, .08f, 0.f, 8u, 9u); }
+  catch (const std::invalid_argument&) { rejected_depth_high = true; }
+  require(rejected_low && rejected_high && rejected_nan &&
+              rejected_depth_low && rejected_depth_high,
+          "invalid minima slew or history depth was accepted");
+}
 void eq_agc_fusion() {
   itu::EqConfig eq;
   eq.preamp_db=-3.f;
@@ -124,6 +205,40 @@ void eq_agc_fusion() {
           "unified AGC applied gain during far activity");
 }
 
+void high_snr_bypass() {
+  itu::VehicleNsConfig c;
+  c.backend = itu::VehicleNsBackend::unified;
+  c.strength = 1;
+  c.dry_max = .75f;
+  c.noise_gain = 1.f;
+  c.policy = "legacy";
+  c.linear_rumble = false;
+  c.unified_raw_budget = true;
+  c.unified_high_snr_bypass_db = .01f;
+  c.unified_high_snr_probability = 0.f;
+  itu::VehicleNsProcessor processor(16000, c);
+  std::vector<float> frame(160);
+  for (unsigned n = 0; n < 100; ++n) {
+    for (unsigned i = 0; i < frame.size(); ++i)
+      frame[i] = n < 10 ? 0.f :
+          sample(n * frame.size() + i, 16000);
+    require(processor.process(frame.data(), frame.size()),
+            "high-SNR bypass wrapper rejected frame");
+  }
+  const auto stats = processor.statistics();
+  require(stats.unified_high_snr_bypass,
+          "high-SNR bypass evidence was not exported");
+  require(stats.raw_mix_budget == 1.f,
+          "high-SNR bypass did not expand the raw budget");
+
+  itu::VehicleNsConfig invalid;
+  invalid.backend = itu::VehicleNsBackend::unified;
+  invalid.unified_high_snr_bypass_db = 1.f;
+  bool rejected = false;
+  try { itu::VehicleNsProcessor processor(16000, invalid); }
+  catch (const std::invalid_argument&) { rejected = true; }
+  require(rejected, "high-SNR bypass accepted without a raw donor");
+}
 void wrappers_and_engine() {
   for (unsigned rate : {16000u, 24000u, 48000u}) {
     const unsigned hop = rate / 100;
@@ -150,6 +265,10 @@ void wrappers_and_engine() {
             "unified wrapper statistics were not exported");
     require(stats.unified_noise_updates > 0 && std::isfinite(stats.unified_weight_entropy),
             "unified wrapper telemetry stayed at defaults");
+    require(stats.unified_minima_rotations == 13 &&
+                std::isfinite(stats.unified_noise_psd_band_db) &&
+                stats.unified_noise_psd_band_db > -199.f,
+            "unified wrapper minima diagnostics missing");
 
     itu::Config config;
     config.sample_rate = rate;
@@ -172,6 +291,9 @@ void wrappers_and_engine() {
     }
     require(info.unified_ns_weights[0] > 0.f && std::isfinite(info.unified_ns_weight_entropy),
             "unified FrameInfo telemetry missing");
+    require(info.unified_ns_minima_rotations == 6 &&
+                std::isfinite(info.unified_ns_noise_psd_band_db),
+            "unified FrameInfo minima diagnostics missing");
   }
   const itu::Config preset = itu::barrot_vcp_unified_config();
   require(preset.vehicle_ns_control && preset.noise_backend == itu::NoiseBackend::unified,
@@ -223,6 +345,8 @@ int main() {
   try {
     reconstruction();
     weights_and_causality();
+    minima_history_and_slew();
+    high_snr_bypass();
     eq_agc_fusion();
     wrappers_and_engine();
     c_api();

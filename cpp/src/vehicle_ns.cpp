@@ -78,6 +78,8 @@ struct VehicleNsProcessor::Impl {
   bool quantize_input;
   bool residual_enabled=false;
   bool unified_raw_budget=false;
+  float unified_high_snr_bypass_db=0,unified_high_snr_probability=.80f;
+  bool unified_high_snr_bypass=false;
   float raw_mix_target=0,raw_mix_applied_min=0,raw_mix_applied_max=0;
   float residual_max_db=0,residual_speech_guard=.75f;
   float residual_gate_snr_db=-60,residual_gate_width_db=3;
@@ -130,7 +132,7 @@ struct VehicleNsProcessor::Impl {
     if((r!=16000 && r!=24000 && r!=48000) ||
        (c.native_24 && (r!=24000 || (c.backend!=VehicleNsBackend::speex && c.backend!=VehicleNsBackend::omlsa_imcra && c.backend!=VehicleNsBackend::super_gaussian && c.backend!=VehicleNsBackend::unified))) ||
        c.repair_mode>4 || c.floor_guard>2 || c.startup_ms>500 ||
-       !std::isfinite(c.dry_max+c.snr_threshold_db+c.noise_gain+c.slew_ms+c.release_ms+c.quiet_floor_db+c.spectral_dry_guard+c.unified_learning_rate) ||
+       !std::isfinite(c.dry_max+c.snr_threshold_db+c.noise_gain+c.slew_ms+c.release_ms+c.quiet_floor_db+c.spectral_dry_guard+c.unified_learning_rate+c.unified_minima_rebuild_slew_db) ||
        c.spectral_dry_guard<0 || c.spectral_dry_guard>1 ||
        (c.spectral_dry_guard>0 && c.backend!=VehicleNsBackend::omlsa_imcra && c.backend!=VehicleNsBackend::super_gaussian) ||
        c.dry_max<0 || c.dry_max>1 || c.snr_threshold_db<0 || c.snr_threshold_db>30 ||
@@ -163,6 +165,15 @@ struct VehicleNsProcessor::Impl {
        ((c.policy=="dynamic" || c.policy=="steady_dynamic") && c.backend!=VehicleNsBackend::speex) ||
        c.steady_suppression_db < -40 || c.steady_suppression_db>0 ||
        c.unified_learning_rate<0 || c.unified_learning_rate>1 ||
+       c.unified_minima_rebuild_slew_db<0 || c.unified_minima_rebuild_slew_db>24 ||
+       c.unified_minima_history_depth<1 || c.unified_minima_history_depth>8 ||
+       c.unified_conditional_minima_history_depth<1 || c.unified_conditional_minima_history_depth>8 ||
+       !std::isfinite(c.unified_high_snr_bypass_db+c.unified_high_snr_probability) ||
+       c.unified_high_snr_bypass_db<0 || c.unified_high_snr_bypass_db>60 ||
+       c.unified_high_snr_probability<0 || c.unified_high_snr_probability>1 ||
+       (c.unified_high_snr_bypass_db>0 && !c.unified_raw_budget) ||
+       ((c.unified_minima_rebuild_slew_db>0 || c.unified_minima_history_depth!=8 ||
+         c.unified_conditional_minima_history_depth!=8) && c.backend!=VehicleNsBackend::unified) ||
        (c.adaptive_rumble && (!c.linear_rumble || !(c.rumble_hz>0))))
       throw std::invalid_argument("invalid vehicle NS operating envelope");
     return r;
@@ -180,6 +191,8 @@ struct VehicleNsProcessor::Impl {
       dynamic_db(float(strength)),aligned(core_delay,core_hop,slew_ms,c.unified_raw_budget ? false : release_ms>0),startup_control(core_delay,core_hop,0,release_ms>0 || quiet_enabled),
       rumble_control(core_delay+linear_filter.delay(),core_hop,30,false) {
     unified_raw_budget=c.unified_raw_budget;
+    unified_high_snr_bypass_db=c.unified_high_snr_bypass_db;
+    unified_high_snr_probability=c.unified_high_snr_probability;
     spectral_dry_guard=c.spectral_dry_guard;
     rumble_recovery=c.rumble_recovery;
     rumble_adaptive_hz=c.rumble_adaptive_hz;
@@ -228,7 +241,9 @@ struct VehicleNsProcessor::Impl {
     if(backend=="unified") {
       constexpr float floors[]={-9.f,-12.f,-18.f,-24.f};
       unified=std::make_unique<detail::UnifiedNs>(
-          core_rate,floors[strength],c.unified_learning_rate);
+          core_rate,floors[strength],c.unified_learning_rate,
+          c.unified_minima_rebuild_slew_db,c.unified_minima_history_depth,
+          c.unified_conditional_minima_history_depth);
     }
     if(residual_enabled) {
       residual=std::make_unique<ResidualNoiseSuppressor>(
@@ -262,6 +277,7 @@ struct VehicleNsProcessor::Impl {
     if(!samples || count!=hop) return false;
     for(unsigned i=0;i<count;++i) if(!std::isfinite(samples[i])) return false;
     raw_mix_target=raw_mix_applied_min=raw_mix_applied_max=0;
+    unified_high_snr_bypass=false;
     for(unsigned i=0;i<hop;++i) input[i]=quantize_input ? std::lround(std::clamp(samples[i]*32768.f,-32768.f,32767.f))/32768.f : samples[i];
       if(up) {
         if(up->Resample(input.data(),hop,core.data(),core_hop)) return false;
@@ -322,7 +338,13 @@ struct VehicleNsProcessor::Impl {
           spectral_chain ? static_cast<detail::NsSpectralControl*>(spectral_chain.get()) :
           student ? static_cast<detail::NsSpectralControl*>(student.get()) : nullptr;
       if(omlsa) omlsa->process(core.data(),spectral_control,noise_step_recovery*(controller?controller->noise_step_probability():0.f));
-      if(unified) unified->process(core.data());
+      if(unified) {
+        unified->process(core.data());
+        unified_high_snr_bypass =
+            unified_high_snr_bypass_db > 0.f &&
+            unified->frame_snr_db() >= unified_high_snr_bypass_db &&
+            unified->mean_probability() >= unified_high_snr_probability;
+      }
       if(buffer) {
         const float* in[]={core.data()};float* out[]={core.data()};
         buffer->CopyFrom(in,webrtc::StreamConfig(core_rate,1));
@@ -373,14 +395,16 @@ struct VehicleNsProcessor::Impl {
         if(unified_raw_budget) {
           // Independent protection requests are alternative evidence for the
           // SAME capture samples, not extra bypasses. Quiet/startup can spend
-          // the remaining budget but cannot raise the total above dry_max.
-          // Apply the same posterior/transient guards to every request.
+          // the remaining budget but cannot raise the total above the active
+          // raw budget. High-SNR protection expands the synthesis mix only;
+          // the estimator keeps its PSD, DD and minima state continuous.
+          const float raw_budget=unified_high_snr_bypass ? 1.f : dry_max;
           const float protection=std::max(
               quiet_enabled ? controller->quiet() : 0.f,
               policy=="parallel_start" ? startup_target : 0.f);
-          const float guarded_protection=dry_max*protection*
+          const float guarded_protection=raw_budget*protection*
               spectral_guard_applied*transient_guard_applied;
-          blend=std::clamp(std::max(next_dry,guarded_protection),0.f,dry_max);
+          blend=std::clamp(std::max(next_dry,guarded_protection),0.f,raw_budget);
         }
         raw_mix_target=unified_raw_budget ? blend :
             std::clamp(blend+(1.f-blend)*
@@ -397,7 +421,7 @@ struct VehicleNsProcessor::Impl {
             // One fullband donor with the backend's declared fixed delay.
             // The observer, startup, guards and noise gain never add PCM
             // bypasses around this convex mix; no process-time allocation.
-            mix=std::clamp(mix,0.f,dry_max);
+            mix=std::clamp(mix,0.f,unified_high_snr_bypass ? 1.f : dry_max);
             total_raw=mix;
             core[i]=gain*((1-mix)*core[i]+mix*startup_raw[i]);
           } else {
@@ -471,7 +495,7 @@ double VehicleNsProcessor::src_delay_samples() const noexcept {return impl_->src
 VehicleNsStatistics VehicleNsProcessor::statistics() const noexcept {
   const auto& s=*impl_; VehicleNsStatistics x;
   x.unified_raw_budget=s.unified_raw_budget;
-  x.raw_mix_budget=s.unified_raw_budget ? s.dry_max : 1.f;
+  x.raw_mix_budget=s.unified_raw_budget ? (s.unified_high_snr_bypass ? 1.f : s.dry_max) : 1.f;
   x.raw_mix_target=s.raw_mix_target;
   x.raw_mix_applied_min=s.raw_mix_applied_min;
   x.raw_mix_applied_max=s.raw_mix_applied_max;
@@ -521,6 +545,19 @@ VehicleNsStatistics VehicleNsProcessor::statistics() const noexcept {
     x.unified_probability=s.unified->mean_probability();x.unified_gain=s.unified->mean_gain();
     x.unified_noise_power=s.unified->noise_power();x.unified_bootstrap_seed=s.unified->bootstrap_seed();
     x.unified_noise_updates=s.unified->noise_updates();x.unified_minima_rotations=s.unified->minima_rotations();
+    x.unified_minima_band_db=s.unified->minima_band_db();
+    x.unified_conditional_minima_band_db=s.unified->conditional_minima_band_db();
+    x.unified_history_minima_band_db=s.unified->history_minima_band_db();
+    x.unified_noise_psd_band_db=s.unified->noise_psd_band_db();
+    x.unified_smooth_band_db=s.unified->smooth_band_db();
+    x.unified_conditional_band_db=s.unified->conditional_band_db();
+    x.unified_dd_prior_band_db=s.unified->dd_prior_band_db();
+    x.unified_xi_band_db=s.unified->xi_band_db();
+    x.unified_gamma_band_db=s.unified->gamma_band_db();
+    x.unified_gain_band_db=s.unified->gain_band_db();
+    x.unified_minima_rebuild_jump_db=s.unified->minima_rebuild_jump_db();
+    x.unified_conditional_minima_rebuild_jump_db=s.unified->conditional_minima_rebuild_jump_db();
+    x.unified_high_snr_bypass=s.unified_high_snr_bypass;
   }
   if(s.speech_band) {
     x.speech_band_frames=s.speech_band->frames();

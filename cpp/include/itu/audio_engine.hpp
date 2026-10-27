@@ -320,6 +320,15 @@ struct FrameInfo {
   float unified_ns_probability=0,unified_ns_gain=1,unified_ns_noise_power=0;
   float unified_ns_bootstrap_seed=1;
   std::size_t unified_ns_noise_updates=0;
+  unsigned unified_ns_minima_rotations=0;
+  float unified_ns_minima_band_db=-200,unified_ns_conditional_minima_band_db=-200;
+  float unified_ns_history_minima_band_db=-200,unified_ns_noise_psd_band_db=-200;
+  float unified_ns_smooth_band_db=-200,unified_ns_conditional_band_db=-200;
+  float unified_ns_dd_prior_band_db=-60,unified_ns_xi_band_db=-60;
+  float unified_ns_gamma_band_db=-60,unified_ns_gain_band_db=-60;
+  float unified_ns_minima_rebuild_jump_db=0;
+  float unified_ns_conditional_minima_rebuild_jump_db=0;
+  bool unified_ns_high_snr_bypass=false;
   float unified_eq_weight=0,unified_agc_fused_weight=0,unified_agc_gain_db=0;
 };
 

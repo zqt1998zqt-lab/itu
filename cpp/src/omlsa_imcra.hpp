@@ -56,10 +56,21 @@ class ImcraNoiseEstimator {
  public:
   static constexpr unsigned subwindows=8,subwindow_frames=12;
   static constexpr float alpha_s=.9f,alpha_d=.85f,beta=1.47f;
-  explicit ImcraNoiseEstimator(unsigned bins,float b_min=1.66f)
+  explicit ImcraNoiseEstimator(unsigned bins,float b_min=1.66f,
+                               float minima_rebuild_slew_db=0.f,
+                               unsigned unconditional_history_depth=8u,
+                               unsigned conditional_history_depth=8u)
       : bins_(bins),b_min_(b_min),smooth_(bins),conditional_(bins),minimum_(bins),conditional_min_(bins),
         sub_min_(bins),conditional_sub_min_(bins),noise_(bins),indicator_(bins),
-        history_(bins*subwindows),conditional_history_(bins*subwindows) {}
+        history_(bins*subwindows),conditional_history_(bins*subwindows),
+        minimum_rebuild_jump_db_(bins),conditional_rebuild_jump_db_(bins),
+        minima_rebuild_slew_db_(minima_rebuild_slew_db),
+        unconditional_history_depth_(unconditional_history_depth),
+        conditional_history_depth_(conditional_history_depth) {
+    if(unconditional_history_depth_<1 || unconditional_history_depth_>subwindows ||
+       conditional_history_depth_<1 || conditional_history_depth_>subwindows)
+      throw std::invalid_argument("IMCRA history depths must be 1..8");
+  }
   void initialize(const float* power,float seed=1.f) noexcept {
     for(unsigned k=0;k<bins_;++k) {
       smooth_[k]=conditional_[k]=frequency(power,k);
@@ -81,9 +92,29 @@ class ImcraNoiseEstimator {
   float conditional(unsigned k) const noexcept {return conditional_[k];}
   float minimum(unsigned k) const noexcept {return minimum_[k];}
   float conditional_minimum(unsigned k) const noexcept {return conditional_min_[k];}
+  float history_minimum(unsigned k) const noexcept {
+    float value=std::numeric_limits<float>::max();
+    for(unsigned u=0;u<unconditional_history_depth_;++u)
+      value=std::min(value,history_[recent_history_index(u)*bins_+k]);
+    return value;
+  }
+  float conditional_history_minimum(unsigned k) const noexcept {
+    float value=std::numeric_limits<float>::max();
+    for(unsigned u=0;u<conditional_history_depth_;++u)
+      value=std::min(value,conditional_history_[recent_history_index(u)*bins_+k]);
+    return value;
+  }
+  float minimum_rebuild_jump_db(unsigned k) const noexcept {
+    return minimum_rebuild_jump_db_[k];
+  }
+  float conditional_rebuild_jump_db(unsigned k) const noexcept {
+    return conditional_rebuild_jump_db_[k];
+  }
   std::size_t excluded_bins() const noexcept {return excluded_bins_;}
   std::size_t noise_updates() const noexcept {return noise_updates_;}
   unsigned rotations() const noexcept {return rotations_;}
+  unsigned unconditional_history_depth() const noexcept {return unconditional_history_depth_;}
+  unsigned conditional_history_depth() const noexcept {return conditional_history_depth_;}
   std::size_t step_updates() const noexcept {return step_updates_;}
   void update(const float* power,const float* xi,const float* gamma,float step_recovery=0) noexcept {
     // First iteration: unconditional time/frequency smoothing and minima.
@@ -129,20 +160,49 @@ class ImcraNoiseEstimator {
       noise_updates_+=a<.99999f;
     }
     if(++frames_in_subwindow_==subwindow_frames) {
+      const float max_upward_ratio=minima_rebuild_slew_db_>0.f ?
+          std::pow(10.f,minima_rebuild_slew_db_/10.f) :
+          std::numeric_limits<float>::infinity();
       for(unsigned k=0;k<bins_;++k) {
         history_[head_*bins_+k]=sub_min_[k];
         conditional_history_[head_*bins_+k]=conditional_sub_min_[k];
-        minimum_[k]=conditional_min_[k]=std::numeric_limits<float>::max();
-        for(unsigned u=0;u<subwindows;++u) {
-          minimum_[k]=std::min(minimum_[k],history_[u*bins_+k]);
-          conditional_min_[k]=std::min(conditional_min_[k],conditional_history_[u*bins_+k]);
+        const float previous_minimum=minimum_[k];
+        const float previous_conditional=conditional_min_[k];
+        float rebuilt_minimum=std::numeric_limits<float>::max();
+        float rebuilt_conditional=std::numeric_limits<float>::max();
+        for(unsigned u=0;u<unconditional_history_depth_;++u)
+          rebuilt_minimum=std::min(
+              rebuilt_minimum,history_[rebuild_history_index(u)*bins_+k]);
+        for(unsigned u=0;u<conditional_history_depth_;++u)
+          rebuilt_conditional=std::min(
+              rebuilt_conditional,
+              conditional_history_[rebuild_history_index(u)*bins_+k]);
+        if(minima_rebuild_slew_db_>0.f) {
+          rebuilt_minimum=std::min(
+              rebuilt_minimum,std::max(1e-16f,previous_minimum)*max_upward_ratio);
+          rebuilt_conditional=std::min(
+              rebuilt_conditional,std::max(1e-16f,previous_conditional)*max_upward_ratio);
         }
+        minimum_[k]=rebuilt_minimum;
+        conditional_min_[k]=rebuilt_conditional;
+        minimum_rebuild_jump_db_[k]=10.f*std::log10(
+            std::max(1e-16f,rebuilt_minimum)/
+            std::max(1e-16f,previous_minimum));
+        conditional_rebuild_jump_db_[k]=10.f*std::log10(
+            std::max(1e-16f,rebuilt_conditional)/
+            std::max(1e-16f,previous_conditional));
         sub_min_[k]=smooth_[k];conditional_sub_min_[k]=conditional_[k];
       }
       head_=(head_+1)%subwindows;frames_in_subwindow_=0;++rotations_;
     }
   }
  private:
+  unsigned recent_history_index(unsigned offset) const noexcept {
+    return (head_ + subwindows - 1u - offset) % subwindows;
+  }
+  unsigned rebuild_history_index(unsigned offset) const noexcept {
+    return (head_ + subwindows - offset) % subwindows;
+  }
   float frequency(const float* p,unsigned k) const noexcept {
     return .25f*p[k?k-1:0]+.5f*p[k]+.25f*p[std::min(k+1,bins_-1)];
   }
@@ -152,7 +212,10 @@ class ImcraNoiseEstimator {
   std::size_t excluded_bins_=0,noise_updates_=0;
   std::size_t step_updates_=0;
   std::vector<float> smooth_,conditional_,minimum_,conditional_min_,sub_min_,conditional_sub_min_,
-      noise_,indicator_,history_,conditional_history_;
+      noise_,indicator_,history_,conditional_history_,
+      minimum_rebuild_jump_db_,conditional_rebuild_jump_db_;
+  float minima_rebuild_slew_db_=0.f;
+  unsigned unconditional_history_depth_=subwindows,conditional_history_depth_=subwindows;
 };
 
 class OmlsaImcra {

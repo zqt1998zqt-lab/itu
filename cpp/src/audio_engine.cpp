@@ -1452,6 +1452,20 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
     info.unified_ns_transient_evidence=state.unified_transient_evidence;info.unified_ns_noise_step_evidence=state.unified_noise_step_evidence;
     info.unified_ns_probability=state.unified_probability;info.unified_ns_gain=state.unified_gain;info.unified_ns_noise_power=state.unified_noise_power;
     info.unified_ns_bootstrap_seed=state.unified_bootstrap_seed;info.unified_ns_noise_updates=state.unified_noise_updates;
+    info.unified_ns_minima_rotations=state.unified_minima_rotations;
+    info.unified_ns_minima_band_db=state.unified_minima_band_db;
+    info.unified_ns_conditional_minima_band_db=state.unified_conditional_minima_band_db;
+    info.unified_ns_history_minima_band_db=state.unified_history_minima_band_db;
+    info.unified_ns_noise_psd_band_db=state.unified_noise_psd_band_db;
+    info.unified_ns_smooth_band_db=state.unified_smooth_band_db;
+    info.unified_ns_conditional_band_db=state.unified_conditional_band_db;
+    info.unified_ns_dd_prior_band_db=state.unified_dd_prior_band_db;
+    info.unified_ns_xi_band_db=state.unified_xi_band_db;
+    info.unified_ns_gamma_band_db=state.unified_gamma_band_db;
+    info.unified_ns_gain_band_db=state.unified_gain_band_db;
+    info.unified_ns_minima_rebuild_jump_db=state.unified_minima_rebuild_jump_db;
+    info.unified_ns_conditional_minima_rebuild_jump_db=state.unified_conditional_minima_rebuild_jump_db;
+    info.unified_ns_high_snr_bypass=state.unified_high_snr_bypass;
     if(c.diagnostic_stages) std::copy_n(s.mono.data(),h,c.diagnostic_stages->nr_selected.data());
   }
   if(s.ns) {
@@ -1680,6 +1694,7 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
       const bool utterance_qualified=c.repair_stage>=4 ? s.utterance_gain.qualified() :
           c.repair_stage>=1 ? s.legacy_utterance_gain.qualified() : s.speech_gain.qualified();
       float target=utterance_target;
+      if(info.unified_ns_high_snr_bypass) target=0.f;
       if(s.unified_eq_agc) {
         target=s.unified_eq_agc->fuse_gain(
             conservative,utterance_target,controller_gain_limit,control,
@@ -1732,7 +1747,8 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
           s.calibrated_gain_db=dbfs < -40 ? std::min(8.f,c.max_gain_db) : 0.f;
         }
       }
-      const float target=post_far_active ? 0.f : s.calibrated_gain_db;
+      float target=post_far_active ? 0.f : s.calibrated_gain_db;
+      if(info.unified_ns_high_snr_bypass) target=0.f;
       if(target!=s.applied_gain_db) {
         s.post->SetRuntimeSetting(webrtc::AudioProcessing::RuntimeSetting::CreateCaptureFixedPostGain(target));
         s.applied_gain_db=target;
@@ -1778,9 +1794,11 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
           post_far_active,adaptive_decision.near_confidence);
     } else if(s.output_eq) s.output_eq->process(out,h);
   }
-  if(c.tx_drc.enabled && s.tx_drc && s.tx_drc->delay_samples() != 0) {
+  const bool tx_drc_apply=c.tx_drc.enabled && s.tx_drc &&
+      !(info.unified_ns_high_snr_bypass && s.tx_drc->delay_samples()==0);
+  if(tx_drc_apply && s.tx_drc->delay_samples() != 0) {
     s.tx_drc->process(out,h);
-  } else if(c.tx_drc.enabled && s.tx_drc) {
+  } else if(tx_drc_apply) {
     s.tx_drc->process(out,h);
   }
   if(c.diagnostic_stages && !c.eq_before_agc) std::copy_n(out,h,c.diagnostic_stages->post_eq.data());

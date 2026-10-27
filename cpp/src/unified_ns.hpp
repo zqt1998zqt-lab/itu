@@ -22,14 +22,19 @@ namespace itu::detail {
 class UnifiedNs {
  public:
   explicit UnifiedNs(unsigned rate, float floor_db = -18.f,
-                     float learning_rate = .08f)
+                     float learning_rate = .08f,
+                     float minima_rebuild_slew_db = 0.f,
+                     unsigned minima_history_depth = 8u,
+                     unsigned conditional_minima_history_depth = 8u)
       : rate_(check_rate(rate)),
         hop_(rate_ / 100),
         n_(next_power_two(2 * hop_)),
         bins_(n_ / 2 + 1),
         fft_(n_),
         noise_(bins_, rate_ == 16000 ? 1.519743f :
-                       rate_ == 24000 ? 1.450226f : 1.448289f),
+                       rate_ == 24000 ? 1.450226f : 1.448289f,
+               minima_rebuild_slew_db, minima_history_depth,
+               conditional_minima_history_depth),
         window_(2 * hop_),
         past_(hop_),
         overlap_(hop_),
@@ -52,6 +57,11 @@ class UnifiedNs {
     if (!std::isfinite(learning_rate) || learning_rate < 0.f ||
         learning_rate > 1.f)
       throw std::invalid_argument("unified NS learning rate must be 0..1");
+    if (!std::isfinite(minima_rebuild_slew_db) ||
+        minima_rebuild_slew_db < 0.f ||
+        minima_rebuild_slew_db > 24.f)
+      throw std::invalid_argument(
+          "unified NS minima rebuild slew must be 0..24 dB");
     weights_ = {.34f, .30f, .23f, .13f};
     target_weights_ = weights_;
     for (unsigned i = 0; i < 2 * hop_; ++i)
@@ -78,6 +88,32 @@ class UnifiedNs {
   float noise_step_evidence() const noexcept { return noise_step_evidence_; }
   std::size_t noise_updates() const noexcept { return noise_.noise_updates(); }
   unsigned minima_rotations() const noexcept { return noise_.rotations(); }
+  unsigned minima_history_depth() const noexcept {
+    return noise_.unconditional_history_depth();
+  }
+  unsigned conditional_minima_history_depth() const noexcept {
+    return noise_.conditional_history_depth();
+  }
+  float minima_band_db() const noexcept { return minima_band_db_; }
+  float conditional_minima_band_db() const noexcept {
+    return conditional_minima_band_db_;
+  }
+  float history_minima_band_db() const noexcept {
+    return history_minima_band_db_;
+  }
+  float noise_psd_band_db() const noexcept { return noise_psd_band_db_; }
+  float smooth_band_db() const noexcept { return smooth_band_db_; }
+  float conditional_band_db() const noexcept { return conditional_band_db_; }
+  float dd_prior_band_db() const noexcept { return dd_prior_band_db_; }
+  float xi_band_db() const noexcept { return xi_band_db_; }
+  float gamma_band_db() const noexcept { return gamma_band_db_; }
+  float gain_band_db() const noexcept { return gain_band_db_; }
+  float minima_rebuild_jump_db() const noexcept {
+    return minima_rebuild_jump_db_;
+  }
+  float conditional_minima_rebuild_jump_db() const noexcept {
+    return conditional_minima_rebuild_jump_db_;
+  }
 
   // unity_gain is an explicit reconstruction test hook. Production processing
   // uses the default weighted spectral gain.
@@ -203,6 +239,7 @@ class UnifiedNs {
 
     // Estimate t+1 only after this frame has used the t PSD.
     noise_.update(power_.data(), xi_.data(), gamma_.data());
+    update_minima_diagnostics(low_bin, high_bin);
     if (unity_gain) std::fill(gain_.begin(), gain_.end(), 1.f);
     for (unsigned k = 0; k < bins_; ++k)
       spectrum_[k] *= gain_[k];
@@ -343,6 +380,61 @@ class UnifiedNs {
     weight_entropy_ /= std::log(4.f);
   }
 
+  static float band_power_db(float sum, unsigned count) noexcept {
+    return 10.f * std::log10(
+        std::max(1e-20f, sum / float(std::max(1u, count))));
+  }
+
+  void update_minima_diagnostics(unsigned low, unsigned high) noexcept {
+    const unsigned rotations = noise_.rotations();
+    const bool rotated = rotations != diagnostic_rotations_;
+    double minima_sum = 0, conditional_sum = 0, smooth_sum = 0;
+    double conditional_spectrum_sum = 0, dd_prior_sum = 0, xi_sum = 0;
+    double gamma_sum = 0, gain_sum = 0, noise_sum = 0;
+    double history_sum = 0, minimum_jump_sum = 0, conditional_jump_sum = 0;
+    for (unsigned k = low; k <= high; ++k) {
+      minima_sum += noise_.minimum(k);
+      conditional_sum += noise_.conditional_minimum(k);
+      smooth_sum += noise_.smooth(k);
+      conditional_spectrum_sum += noise_.conditional(k);
+      dd_prior_sum += previous_h1_snr_[k];
+      xi_sum += xi_[k];
+      gamma_sum += gamma_[k];
+      gain_sum += gain_[k];
+      noise_sum += noise_.noise(k);
+      if (rotated) {
+        history_sum += noise_.history_minimum(k);
+        minimum_jump_sum += noise_.minimum_rebuild_jump_db(k);
+        conditional_jump_sum +=
+            noise_.conditional_rebuild_jump_db(k);
+      }
+    }
+    const unsigned count = high - low + 1;
+    minima_band_db_ = band_power_db(float(minima_sum), count);
+    conditional_minima_band_db_ =
+        band_power_db(float(conditional_sum), count);
+    smooth_band_db_ = band_power_db(float(smooth_sum), count);
+    conditional_band_db_ =
+        band_power_db(float(conditional_spectrum_sum), count);
+    dd_prior_band_db_ = band_power_db(float(dd_prior_sum), count);
+    xi_band_db_ = band_power_db(float(xi_sum), count);
+    gamma_band_db_ = band_power_db(float(gamma_sum), count);
+    gain_band_db_ = band_power_db(float(gain_sum), count);
+    noise_psd_band_db_ = band_power_db(float(noise_sum), count);
+    if (rotated) {
+      diagnostic_rotations_ = rotations;
+      history_minima_band_db_ =
+          band_power_db(float(history_sum), count);
+      minima_rebuild_jump_db_ =
+          float(minimum_jump_sum / double(count));
+      conditional_minima_rebuild_jump_db_ =
+          float(conditional_jump_sum / double(count));
+    } else {
+      minima_rebuild_jump_db_ = 0.f;
+      conditional_minima_rebuild_jump_db_ = 0.f;
+    }
+  }
+
   unsigned rate_, hop_, n_, bins_;
   Fft fft_;
   ImcraNoiseEstimator noise_;
@@ -358,6 +450,14 @@ class UnifiedNs {
   float weight_entropy_ = 1.f, frame_snr_db_ = -60.f;
   float flatness_ = 1.f, tonality_ = 0.f;
   float minima_confidence_ = 0.f;
+  float minima_band_db_ = -200.f, conditional_minima_band_db_ = -200.f;
+  float history_minima_band_db_ = -200.f, noise_psd_band_db_ = -200.f;
+  float smooth_band_db_ = -200.f, conditional_band_db_ = -200.f;
+  float dd_prior_band_db_ = -60.f, xi_band_db_ = -60.f;
+  float gamma_band_db_ = -60.f, gain_band_db_ = -60.f;
+  float minima_rebuild_jump_db_ = 0.f;
+  float conditional_minima_rebuild_jump_db_ = 0.f;
+  unsigned diagnostic_rotations_ = 0;
   float transient_evidence_ = 0.f, noise_step_evidence_ = 0.f;
   float short_energy_db_ = -200.f, slow_energy_db_ = -200.f;
 };

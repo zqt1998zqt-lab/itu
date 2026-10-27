@@ -72,6 +72,19 @@ struct VehicleNsConfig {
   // Online convex fusion rate for VehicleNsBackend::unified. Zero freezes the
   // initial four-expert weights exactly; one follows the bounded target.
   float unified_learning_rate=.08f;
+  // Optional cap on upward IMCRA minima/history rebuild jumps, in dB. Zero
+  // preserves the historical rebuild path; PSD, DD and smoothing stay live.
+  float unified_minima_rebuild_slew_db=0.f;
+  // Independent active history depths for unconditional/conditional minima.
+  // Eight/eight is the historical path; shorter windows retain the same PSD,
+  // DD and smoothing recursion.
+  unsigned unified_minima_history_depth=8;
+  unsigned unified_conditional_minima_history_depth=8;
+  // Optional causal high-SNR synthesis protection. Zero disables it; when
+  // enabled, the NS estimator keeps adapting while the delayed raw donor is
+  // selected for frames above the frame-SNR/posterior thresholds.
+  float unified_high_snr_bypass_db=0.f;
+  float unified_high_snr_probability=.80f;
 };
 struct VehicleNsStatistics {
   bool unified_raw_budget=false;
@@ -104,6 +117,14 @@ struct VehicleNsStatistics {
   float unified_bootstrap_seed=1;
   std::size_t unified_noise_updates=0;
   unsigned unified_minima_rotations=0;
+  float unified_minima_band_db=-200,unified_conditional_minima_band_db=-200;
+  float unified_history_minima_band_db=-200,unified_noise_psd_band_db=-200;
+  float unified_smooth_band_db=-200,unified_conditional_band_db=-200;
+  float unified_dd_prior_band_db=-60,unified_xi_band_db=-60;
+  float unified_gamma_band_db=-60,unified_gain_band_db=-60;
+  float unified_minima_rebuild_jump_db=0;
+  float unified_conditional_minima_rebuild_jump_db=0;
+  bool unified_high_snr_bypass=false;
   std::size_t student_inferences=0,student_fallback_frames=0;
   bool student_applied=false;
   float residual_speech_probability=0,residual_attenuation_db=0;
