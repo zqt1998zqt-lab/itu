@@ -62,8 +62,8 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
      c.aec_backend!=AecBackend::speex_fused)
     throw std::invalid_argument("unknown AEC backend");
   if(c.aec && c.aec_backend==AecBackend::speex_fused &&
-      (c.microphones!=1 || c.reference_channels!=1 || c.speex_residual_suppression))
-    throw std::invalid_argument("fused Speex AEC requires mono MDF without RES when AEC is enabled");
+      ((!c.beamforming && c.microphones!=1) || c.speex_residual_suppression))
+    throw std::invalid_argument("fused Speex AEC requires a mono MDF input (or BF before AEC) and no MDF RES");
   if(c.speex_echo_tail_ms<100 || c.speex_echo_tail_ms>500)
     throw std::invalid_argument("Speex MDF tail must be 100..500 ms");
   if(c.speex_multirender_context &&

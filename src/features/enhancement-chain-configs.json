@@ -88,6 +88,15 @@
           "note": "VCP 默认 MDF、原生 conditioning、相干残差门控与 live post-AEC context；VCP 默认多参考回退未门控 MDF；联合方案使用多参考上下文。"
         },
         {
+          "id": "speex_fused",
+          "label": "Speex MDF + GCC-PHAT / NLMS 融合",
+          "flags": [
+            "--aec-backend",
+            "speex_fused"
+          ],
+          "note": "主 MDF、GCC-PHAT 延迟检测、短尾 NLMS shadow 与路径突变恢复。"
+        },
+        {
           "id": "aec3",
           "label": "WebRTC AEC3 · 组合候选",
           "flags": [
@@ -160,6 +169,15 @@
             "super_gaussian"
           ],
           "note": "超高斯语音先验的统计谱增强。"
+        },
+        {
+          "id": "unified",
+          "label": "Unified · 四专家融合",
+          "flags": [
+            "--ns-backend",
+            "unified"
+          ],
+          "note": "OM-LSA Gaussian、Super-Gaussian、Wiener 与 Conservative 专家按因果证据融合。"
         },
         {
           "id": "off",
@@ -447,6 +465,36 @@
       }
     },
     {
+      "id": "vcp_unified",
+      "label": "VCP Unified · 全链路融合",
+      "description": "Speex MDF/GCC-PHAT/NLMS 融合 AEC + Unified 四专家 NS + 融合 EQ/AGC + 默认 DRC；在同一 72 场景矩阵中独立验证。",
+      "profile": "vcp_unified",
+      "selection": {
+        "bf": "das",
+        "aec": "speex_fused",
+        "ns": "unified",
+        "eq": "off",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "vcp_unified_eq_fused",
+      "label": "VCP Unified · 融合 EQ 实验",
+      "description": "与 vcp_unified 相同的融合 AEC、Unified 四专家 NS 和融合 AGC，显式启用三段语音形状 EQ 以验证 UnifiedEqAgc 的 EQ 分支。",
+      "profile": "vcp_unified",
+      "selection": {
+        "bf": "das",
+        "aec": "speex_fused",
+        "ns": "unified",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
       "id": "super_gaussian_optimal",
       "label": "Super-Gaussian 单级最优",
       "description": "VCP 默认只替换 NS 为 Super-Gaussian H1 谱增益；当前 72 场景单级筛选中 60/72。噪声与远端衰减余量低于 WebRTC NS，仍需目标域复测。",
@@ -578,7 +626,9 @@
     "rnnoise_serial",
     "omlsa_serial",
     "stage4_serial",
-    "aec3_serial"
+    "aec3_serial",
+    "vcp_unified",
+    "vcp_unified_eq_fused"
   ],
   "joint_stage_defaults": {
     "drc": [

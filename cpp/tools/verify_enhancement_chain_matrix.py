@@ -92,7 +92,15 @@ def main():
         check(engine["agc2_speech_gain_policy"] == (selected["agc"] != "off"), "AGC execution mismatch")
         check(len(engine["output_eq_bands"]) == (0 if selected["eq"] == "off" else 3), "EQ bands not bound to the real executor")
         if selected["aec"] != "off":
-            check(engine["aec_backend"] == ("speex_mdf" if selected["aec"] == "speex" else "webrtc_aec3"), "wrong AEC backend executed")
+            expected_aec = {
+                "speex": "speex_mdf",
+                "speex_fused": "speex_mdf_nlms_fused",
+                "aec3": "webrtc_aec3",
+            }[selected["aec"]]
+            check(engine["aec_backend"] == expected_aec, "wrong AEC backend executed")
+        if selected["ns"] == "unified":
+            check(engine["ns_backend"] == "unified", "Unified NS backend was not executed")
+            check(engine["unified_eq_agc"] is True, "Unified EQ/AGC fusion was not enabled")
     for variant in report["variants"]:
         selected = [row for row in rows if row["variant"] == variant["id"]]
         check(len(selected) == len({row["scene_id"] for row in selected}) == 72, "unpaired or duplicate route cases")

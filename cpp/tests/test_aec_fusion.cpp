@@ -116,14 +116,22 @@ Result run(unsigned rate,bool fused,Scene scene,unsigned seed=71) {
 
 void guards() {
   auto c=itu::barrot_vcp_fused_aec_config();
-  for(unsigned invalid=0;invalid<3;++invalid) {
+  for(unsigned invalid : {0u,1u}) {
     auto bad=c;
-    if(invalid==0) bad.microphones=2;
-    else if(invalid==1) bad.reference_channels=2;
-    else bad.speex_residual_suppression=true;
+    if(invalid==0) {
+      bad.microphones=2;
+      bad.beamforming=false;
+    } else {
+      bad.speex_residual_suppression=true;
+    }
     bool threw=false;try {itu::AudioEngine reject(bad);} catch(const std::invalid_argument&) {threw=true;}
     require(threw,"unsupported fused configuration accepted");
   }
+  auto multiref=c;
+  multiref.beamforming=true;
+  multiref.reference_channels=2;
+  try { itu::AudioEngine accepted(multiref); }
+  catch(const std::exception&) { require(false,"fused BF-before-AEC multireference configuration rejected"); }
   itu::AecFusion shadow(16000,160,.12f,32);
   std::vector<float> mic(160,.1f),ref(160,.1f),primary(160,.1f);
   shadow.process(mic.data(),ref.data(),true,true);

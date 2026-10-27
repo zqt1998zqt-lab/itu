@@ -23,7 +23,9 @@ class SpeexAecPipeline {
   explicit SpeexAecPipeline(const Config& c):c_(c),
       capture_(c.frame_size*c.microphones),render_(c.frame_size*c.reference_channels),
       residual_(capture_.size()),audio_(capture_.size()),conditioned_(capture_.size()),
-      filtered_render_(render_.size()),scratch_(c.frame_size),
+      filtered_render_(render_.size()),
+      fusion_render_(c.aec_backend==AecBackend::speex_fused && c.reference_channels>1 ? c.frame_size : 0),
+      scratch_(c.frame_size),
       dry_history_((conditioning_delay(c)+(c.speex_residual_suppression ? c.frame_size : 0))*c.microphones),
       channel_(c.frame_size),channel_output_(c.frame_size),linear_native_(capture_.size()),
       linear_channel_(c.frame_size),linear_output_(160),post_(post_config(c),4096,true) {
@@ -231,10 +233,23 @@ class SpeexAecPipeline {
       }
     }
     if(fused_aec_) {
+      // The shadow predictor is mono. Keep the primary MDF on every playback
+      // channel, while feeding the causal shadow the mean reference so the
+      // unified route remains valid for stereo/multichannel playback.
+      const float* fusion_render=filtered_render_.data();
+      if(c_.reference_channels>1) {
+        for(unsigned i=0;i<c_.frame_size;++i) {
+          float sum=0.f;
+          for(unsigned ch=0;ch<c_.reference_channels;++ch)
+            sum+=filtered_render_[i*c_.reference_channels+ch];
+          fusion_render_[i]=sum/c_.reference_channels;
+        }
+        fusion_render=fusion_render_.data();
+      }
       // The linear evidence above belongs to this frame. The nonlinear speech
       // observation is produced below and cannot be consumed here yet.
       const bool protect=near_hold_>0;
-      fused_aec_->process(conditioned_.data(),filtered_render_.data(),
+      fused_aec_->process(conditioned_.data(),fusion_render,
           render_power/render_.size()>c_.activity_floor,protect);
       fused_aec_->blend(linear_native_.data(),context.far_active,context.reference_state,near_hold_);
     }
@@ -431,7 +446,7 @@ class SpeexAecPipeline {
   std::size_t memory_bytes() const noexcept {
     // Speex opaque state memory is not observable from its public API.
     return sizeof(*this)+(capture_.capacity()+render_.capacity()+residual_.capacity()+channel_.capacity()+channel_output_.capacity())*sizeof(spx_int16_t)
-        +(audio_.capacity()+conditioned_.capacity()+filtered_render_.capacity()+scratch_.capacity()+dry_history_.capacity()+
+        +(audio_.capacity()+conditioned_.capacity()+filtered_render_.capacity()+fusion_render_.capacity()+scratch_.capacity()+dry_history_.capacity()+
           linear_native_.capacity()+linear_channel_.capacity()+linear_output_.capacity())*sizeof(float)
         +linear_down_.capacity()*sizeof(std::unique_ptr<RateConverter>)
         +(reference_monitor_ ? reference_monitor_->memory_bytes() : 0)
@@ -482,7 +497,7 @@ class SpeexAecPipeline {
   std::vector<Echo> echoes_;
   std::vector<Preprocess> res_;
   std::vector<spx_int16_t> capture_,render_,residual_;
-  std::vector<float> audio_,conditioned_,filtered_render_,scratch_,dry_history_;
+  std::vector<float> audio_,conditioned_,filtered_render_,fusion_render_,scratch_,dry_history_;
   std::vector<spx_int16_t> channel_,channel_output_;
   std::vector<float> linear_native_,linear_channel_,linear_output_;
   std::vector<std::unique_ptr<RateConverter>> linear_down_;

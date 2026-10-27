@@ -113,7 +113,17 @@ def check_unified_cli(cli, root):
     required = {"unified_ns_w0", "unified_ns_target_w3", "unified_ns_weight_entropy",
                 "unified_ns_probability", "unified_ns_noise_updates"}
     assert required.issubset(fields)
-    print("CLI unified NS JSON/CSV diagnostics: PASS")
+    multi = root / "16000-2mic"
+    multi_prefix = multi / "unified-multirender"
+    run([cli, "--profile", "vcp_unified", "--mic", str(multi / "mic.wav"),
+         "--beam-delays", "0,0", "--rx-in", str(multi / "rx.wav"),
+         "--out", str(multi_prefix)], multi / "unified-multirender.log")
+    multi_report = json.loads(Path(str(multi_prefix) + ".json").read_text())
+    assert multi_report["aec_backend"] == "speex_mdf_nlms_fused"
+    assert multi_report["beamforming_before_aec"] is True
+    assert multi_report["aec_capture_channels"] == 1
+    assert multi_report["unified_eq_agc"] is True
+    print("CLI unified NS JSON/CSV diagnostics and multirender fused AEC: PASS")
 
 
 def main():
