@@ -179,8 +179,11 @@ void wrappers_and_engine() {
   require(preset.aec && preset.aec_backend == itu::AecBackend::speex_fused &&
               preset.speex_fused_shadow_taps_ms == 32,
           "unified VCP preset did not select fused Speex AEC");
-  require(preset.vehicle_ns.dry_max == 0.f && preset.vehicle_ns.noise_gain == 1.f,
-          "unified VCP preset is not pure NS");
+  require(preset.vehicle_ns.unified_raw_budget &&
+              preset.vehicle_ns.dry_max == .75f &&
+              preset.vehicle_ns.snr_threshold_db == 24.f &&
+              preset.vehicle_ns.noise_gain == 1.f,
+          "unified VCP preset does not keep the bounded 75 percent raw donor");
 }
 
 void c_api() {

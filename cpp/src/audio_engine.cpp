@@ -246,8 +246,12 @@ Config barrot_vcp_unified_config() {
   auto c=barrot_vcp_fused_aec_config();
   c.vehicle_ns_control=true;
   c.noise_backend=NoiseBackend::unified;
-  c.vehicle_ns.unified_raw_budget=false;
-  c.vehicle_ns.dry_max=0.f;
+  // Keep a bounded raw donor in the unified statistical path. This protects
+  // near speech when the four experts briefly overestimate residual noise,
+  // while the budget still caps bypass energy at 75 percent.
+  c.vehicle_ns.unified_raw_budget=true;
+  c.vehicle_ns.dry_max=.75f;
+  c.vehicle_ns.snr_threshold_db=24.f;
   c.vehicle_ns.noise_gain=1.f;
   c.vehicle_ns.unified_learning_rate=.08f;
   c.unified_eq_agc=true;
