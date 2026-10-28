@@ -76,6 +76,25 @@ type FiveSignalReport = {
   analysis: {
     segments: Record<string, number>;
     alignments: Record<string, { delay_ms: number | null; correlation: number | null; available: boolean; note: string }>;
+    model_a?: {
+      compliance_status: string;
+      score_use?: string;
+      formal_compliance_claim_allowed?: boolean;
+      scores?: Record<string, { value: number; tree_standard_deviation: number }>;
+      verification?: {
+        status: string;
+        condition_count: number;
+        passed_conditions: number;
+        tolerance_mos: number;
+        failed_reason?: string | null;
+        summary?: Record<string, {
+          mae: number;
+          rmse: number;
+          maximum_absolute_error: number;
+        }>;
+      };
+      error?: string;
+    };
     values: Record<string, number | null>;
   };
   evidence: Record<SignalRole, { artifact: { sha256: string; path: string } }>;
@@ -447,6 +466,50 @@ export default function FiveSignalQualification() {
                   </div>
                 ))}
               </dl>
+              {report.analysis.model_a?.scores && (
+                <section className="five-signal-model-a">
+                  <header>
+                    <div>
+                      <strong>ETSI TS 103 281 Model A · 实验工程值</strong>
+                      <span>官方随机森林已执行，但当前实现未通过 Annex C ±0.1 MOS 门限</span>
+                    </div>
+                    <span className="acoustic-status fail">未合规 · 不可验收</span>
+                  </header>
+                  <div>
+                    {["S-MOS", "N-MOS", "G-MOS"].map(metric => (
+                      <article key={metric}>
+                        <span>{metric}</span>
+                        <strong>
+                          {fmt(report.analysis.model_a?.scores?.[metric]?.value ?? null, 3)}
+                        </strong>
+                        <small>
+                          MAE {fmt(
+                            report.analysis.model_a?.verification?.summary?.[metric]?.mae ?? null,
+                            3,
+                          )}
+                        </small>
+                      </article>
+                    ))}
+                  </div>
+                  <p>
+                    官方 Annex C：
+                    {report.analysis.model_a.verification?.passed_conditions ?? 0}/
+                    {report.analysis.model_a.verification?.condition_count ?? 48}
+                    组通过，最大允许误差 ±
+                    {report.analysis.model_a.verification?.tolerance_mos ?? 0.1} MOS。
+                    这些数值只用于工程诊断，不能作为正式合规或验收证据。
+                  </p>
+                  <details>
+                    <summary>为什么不显示“通过”</summary>
+                    <p>
+                      {report.analysis.model_a.verification?.failed_reason ??
+                        "尚未生成可追溯的官方向量验证证据。"}
+                      公开 ZIP 只包含随机森林参数；完整 Model A 还依赖 Sottek
+                      听觉模型、参考优化、迭代噪声反卷积及特征定义。
+                    </p>
+                  </details>
+                </section>
+              )}
             </div>
           ))}
 

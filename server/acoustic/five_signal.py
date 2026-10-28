@@ -23,6 +23,7 @@ import numpy as np
 from scipy import signal
 
 from server.audio import AudioError, decode, power, resample
+from server.quality.ts103281 import ModelAError, evaluate_model_a
 from . import service
 
 
@@ -718,6 +719,19 @@ def evaluate_five_signal(
         }
         for role, trace in traces.items()
     }
+    try:
+        model_a = evaluate_model_a(
+            samples["reference"],
+            samples["near_end"],
+            rate,
+        )
+    except (ModelAError, ValueError) as error:
+        model_a = {
+            "standard": "ETSI TS 103 281 V1.3.2",
+            "model": "A",
+            "compliance_status": "unavailable",
+            "error": str(error),
+        }
     segment_counts = {
         "near_only_seconds": float(np.count_nonzero(near_only_mask) / rate),
         "far_only_seconds": float(np.count_nonzero(far_only_mask) / rate),
@@ -788,6 +802,7 @@ def evaluate_five_signal(
                 "microphone": mic_alignment,
                 "near_end": output_alignment,
             },
+            "model_a": model_a,
             "values": values,
         },
         "summary": {

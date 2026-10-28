@@ -591,6 +591,59 @@
 .five-signal-report dt { color: var(--muted); font-size: .63rem; }
 .five-signal-report dd { margin: 0; font-size: .78rem; font-variant-numeric: tabular-nums; }
 
+.five-signal-model-a {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid rgba(244, 184, 96, .24);
+  border-radius: 10px;
+  background: rgba(45, 30, 12, .3);
+}
+
+.five-signal-model-a > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.five-signal-model-a article {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(7, 12, 23, .62);
+}
+
+.five-signal-model-a article span,
+.five-signal-model-a article small,
+.five-signal-model-a p {
+  color: var(--muted);
+  font-size: .66rem;
+}
+
+.five-signal-model-a article strong {
+  color: #f6c873;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.five-signal-model-a p { margin: 0; line-height: 1.55; }
+.five-signal-model-a details {
+  padding-top: 8px;
+  border-top: 1px solid rgba(244, 184, 96, .16);
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.five-signal-model-a summary {
+  cursor: pointer;
+  color: #f6c873;
+  font-weight: 700;
+}
+
+.five-signal-model-a details p { margin-top: 7px; }
+
 .five-signal-table { min-width: 1120px; }
 .five-signal-table td:nth-child(4),
 .five-signal-table td:nth-child(5) { white-space: nowrap; }

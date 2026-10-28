@@ -15,6 +15,12 @@ from starlette.concurrency import run_in_threadpool
 from .engine import evaluate
 from .evaluators import DEFAULT_SCOREQ_ASSETS, PROJECT, create_evaluators
 from .metrics import load_audio
+from .ts103281 import (
+    MODEL_DIR,
+    ModelAError,
+    evaluate_model_a,
+    load_official_validation,
+)
 
 router = APIRouter(prefix="/api/quality", tags=["Multi-model audio quality"])
 RUNS = PROJECT / "build/quality-evaluations/runs"
@@ -59,10 +65,77 @@ def engines():
              assets_present=(PROJECT / "build/ecnr-v2-20261011/perceptual-assets/sig_bak_ovr.onnx").is_file(),
              outputs=["SIG", "BAK", "OVRL"]),
         dict(id="scoreq", native_sample_rates=[16000], minimum_seconds=1.,
-             assets_present=(DEFAULT_SCOREQ_ASSETS / "manifest.json").is_file(), outputs=["MOS"])],
+             assets_present=(DEFAULT_SCOREQ_ASSETS / "manifest.json").is_file(), outputs=["MOS"]),
+        dict(id="ts103281-model-a", native_sample_rates=[48000], minimum_seconds=.25,
+             assets_present=all((MODEL_DIR / name).is_file() for name in
+                                ("S-MOS.model", "N-MOS.model", "G-MOS.model")),
+             outputs=["S-MOS", "N-MOS", "G-MOS"],
+             input_resampling=True, requires_reference=True,
+             compliance_status="experimental_nonconformant",
+             verification=load_official_validation())],
         assets_verified="on model initialization", inference_downloads=False,
         input_resampling=False, external_vad=False,
         scope="Offline diagnostic predictions; not ITU certification")
+
+
+@router.post("/ts103281/model-a")
+async def evaluate_ts103281_model_a(
+    reference: Annotated[UploadFile, File()],
+    degraded: Annotated[UploadFile, File()],
+    reference_channel: Annotated[int, Form()] = 0,
+    degraded_channel: Annotated[int, Form()] = 0,
+):
+    uploads = (reference, degraded)
+    try:
+        blobs = {}
+        total = 0
+        for name, upload in (("reference", reference), ("degraded", degraded)):
+            blob = await upload.read(MAX_BYTES + 1)
+            total += len(blob)
+            if len(blob) > MAX_BYTES or total > 64 * 1024 ** 2:
+                raise ValueError("upload limit: 32 MiB/file, 64 MiB/request")
+            blobs[name] = blob
+
+        def calculate():
+            if not JOB_LOCK.acquire(blocking=False):
+                raise HTTPException(429, "quality evaluator is busy; retry after the current job")
+            try:
+                ref = load_audio(blobs["reference"], channel=reference_channel)
+                deg = load_audio(blobs["degraded"], channel=degraded_channel)
+                if len(ref.samples) / ref.rate > 120 or len(deg.samples) / deg.rate > 120:
+                    raise ValueError("maximum Model A duration is 120 seconds")
+                identifier = uuid.uuid4().hex
+                result = evaluate_model_a(
+                    ref.samples,
+                    deg.samples,
+                    ref.rate,
+                    degraded_rate=deg.rate,
+                )
+                result.update(
+                    evaluation_id=identifier,
+                    inputs={
+                        "reference": ref.identity,
+                        "degraded": deg.identity,
+                    },
+                )
+                from cpp.tools.ecnr_perceptual import save_json
+                save_json(RUNS / (identifier + ".json"), result)
+                return dict(
+                    id=identifier,
+                    report_url=f"/api/quality/runs/{identifier}",
+                    report=result,
+                )
+            finally:
+                JOB_LOCK.release()
+
+        return await run_in_threadpool(calculate)
+    except ModelAError as error:
+        raise HTTPException(422, str(error)) from error
+    except (ValueError, OSError) as error:
+        raise HTTPException(422, str(error)) from error
+    finally:
+        for upload in uploads:
+            await upload.close()
 
 
 @router.post("/evaluate")
