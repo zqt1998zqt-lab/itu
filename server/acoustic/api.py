@@ -7,10 +7,18 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from starlette.concurrency import run_in_threadpool
 
 from .models import (
     Artifact, EvidenceRecord, ExecutionRequest, MeasurementCompileRequest,
     RunCreate,
+)
+from .five_signal import (
+    MAX_BYTES as FIVE_SIGNAL_MAX_BYTES,
+    FiveSignalError,
+    evaluate_five_signal,
+    get_evaluation,
+    list_evaluations,
 )
 from .service import (
     CATALOG, EXECUTIONS, EvidenceError, classify_evidence,
@@ -108,6 +116,58 @@ def compile_measurement(request: MeasurementCompileRequest) -> dict:
         }
     except (EvidenceError, OSError, ValueError) as error:
         raise HTTPException(422, str(error)) from error
+
+
+@router.post("/five-signal/evaluate", status_code=201)
+async def five_signal_evaluate(
+    mode: Annotated[str, Form()],
+    near_end: Annotated[UploadFile, File()],
+    noise: Annotated[UploadFile, File()],
+    microphone: Annotated[UploadFile, File()],
+    far_end: Annotated[UploadFile, File()],
+    reference: Annotated[UploadFile, File()],
+    channel: Annotated[int, Form()] = 0,
+    max_delay_ms: Annotated[float, Form()] = 2000,
+) -> dict:
+    uploads = {
+        "near_end": near_end,
+        "noise": noise,
+        "microphone": microphone,
+        "far_end": far_end,
+        "reference": reference,
+    }
+    blobs: dict[str, tuple[str, bytes]] = {}
+    try:
+        for role, upload in uploads.items():
+            data = await upload.read(FIVE_SIGNAL_MAX_BYTES + 1)
+            if len(data) > FIVE_SIGNAL_MAX_BYTES:
+                raise FiveSignalError(f"{role}：文件超过 32 MB")
+            blobs[role] = (upload.filename or f"{role}.wav", data)
+        return await run_in_threadpool(
+            evaluate_five_signal,
+            mode=mode,
+            uploads=blobs,
+            channel=channel,
+            max_delay_ms=max_delay_ms,
+        )
+    except (FiveSignalError, OSError, ValueError) as error:
+        raise HTTPException(422, str(error)) from error
+    finally:
+        for upload in uploads.values():
+            await upload.close()
+
+
+@router.get("/five-signal/evaluations")
+def five_signal_evaluations(limit: int = 20) -> list[dict]:
+    return list_evaluations(limit)
+
+
+@router.get("/five-signal/evaluations/{evaluation_id}")
+def five_signal_evaluation(evaluation_id: str) -> dict:
+    result = get_evaluation(evaluation_id)
+    if result is None:
+        raise HTTPException(404, "unknown five-signal evaluation")
+    return result
 
 
 @router.get("/runs")

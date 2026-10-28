@@ -183,6 +183,64 @@ PCM 路径必须位于项目 `build/` 下，原始文件会复制到证据库。
 采用任意标度的灵敏度，测试步骤要求每个三分之一倍频程都以完整的参考信号平均电平归一化；
 因此固定链路增益不应造成掩码平移。归一化频率必须位于掩码频带内，缺失或越界直接拒绝。
 
+## 五路音频自动工程验收
+
+`POST /api/acoustic/five-signal/evaluate` 接收一个模式的一组五路 PCM，返回该模式
+42 个合同条目。五个角色是：
+
+| 字段 | 含义 |
+| --- | --- |
+| `near_end` | 待测近端输出；与参考音包含同一近端语音 |
+| `noise` | 隔离噪声或对应场景的噪声录音 |
+| `microphone` | 处理前麦克风混合信号，含近端语音、回声与背景噪声 |
+| `far_end` | 远端语音源或扬声器播放源 |
+| `reference` | 与近端输出对应的干净近端参考 |
+
+`near_end`、`microphone`、`far_end`、`reference` 按同一场景时间线输入；
+服务端会自动估计近端/麦克风相对参考的时延。`noise` 是独立噪声素材，
+可以使用不同长度，但只有噪声段分析会使用它。
+
+服务端实际计算参考到近端/麦克风的对齐、SI-SDR、STOI、噪声段变化、
+回流损耗、双讲近似透传比例和频谱诊断，并把结果映射到 17 个测项族。
+能由五路信号支持的项返回 `pass/fail/review_required`，缺失测量方向、
+POLQA/TMOS、G/N/S-MOS 或正式掩模的项保留 `not_measured`。
+所有结果始终是 `standard_compliance=false`、`formal_test_status=not_measured`。
+
+一组五路音频只对应一个业务模式。336 项必须使用八个模式各自的一组五路音频，
+不能从采样率推断模式，也不能把同一组音频复制成八个正式模式。
+
+批处理目录格式：
+
+```text
+five-signal-input/
+  NB-wired/
+    near_end.wav
+    noise.wav
+    microphone.wav
+    far_end.wav
+    reference.wav
+  NB-wireless/...
+  NB-bt/...
+  WB-wired/...
+  WB-wireless/...
+  WB-bt/...
+  SWB-wired/...
+  SWB-wireless/...
+```
+
+运行 336 项：
+
+```bash
+/home/zhangqingtian/.venv/bin/python scripts/five-signal-acceptance.py \
+  /path/to/five-signal-input \
+  --api http://127.0.0.1:8001 \
+  --output build/five-signal-acceptance-current
+```
+
+脚本逐模式调用 API，校验每个模式 42 行、八个模式共 336 个唯一 ID，
+并保存 `summary.json` 和对应 SHA-256。单模式结果还可通过
+`GET /api/acoustic/five-signal/evaluations/{evaluation_id}` 读取。
+
 ## 客户限值条款映射契约
 
 `limit_reconciliation` 文件格式：

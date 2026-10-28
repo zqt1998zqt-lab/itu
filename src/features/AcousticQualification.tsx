@@ -14,6 +14,7 @@ import {
   XCircle,
 } from "lucide-react";
 import "./acoustic-qualification.css";
+import FiveSignalQualification from "./FiveSignalQualification";
 
 type Mode = "simulation" | "precompliance" | "formal";
 type Bandwidth = "NB" | "WB" | "SWB" | "FB";
@@ -625,6 +626,8 @@ export function AcousticQualification() {
           </p>
         </div>
       </section>
+
+      <FiveSignalQualification />
 
       {notice ? <p className="acoustic-notice">{notice}</p> : null}
       {error ? <p className="acoustic-error" role="alert">{error}</p> : null}
