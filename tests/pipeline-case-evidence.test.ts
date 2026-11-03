@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import metadata from "../src/data/pipeline-case-metadata.json" with { type: "json" };
 import agcEvidence from "../src/data/agc-case-evidence.json" with { type: "json" };
+import enhancementChainConfig from "../src/features/enhancement-chain-configs.json" with { type: "json" };
 import { aecAlgorithms } from "../src/features/aec-pipeline-data.ts";
 import { bfAlgorithms } from "../src/features/bf-pipeline-data.ts";
 import { eqAlgorithms } from "../src/features/eq-pipeline-data.ts";
@@ -134,7 +135,14 @@ test("stale editorial timing is corrected and unknown/mixed figure pairs fail cl
 
 test("enhancement-chain cases expose the exact frozen asset id used by the graph engine", () => {
   const chainCases = sourceManifest.filter(asset => asset.asset_id.startsWith("chain-"));
-  assert.equal(chainCases.length, 20);
+  const expectedIds = enhancementChainConfig.evidence_preset_ids.flatMap(
+    id => [`chain-${id}-pass`, `chain-${id}-fail`],
+  );
+  assert.equal(chainCases.length, expectedIds.length);
+  assert.deepEqual(
+    new Set(chainCases.map(asset => asset.asset_id)),
+    new Set(expectedIds),
+  );
   for (const asset of chainCases) {
     const value = {
       id: asset.case_id,

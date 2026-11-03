@@ -41,6 +41,26 @@ def relative(path: Path) -> str:
     return str(path.relative_to(ROOT))
 
 
+def published_presets(config):
+    presets = config.get("presets")
+    evidence_ids = config.get("evidence_preset_ids")
+    if not isinstance(presets, list) or not isinstance(evidence_ids, list):
+        raise ValueError("presets and evidence_preset_ids must be lists")
+    if (
+        not evidence_ids
+        or len(evidence_ids) != len(set(evidence_ids))
+        or any(not isinstance(item, str) or not item for item in evidence_ids)
+    ):
+        raise ValueError("evidence_preset_ids must be non-empty, unique strings")
+    by_id = {preset.get("id"): preset for preset in presets}
+    if len(by_id) != len(presets) or set(evidence_ids) - set(by_id):
+        raise ValueError("evidence_preset_ids must identify unique presets")
+    selected = [by_id[item] for item in evidence_ids]
+    if selected[0]["id"] != "array_control":
+        raise ValueError("array_control must be the first frozen evidence route")
+    return selected
+
+
 def flags_for(config, preset):
     flags = ["--profile", preset["profile"], "--no-rx-processing"]
     for stage in config["stages"]:
@@ -259,6 +279,7 @@ def main():
         shutil.copy2(source, artifacts / source.name)
     cli = artifacts / "itu_audio_cli"
     config = json.loads((artifacts / CONFIG.name).read_text())
+    config["presets"] = published_presets(config)
     manifest = json.loads(MANIFEST.read_text())
     scenes = [s for s in manifest["scenes"] if s["mics"] > 1 and (not args.scene or s["id"] in args.scene)]
     if not scenes or len({s["id"] for s in scenes}) != len(scenes) or not args.scene and len(scenes) != 72:

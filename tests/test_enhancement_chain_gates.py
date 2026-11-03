@@ -1,6 +1,7 @@
 """Guard against accepting silence or ignoring double-talk and quantization bounds."""
 from copy import deepcopy
 import importlib.util
+import json
 from pathlib import Path
 import sys
 
@@ -12,6 +13,7 @@ sys.path.insert(0, str(TOOLS))
 spec = importlib.util.spec_from_file_location("chain_matrix", TOOLS / "run_enhancement_chain_matrix.py")
 chain = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(chain)
+CONFIG = Path(__file__).resolve().parents[1] / "src/features/enhancement-chain-configs.json"
 
 
 def measurement():
@@ -59,3 +61,14 @@ def test_pcm16_digital_zero_uses_a_finite_quantization_bound():
     measured, bounded = chain.attenuation(before, before / 2)
     assert not bounded
     assert np.isclose(measured, 20 * np.log10(2))
+
+
+def test_publication_uses_only_the_frozen_evidence_route_set():
+    config = json.loads(CONFIG.read_text())
+    selected = chain.published_presets(config)
+    ids = [preset["id"] for preset in selected]
+
+    assert ids == config["evidence_preset_ids"]
+    assert ids[0] == "array_control"
+    assert "vcp_joint" not in ids
+    assert len(ids) == 12

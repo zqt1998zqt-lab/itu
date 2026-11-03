@@ -21,6 +21,19 @@ def check(condition, message):
         raise ValueError(message)
 
 
+def published_route_ids(config):
+    presets = config.get("presets")
+    evidence_ids = config.get("evidence_preset_ids")
+    check(isinstance(presets, list) and isinstance(evidence_ids, list),
+          "route catalog is missing presets/evidence_preset_ids")
+    check(evidence_ids and len(evidence_ids) == len(set(evidence_ids)),
+          "frozen evidence route ids must be non-empty and unique")
+    preset_ids = {preset.get("id") for preset in presets}
+    check(set(evidence_ids) <= preset_ids, "frozen evidence route is not executable")
+    check(evidence_ids[0] == "array_control", "DAS control must be first")
+    return evidence_ids
+
+
 def independent_gate(row, baseline, thresholds):
     actual, control = row["measurements"], baseline["measurements"]
     expected_failures = []
@@ -66,10 +79,13 @@ def main():
     report = json.loads((folder / "report.json").read_text())
     rows = [json.loads(line) for line in (folder / "results.jsonl").read_text().splitlines()]
     config = json.loads((folder / "artifacts/enhancement-chain-configs.json").read_text())
-    route_count = len(config["presets"])
+    evidence_ids = published_route_ids(config)
+    route_count = len(evidence_ids)
     expected_rows = 72 * route_count
     check(report["case_count"] == 72 and report["cli_runs"] == len(rows) == expected_rows, "incomplete matrix cannot be published")
     check(len(report["variants"]) == route_count, "incomplete route set")
+    check({variant["id"] for variant in report["variants"]} == set(evidence_ids),
+          "published variants differ from frozen evidence routes")
     check(report["standard_compliance"] is False, "engineering matrix must not claim formal compliance")
     for field, file in [("cli_sha256", folder / "artifacts/itu_audio_cli"), ("config_sha256", ROOT / "src/features/enhancement-chain-configs.json"), ("results_sha256", folder / "results.jsonl"), ("manifest_sha256", folder / "artifacts/inputs-manifest.json")]:
         check(report[field] == sha(file), f"provenance mismatch: {field}")
