@@ -1,4 +1,5 @@
 """Behavior tests for the catalog-bound synthesis and generated graphics."""
+import hashlib
 from io import BytesIO
 import importlib
 import json
@@ -98,7 +99,9 @@ def test_real_api_joint_preserves_stereo_inputs_uses_host_cli_and_binds_graphics
     assert response.status_code == 200, response.text
     result = response.json()
     assert result['binary'] == str(ROOT / 'build/host/cpp/itu_audio_cli')
-    assert result['binary_sha256'] == '4760e6a1b705fc8f5bba72debe5bb12b82bb6bf0a73281ca817f6adc68eab0f7'
+    assert result['binary_sha256'] == hashlib.sha256(
+        (ROOT / 'build/host/cpp/itu_audio_cli').read_bytes()
+    ).hexdigest()
     assert result['engine_report']['reference_channels'] == 2
     assert result['engine_report']['microphones'] == 2
     assert result['engine_report']['beamforming_enabled'] is True
