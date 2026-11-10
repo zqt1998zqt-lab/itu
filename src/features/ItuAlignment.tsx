@@ -14,11 +14,15 @@ import {
   Activity,
   Check,
   MinusCircle,
+  ListChecks,
 } from "lucide-react";
 const VehicleFrontend = lazy(() => import("./VehicleFrontend"));
 const ActiveDataset = lazy(() => import("./ActiveDataset"));
 import "../evaluation.css";
 import "./itut-alignment.css";
+import FiveSignalFlow from "./FiveSignalFlow";
+import AlignmentAcceptanceBatch, { type AcceptanceBatchSnapshot } from "./AlignmentAcceptanceBatch";
+import { FIVE_SIGNAL_MODES, type FiveSignalMode } from "./five-signal-flow-model";
 
 type Failure = {
   pair?: number;
@@ -123,6 +127,11 @@ interface TestRunResult {
     returncode: number | null;
   };
   timestamp: string;
+  evaluation?: {
+    evaluation_id: string;
+    mode: FiveSignalMode;
+    summary: { total: number; measured: number; pass: number; fail: number; review_required: number; not_measured: number; invalid: number };
+  } | null;
 }
 
 const BASE = "/evaluation/itut-current";
@@ -199,7 +208,23 @@ function JobFailures({ job }: { job: Job }) {
   );
 }
 
-export default function ItuAlignment() {
+type Props = {
+  algorithmClusterId: string;
+  onAlgorithmClusterChange: (id: string) => void;
+  selectedMode: FiveSignalMode;
+  onModeChange: (mode: FiveSignalMode) => void;
+  externalRunning?: boolean;
+  onBusyChange?: (busy: boolean) => void;
+};
+
+export default function ItuAlignment({
+  algorithmClusterId,
+  onAlgorithmClusterChange: setAlgorithmClusterId,
+  selectedMode,
+  onModeChange: setSelectedMode,
+  externalRunning = false,
+  onBusyChange,
+}: Props) {
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -212,7 +237,11 @@ export default function ItuAlignment() {
   // One-click Test Runner States
   const [isRunning, setIsRunning] = useState(false);
   const [runProgress, setRunProgress] = useState(0);
-  const [pipeline, setPipeline] = useState<"vcp_unified" | "vcp_joint" | "vcp_default">("vcp_unified");
+  const [testWorkspaceMode, setTestWorkspaceMode] = useState<"quick" | "batch">("batch");
+  const [flowRefresh, setFlowRefresh] = useState(0);
+  const [acceptanceBatch, setAcceptanceBatch] = useState<AcceptanceBatchSnapshot | null>(null);
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchRestoring, setBatchRestoring] = useState(true);
   const [runScope, setRunScope] = useState<"full" | "methods" | "contract">("full");
   const [strictGate, setStrictGate] = useState(true);
   const [lastRunResult, setLastRunResult] = useState<TestRunResult | null>(null);
@@ -243,6 +272,7 @@ export default function ItuAlignment() {
   }, [refresh]);
 
   const handleRunTest = async () => {
+    if (isRunning || batchRunning || externalRunning) return;
     setIsRunning(true);
     setRunProgress(15);
     setLastRunResult(null);
@@ -256,7 +286,7 @@ export default function ItuAlignment() {
       const resp = await fetch("/api/alignment/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pipeline, scope: runScope, strict: strictGate }),
+        body: JSON.stringify({ algorithm_cluster_id: algorithmClusterId, mode: selectedMode, scope: runScope, strict: strictGate }),
       });
 
       clearInterval(ticker);
@@ -268,6 +298,7 @@ export default function ItuAlignment() {
 
       const result = (await resp.json()) as TestRunResult;
       setLastRunResult(result);
+      setFlowRefresh(n => n + 1);
       setRefresh((n) => n + 1);
     } catch (err) {
       clearInterval(ticker);
@@ -313,16 +344,101 @@ export default function ItuAlignment() {
     }
   };
 
+  const batchRunning = batchBusy || acceptanceBatch?.algorithm_cluster_id === algorithmClusterId
+    && (acceptanceBatch.status === "queued" || acceptanceBatch.status === "running");
+  useEffect(() => {
+    onBusyChange?.(isRunning || batchRunning || batchRestoring);
+  }, [isRunning, batchRunning, batchRestoring, onBusyChange]);
+  const flowControls = <>
+    <FiveSignalFlow
+      key={algorithmClusterId}
+      algorithmClusterId={algorithmClusterId}
+      onAlgorithmClusterChange={setAlgorithmClusterId}
+      selectedMode={selectedMode}
+      onModeChange={setSelectedMode}
+      isRunning={isRunning || batchRunning || externalRunning}
+      refreshToken={flowRefresh}
+      acceptanceBatch={acceptanceBatch}
+      suppressLegacySync={batchRestoring}
+    />
+  </>;
+  const workspaceHeader = (
+    <header className="alignment-test-workspace-header">
+      <div className="alignment-test-workspace-title">
+        <span className="alignment-test-workspace-eyebrow">AUDIO TEST WORKSPACE</span>
+        <h2>声学测试与验收</h2>
+        <div className="alignment-test-workspace-meta">
+          <span>算法簇</span>
+          <code>{algorithmClusterId}</code>
+          <span className="alignment-test-workspace-boundary">正式 ITU-T 合规未测</span>
+        </div>
+      </div>
+      <div className="alignment-test-workspace-modes" role="group" aria-label="测试执行档位">
+        <button
+          className="alignment-test-workspace-mode"
+          type="button"
+          aria-pressed={testWorkspaceMode === "quick"}
+          aria-controls="alignment-quick-panel"
+          onClick={() => setTestWorkspaceMode("quick")}
+        >
+          <Activity size={17} aria-hidden="true" />
+          <span><strong>快速自检</strong><small>单场景 · 42 项</small></span>
+        </button>
+        <button
+          className="alignment-test-workspace-mode"
+          type="button"
+          aria-pressed={testWorkspaceMode === "batch"}
+          aria-controls="alignment-batch-panel"
+          onClick={() => setTestWorkspaceMode("batch")}
+        >
+          <ListChecks size={17} aria-hidden="true" />
+          <span><strong>完整批次</strong><small>8 模式 · 336 项</small></span>
+        </button>
+      </div>
+    </header>
+  );
+  const batchPanel = (
+    <div
+      className="alignment-test-panel"
+      id="alignment-batch-panel"
+      role="region"
+      aria-label="336 项批次验收"
+      hidden={testWorkspaceMode !== "batch"}
+    >
+    <AlignmentAcceptanceBatch
+      algorithmClusterId={algorithmClusterId}
+      externalRunning={isRunning || externalRunning}
+      onBusyChange={setBatchBusy}
+      onRestoringChange={setBatchRestoring}
+      onBatchChange={setAcceptanceBatch}
+      onSelectMode={setSelectedMode}
+    />
+    </div>
+  );
+
   if (!ledger) {
     return (
-      <div className="alignment-page" role={error ? "alert" : "status"}>
-        <p>{error || "正在读取验收报告…"}</p>
-        {error ? (
-          <button className="button secondary" onClick={() => setRefresh((n) => n + 1)}>
-            <RotateCcw size={16} />
-            重新加载
-          </button>
-        ) : null}
+      <div className="evaluation-page alignment-page">
+        {flowControls}
+        <section className="alignment-test-workspace" aria-label="声学测试与验收">
+          {workspaceHeader}
+          {batchPanel}
+          <div
+            className="alignment-test-panel alignment-test-panel-quick"
+            id="alignment-quick-panel"
+            role="region"
+            aria-label="快速自检"
+            hidden={testWorkspaceMode !== "quick"}
+          >
+            <p role={error ? "alert" : "status"}>{error || "正在读取历史验收报告…"}</p>
+            {error ? (
+              <button className="button secondary" onClick={() => setRefresh((n) => n + 1)}>
+                <RotateCcw size={16} />
+                重新加载
+              </button>
+            ) : null}
+          </div>
+        </section>
       </div>
     );
   }
@@ -351,6 +467,18 @@ export default function ItuAlignment() {
 
   return (
     <div className="evaluation-page alignment-page">
+      {flowControls}
+      <section className="alignment-test-workspace" aria-label="声学测试与验收">
+        {workspaceHeader}
+        {batchPanel}
+        <div
+          className="alignment-test-panel alignment-test-panel-quick"
+          id="alignment-quick-panel"
+          role="region"
+          aria-label="快速自检"
+          hidden={testWorkspaceMode !== "quick"}
+        >
+
       {/* Interactive Test Runner Console */}
       <section className="alignment-runner-card">
         <div className="alignment-runner-header">
@@ -359,9 +487,7 @@ export default function ItuAlignment() {
               <Activity size={20} color="#2563eb" />
               <span>ITU-T 声学工程自检控制台</span>
             </h2>
-            <p>
-              工程自检入口：真实 CLI 单场景处理、方法指标与契约门禁测试；不签发正式标准合规
-            </p>
+            <p>所选模式会运行 VCP 单场景、生成 42 项工程评估并运行回归测试。</p>
           </div>
           <div className="alignment-runner-badges">
             <span className="alignment-runner-badge" style={{ background: "#eff6ff", color: "#1d4ed8", borderColor: "#bfdbfe", fontWeight: 600 }}>
@@ -408,17 +534,9 @@ export default function ItuAlignment() {
         {/* Controls & Execution Button */}
         <div className="alignment-runner-controls">
           <div className="alignment-scope-select">
-            <label htmlFor="run-pipeline-select">车载语音增强流水线：</label>
-            <select
-              id="run-pipeline-select"
-              className="alignment-select-input"
-              value={pipeline}
-              disabled={isRunning || runScope !== "full"}
-              onChange={(e) => setPipeline(e.target.value as any)}
-            >
-              <option value="vcp_unified">⚡ VCP Unified · CLI profile: vcp_unified</option>
-              <option value="vcp_joint">🔄 VCP Joint · CLI profile: vcp_joint</option>
-              <option value="vcp_default">📦 VCP 传统标准基线 · CLI profile: vcp</option>
+            <label htmlFor="run-mode-select">业务模式（与流程图同步）：</label>
+            <select id="run-mode-select" className="alignment-select-input" value={selectedMode} disabled={isRunning || batchRunning || externalRunning || runScope !== "full"} onChange={event => setSelectedMode(event.target.value as FiveSignalMode)}>
+              {FIVE_SIGNAL_MODES.map(mode => <option key={mode} value={mode}>{mode}</option>)}
             </select>
           </div>
 
@@ -431,7 +549,7 @@ export default function ItuAlignment() {
               disabled={isRunning}
               onChange={(e) => setRunScope(e.target.value as any)}
             >
-              <option value="full">⚡ 工程全检：真实 CLI 单场景 + 三组 pytest</option>
+              <option value="full">⚡ 工程联动：CLI 单场景 + 42 项评估 + 三组 pytest</option>
               <option value="methods">🔍 方法指标自检：仅 pytest，不运行音频 CLI</option>
               <option value="contract">📋 契约与防遮掩自检：仅 pytest，不运行音频 CLI</option>
             </select>
@@ -451,7 +569,7 @@ export default function ItuAlignment() {
             {/* Main One-Click Execution Button */}
             <button
               className="alignment-run-btn"
-              disabled={isRunning}
+              disabled={isRunning || batchRunning || externalRunning}
               onClick={handleRunTest}
               title="点击立即执行工程自检；结果不会升级为正式标准合规"
             >
@@ -670,6 +788,7 @@ export default function ItuAlignment() {
             {/* Test Conclusion & Terminal Toggle */}
             {lastRunResult && (
               <div
+                className="alignment-result-banner"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -681,7 +800,7 @@ export default function ItuAlignment() {
                   border: `1px solid ${lastRunResult.success ? "#bbf7d0" : "#fecaca"}`,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div className="alignment-result-summary" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   {lastRunResult.success ? (
                     <ShieldCheck size={20} color="#16a34a" />
                   ) : (
@@ -701,6 +820,9 @@ export default function ItuAlignment() {
                       {lastRunResult.skipped_count} · 耗时 {lastRunResult.duration_s}s · 范围{" "}
                       {lastRunResult.scope} · 标准合规：未测
                     </span>
+                    {lastRunResult.evaluation && <span style={{display: "block", fontSize: "0.8rem"}} role="status">
+                      已归档 {lastRunResult.evaluation.mode} · {lastRunResult.evaluation.summary.total} 项工程条目 · 报告 {lastRunResult.evaluation.evaluation_id}；上方流程图已刷新。
+                    </span>}
                   </div>
                 </div>
 
@@ -752,9 +874,9 @@ export default function ItuAlignment() {
 
       {/* Notice & Download Links */}
       <p className="alignment-note">
-        一键执行只做工程自检：全量范围运行一个固定车辆场景样本和测试套件，方法/契约范围只运行
-        pytest。它不会执行 8 模式或 336 项正式声学实测；SI-SDR、STOI、ERLE 与 dBFS
-        也不能替代正式测项所需的声学标定、测试方法与规定信号。
+        全量范围会真实运行所选算法簇，分析实际输出并归档当前业务模式的 42 项工程条目，
+        再运行三组 pytest；方法/契约范围只运行 pytest。单场景与单模式结果不会扩展成
+        8 模式或 336 项正式声学实测。
       </p>
       <div className="alignment-links">
         <a href={`${BASE}/itut-ledger.json`} download>
@@ -770,6 +892,8 @@ export default function ItuAlignment() {
           矩阵报告
         </a>
       </div>
+        </div>
+      </section>
 
       {/* Section Tabs */}
       <div className="alignment-sections" role="group" aria-label="验收分区">

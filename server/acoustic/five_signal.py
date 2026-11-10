@@ -12,8 +12,10 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import re
+import tempfile
 from threading import Lock
 from typing import Literal
 import uuid
@@ -29,11 +31,11 @@ from . import service
 
 ROLE_ORDER = ("near_end", "noise", "microphone", "far_end", "reference")
 ROLE_LABELS = {
-    "near_end": "近端音频",
-    "noise": "噪音",
-    "microphone": "麦克音",
-    "far_end": "远端音频",
-    "reference": "参考音",
+    "near_end": "VCP 处理后的近端输出",
+    "noise": "独立噪声输入",
+    "microphone": "麦克风混合输入",
+    "far_end": "远端播放信号 / 回声参考",
+    "reference": "干净近端参考",
 }
 DECODE_ROLE = {
     "near_end": "after",
@@ -353,6 +355,21 @@ def _compare(value: float | None, lower, upper) -> str:
     return "pass"
 
 
+def _noise_shape_difference(before: np.ndarray, after: np.ndarray, rate: int) -> float | None:
+    """Level-independent log-PSD distance; diagnostic, not a CNG tolerance mask."""
+    size = min(1024, len(before), len(after))
+    if size < 32:
+        return None
+    _, first = signal.welch(before, rate, nperseg=size)
+    _, second = signal.welch(after, rate, nperseg=size)
+    if first.sum() <= 1e-20 or second.sum() <= 1e-20:
+        return None
+    first, second = first / first.sum(), second / second.sum()
+    active = np.maximum(first, second) > 1e-8
+    delta = 10 * np.log10(np.maximum(first[active], 1e-12) / np.maximum(second[active], 1e-12))
+    return float(np.sqrt(np.mean(delta * delta)))
+
+
 def _response_mask(bandwidth: str, direction: str) -> dict | None:
     if bandwidth != "SWB" or direction != "send":
         return None
@@ -377,16 +394,65 @@ def _persist_inputs(
     return records
 
 
+def _write_json_atomic(path: Path, value: dict) -> bytes:
+    data = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    descriptor, temporary = tempfile.mkstemp(
+        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    except Exception:
+        # Preserve incomplete evidence when publishing fails; never clean it up.
+        raise
+    return data
+
+
+def _report_identity(destination: Path, payload: dict) -> tuple[dict, dict]:
+    destination.mkdir(parents=True, exist_ok=True)
+    payload_path = destination / "result.payload.json"
+    if payload_path.exists():
+        payload_bytes = payload_path.read_bytes()
+    else:
+        payload_bytes = _write_json_atomic(payload_path, payload)
+    identity = {
+        "path": str(payload_path.relative_to(service.BUILD)),
+        "sha256": hashlib.sha256(payload_bytes).hexdigest(),
+    }
+    return identity, {**payload, "result": identity}
+
+
 def _persist_report(report: dict) -> dict:
     destination = service.BUILD / "five-signal-evaluations" / report["evaluation_id"]
     with _WRITE_LOCK:
         destination.mkdir(parents=True, exist_ok=False)
         path = destination / "result.json"
-        path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
-    return {
-        "path": str(path.relative_to(service.BUILD)),
-        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-    }
+        payload = {key: value for key, value in report.items() if key != "result"}
+        identity, persisted = _report_identity(destination, payload)
+        _write_json_atomic(path, persisted)
+    return identity
+
+
+def _migrate_report_identity(path: Path) -> dict:
+    with _WRITE_LOCK:
+        current = json.loads(path.read_text(encoding="utf-8"))
+        payload = {key: item for key, item in current.items() if key != "result"}
+        payload_path = path.parent / "result.payload.json"
+        if payload_path.exists():
+            existing_payload = payload_path.read_bytes()
+            digest = hashlib.sha256(existing_payload).hexdigest()
+            identity = {
+                "path": str(payload_path.relative_to(service.BUILD)),
+                "sha256": digest,
+            }
+            persisted = {**payload, "result": identity}
+        else:
+            identity, persisted = _report_identity(path.parent, payload)
+        _write_json_atomic(path, persisted)
+        return persisted
 
 
 def get_evaluation(evaluation_id: str) -> dict | None:
@@ -399,10 +465,19 @@ def get_evaluation(evaluation_id: str) -> dict | None:
         value = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError):
         return None
-    return value if isinstance(value, dict) else None
+    if not isinstance(value, dict):
+        return None
+    persisted = value.get("result")
+    if (
+        not isinstance(persisted, dict)
+        or not isinstance(persisted.get("path"), str)
+        or not isinstance(persisted.get("sha256"), str)
+    ):
+        return _migrate_report_identity(path)
+    return value
 
 
-def list_evaluations(limit: int = 20) -> list[dict]:
+def list_evaluations(limit: int = 20, algorithm_cluster_id: str | None = None) -> list[dict]:
     root = service.BUILD / "five-signal-evaluations"
     if not root.is_dir():
         return []
@@ -412,21 +487,30 @@ def list_evaluations(limit: int = 20) -> list[dict]:
         reverse=True,
     )
     rows = []
-    for path in paths[:max(1, min(limit, 100))]:
+    for path in paths:
         try:
             value = json.loads(path.read_text())
         except (OSError, json.JSONDecodeError):
             continue
         if not isinstance(value, dict):
             continue
+        execution = value.get("execution")
+        if algorithm_cluster_id is not None and (
+            not isinstance(execution, dict)
+            or execution.get("algorithm_cluster_id") != algorithm_cluster_id
+        ):
+            continue
         rows.append({
             "evaluation_id": value.get("evaluation_id"),
             "created_at": value.get("created_at"),
             "mode": value.get("mode"),
             "summary": value.get("summary"),
+            "execution": execution,
             "standard_compliance": False,
             "formal_test_status": "not_measured",
         })
+        if len(rows) >= max(1, min(limit, 100)):
+            break
     return rows
 
 
@@ -510,15 +594,15 @@ def _family_source(
         return (
             "double_talk_transparent_percent",
             value,
-            _compare(value, lower, upper),
-            "按双讲有效帧输出衰减 ≤3 dB 估计透传比例；不是 A1/A2 标准分类器",
+            "review_required",
+            "双讲区段输出/输入功率比（0–150%）；非逐帧透传率或 A1/A2 标准分类器",
         )
     if family == "tclw":
         value = values.get("echo_loss_db")
         return (
             "echo_loss_db",
             value,
-            _compare(value, lower, upper),
+            "review_required",
             "参考播放至麦克风的工程耦合损耗；未执行 TCLw 计权和正式声学标定",
         )
     if family == "hats_snr":
@@ -526,7 +610,7 @@ def _family_source(
         return (
             "output_snr_db",
             value,
-            _compare(value, lower, upper),
+            "review_required",
             "由近端语音和麦克风噪声帧估计；没有 HATS 声压标定",
         )
     if family == "cng_level":
@@ -541,7 +625,7 @@ def _family_source(
             "noise_spectrum_change_db",
             values.get("noise_spectrum_change_db"),
             "review_required",
-            "处理前后噪声谱差异不是合同 CNG 频谱掩模余量",
+            "归一化噪声功率谱的对数距离；未执行合同 CNG 频谱掩模判定",
         )
     if family in {"g_mos", "n_mos", "s_mos"}:
         return None, None, "not_measured", "五路 PCM 未提供批准的 G/N/S-MOS 模型或主观评分"
@@ -554,6 +638,8 @@ def evaluate_five_signal(
     uploads: dict[str, tuple[str, bytes]],
     channel: int = 0,
     max_delay_ms: float = 2000,
+    execution: dict | None = None,
+    persist: bool = True,
 ) -> dict:
     bandwidth, transport, rows = _mode_spec(mode)
     if set(uploads) != set(ROLE_ORDER):
@@ -564,6 +650,8 @@ def evaluate_five_signal(
         raise FiveSignalError("channel must be 0..7")
     if not math.isfinite(max_delay_ms) or not 0 < max_delay_ms <= 5000:
         raise FiveSignalError("max_delay_ms must be in 0..5000")
+    if not isinstance(persist, bool):
+        raise FiveSignalError("persist must be a boolean")
     traces = {
         role: _decode_trace(role, uploads[role][0], uploads[role][1])
         for role in ROLE_ORDER
@@ -574,7 +662,7 @@ def evaluate_five_signal(
 
     reference_activity, window, hop, reference_floor = _activity(samples["reference"], rate)
     if np.count_nonzero(reference_activity) < 3:
-        raise FiveSignalError("参考音没有足够的有效语音活动")
+        raise FiveSignalError("干净近端参考没有足够的有效语音活动")
     far_activity, _, _, far_floor = _activity(samples["far_end"], rate)
 
     reference_mask = _frame_mask(reference_activity, window, hop, length)
@@ -702,12 +790,9 @@ def evaluate_five_signal(
     values["output_noise_peak_prominence_db"] = noise_values[
         "noise_peak_prominence_db"
     ]
-    if mic_noise not in (None, 0.0) and output_noise not in (None, 0.0):
-        values["noise_spectrum_change_db"] = abs(
-            _db(output_noise / mic_noise)
-        )
-    else:
-        values["noise_spectrum_change_db"] = None
+    values["noise_spectrum_change_db"] = _noise_shape_difference(
+        mic[noise_only_mask & mic_valid], output[noise_only_mask & output_valid], rate
+    )
 
     input_metadata = {
         role: {
@@ -752,6 +837,9 @@ def evaluate_five_signal(
             value = None
             status = "invalid"
             reason = "计算值不是有限数"
+        elif value is None and status != "invalid":
+            status = "not_measured"
+            reason = f"没有有效数值；{reason}"
         items.append({
             "item_id": row["id"],
             "source_cell": row["source_cell"],
@@ -776,7 +864,11 @@ def evaluate_five_signal(
         status: sum(item["status"] == status for item in items)
         for status in ("pass", "fail", "review_required", "not_measured", "invalid")
     }
-    measured = len(items) - counts["not_measured"] - counts["invalid"]
+    measured = sum(
+        item["value"] is not None and math.isfinite(item["value"])
+        and item["status"] not in {"not_measured", "invalid"}
+        for item in items
+    )
     evaluation_id = uuid.uuid4().hex
     report = {
         "schema_version": 1,
@@ -818,8 +910,22 @@ def evaluate_five_signal(
             "接收方向、HATS 标定、POLQA/TMOS、G/N/S-MOS 和正式 CNG 判据仍需对应测量或方法包。",
         ],
     }
-    report["evidence"] = _persist_inputs(evaluation_id, traces, {
-        role: uploads[role][1] for role in ROLE_ORDER
-    })
-    report["result"] = _persist_report(report)
+    if execution is not None:
+        if execution.get("output_sha256") != traces["near_end"].sha256:
+            raise FiveSignalError("执行输出身份与 VCP 处理后的近端输出不一致")
+        report["execution"] = execution
+    if persist:
+        report["evidence"] = _persist_inputs(evaluation_id, traces, {
+            role: uploads[role][1] for role in ROLE_ORDER
+        })
+        report["result"] = _persist_report(report)
+    else:
+        report["persistence"] = {
+            "mode": "transient",
+            "persisted": False,
+            "note": (
+                "intermediate calculation only; no evidence or result files "
+                "were written"
+            ),
+        }
     return report

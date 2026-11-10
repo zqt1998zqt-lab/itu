@@ -1,5 +1,6 @@
 """Auditable one-click engineering self-check for the ITU audio stack."""
 from __future__ import annotations
+from contextlib import nullcontext
 
 import hashlib
 import json
@@ -13,9 +14,14 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 import xml.etree.ElementTree as ET
 
-from fastapi import APIRouter, Body
-from pydantic import BaseModel, ConfigDict
+from fastapi import APIRouter, Body, HTTPException
+from pydantic import BaseModel, ConfigDict, field_validator
 from starlette.concurrency import run_in_threadpool
+import numpy as np
+import soundfile as sf
+
+from server.synthesize import CHAIN_CATALOG, _chain_flags
+from server.acoustic.five_signal import evaluate_five_signal
 
 router = APIRouter(prefix="/api/alignment", tags=["alignment-runner"])
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -28,12 +34,29 @@ CLI_CANDIDATES = [
 
 DEFAULT_MIC = (
     PROJECT_ROOT
-    / "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m2-cold-snr0/before.wav"
+    / "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m2-multirender-snr15/before.wav"
 )
 DEFAULT_REF = (
     PROJECT_ROOT
-    / "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m2-cold-snr0/ref.wav"
+    / "datasets/itu-vehicle-fields-float-20261010/cases/field-p0-m2-multirender-snr15/ref.wav"
 )
+DATASET_ID = "field-p0-m2-multirender-snr15"
+DATASET_ROLES = {
+    "microphone": "before.wav",
+    "noise": "noise-component.wav",
+    "far_end": "playback.wav",
+    "reference": "clean-beam.wav",
+}
+
+
+def resolve_algorithm_cluster(identifier: str) -> tuple[dict, list[str], dict, str]:
+    catalog = json.loads(CHAIN_CATALOG.read_bytes())
+    preset = next((row for row in catalog["presets"] if row["id"] == identifier), None)
+    if preset is None:
+        raise ValueError(f"未知算法簇: {identifier}")
+    configuration = {key: preset[key] for key in ("profile", "selection", "extra_flags") if key in preset}
+    flags, canonical, digest = _chain_flags(preset["profile"], configuration)
+    return preset, flags, canonical, digest
 
 PIPELINE_SPECS: dict[str, dict[str, str]] = {
     "vcp_unified": {
@@ -72,10 +95,23 @@ SCOPE_TEST_FILES = {
 
 
 class AlignmentRunRequest(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    pipeline: Literal["vcp_unified", "vcp_joint", "vcp_default"] = "vcp_unified"
+    model_config = ConfigDict(extra="forbid")
+    pipeline: str = "vcp_unified"
+    algorithm_cluster_id: str | None = None
+    mode: Literal["NB-wired", "NB-wireless", "NB-bt", "WB-wired", "WB-wireless", "WB-bt", "SWB-wired", "SWB-wireless"] = "WB-wired"
     scope: Literal["full", "methods", "contract"] = "full"
     strict: bool = True
+
+    @field_validator("pipeline", "algorithm_cluster_id")
+    @classmethod
+    def trusted_preset(cls, value):
+        if value is not None:
+            resolve_algorithm_cluster(value)
+        return value
+
+    @property
+    def cluster_id(self) -> str:
+        return self.algorithm_cluster_id or self.pipeline
 
 
 def resolve_cli() -> Path | None:
@@ -94,7 +130,12 @@ def sha256_file(path: Path) -> str:
 
 
 def _pipeline_spec(pipeline: str) -> dict[str, str]:
-    return PIPELINE_SPECS[pipeline]
+    preset, _, _, _ = resolve_algorithm_cluster(pipeline)
+    return {
+        "cli_profile": preset["profile"],
+        "name": preset["label"],
+        "topology": "BF → AEC → NS → EQ → AGC → DRC → limiter → TX OUT",
+    }
 
 
 def _junit_file(classname: str, file_attr: str | None) -> str:
@@ -260,6 +301,13 @@ def validate_pipeline_artifacts(
         header = output_path.read_bytes()[:12]
         if len(header) < 12 or header[:4] != b"RIFF" or header[8:12] != b"WAVE":
             errors.append(f"输出音频不是有效 WAV: {output_path.name}")
+        else:
+            try:
+                samples, _ = sf.read(output_path, always_2d=True)
+                if not len(samples) or samples.shape[1] != 1 or not np.isfinite(samples).all():
+                    errors.append("输出音频为空、非单通道或包含非有限样本")
+            except (RuntimeError, ValueError) as error:
+                errors.append(f"输出 WAV 无法解码: {error}")
     return data, errors
 
 
@@ -286,10 +334,10 @@ def _pipeline_payload(
     data: dict[str, Any] | None,
     returncode: int | None,
 ) -> dict[str, Any]:
-    spec = _pipeline_spec(request.pipeline)
+    spec = _pipeline_spec(request.cluster_id)
     payload = data or {}
     return {
-        "id": request.pipeline,
+        "id": request.cluster_id,
         "cli_profile": spec["cli_profile"],
         "name": spec["name"],
         "topology": spec["topology"],
@@ -309,7 +357,9 @@ def _pipeline_payload(
 
 def run_alignment_suite(request: AlignmentRunRequest) -> dict[str, Any]:
     started = time.monotonic()
-    spec = _pipeline_spec(request.pipeline)
+    spec = _pipeline_spec(request.cluster_id)
+    preset, chain_flags, configuration, catalog_sha256 = resolve_algorithm_cluster(request.cluster_id)
+    evaluation = None
     selected_files = SCOPE_TEST_FILES[request.scope]
     pipeline_required = request.scope == "full"
     failure_reasons: list[str] = []
@@ -317,27 +367,34 @@ def run_alignment_suite(request: AlignmentRunRequest) -> dict[str, Any]:
     log: list[str] = [
         "=" * 72,
         "ITU Audio engineering self-check",
-        f"scope={request.scope} pipeline={request.pipeline} strict={request.strict}",
+        f"scope={request.scope} algorithm_cluster={request.cluster_id} mode={request.mode} strict={request.strict}",
         "formal standard compliance: NOT MEASURED",
         "=" * 72,
     ]
 
-    with tempfile.TemporaryDirectory(prefix="itu-alignment-") as temp_dir:
+    with nullcontext(tempfile.mkdtemp(prefix="itu-alignment-")) as temp_dir:
         temp = Path(temp_dir)
         output_prefix = temp / "result"
 
         # Stage 1: validate exactly what this scope claims to execute.
         stage_started = time.monotonic()
         cli = resolve_cli()
-        required_inputs = [DEFAULT_MIC, DEFAULT_REF] if pipeline_required else []
+        dataset_dir = DEFAULT_MIC.parent
+        required_inputs = list(dict.fromkeys([
+            DEFAULT_MIC, DEFAULT_REF, dataset_dir / "scene.json",
+            *(dataset_dir / filename for filename in DATASET_ROLES.values()),
+        ])) if pipeline_required else []
         test_paths = [PROJECT_ROOT / file_path for file_path in selected_files]
         missing = [str(path) for path in [*required_inputs, *test_paths] if not path.is_file()]
         if pipeline_required and cli is None:
             missing.append("itu_audio_cli")
         stage1_ok = not missing
+        audio_inputs = [path for path in required_inputs if path.suffix.lower() == ".wav"]
         stage1_detail = (
             f"{cli.name if cli else 'CLI 未找到'} · "
-            f"{len(required_inputs)} 个音频输入 · {len(test_paths)} 个测试文件"
+            f"{len(audio_inputs)} 个音频输入 · "
+            f"{len(required_inputs) - len(audio_inputs)} 个场景清单 · "
+            f"{len(test_paths)} 个测试文件"
         )
         if missing:
             stage1_detail += f" · 缺失: {', '.join(missing)}"
@@ -401,6 +458,7 @@ def run_alignment_suite(request: AlignmentRunRequest) -> dict[str, Any]:
                 str(cli),
                 "--profile",
                 spec["cli_profile"],
+                *chain_flags,
                 "--mic",
                 str(DEFAULT_MIC),
                 "--echo",
@@ -472,6 +530,50 @@ def run_alignment_suite(request: AlignmentRunRequest) -> dict[str, Any]:
                 )
             )
 
+        if not pipeline_required:
+            stages.append(
+                _stage(
+                    3,
+                    "实际输出五路评估与归档",
+                    "当前范围只运行 pytest，不生成五路评估报告",
+                    "skipped",
+                    0,
+                )
+            )
+        if pipeline_required:
+            assessment_started = time.monotonic()
+            if pipeline_ok:
+                try:
+                    output_path = Path(f"{output_prefix}.after.wav")
+                    uploads = {role: (name, (dataset_dir / name).read_bytes()) for role, name in DATASET_ROLES.items()}
+                    uploads["near_end"] = ("result.after.wav", output_path.read_bytes())
+                    scene = json.loads((dataset_dir / "scene.json").read_text())
+                    execution = {
+                        "source": "alignment_cli", "algorithm_cluster_id": request.cluster_id,
+                        "algorithm_cluster_label": preset["label"], "configuration": configuration,
+                        "catalog_sha256": catalog_sha256, "cli_sha256": sha256_file(cli),
+                        "command": cli_cmd, "output_sha256": sha256_file(output_path),
+                        "dataset_id": DATASET_ID, "dataset_scene_sha256": sha256_file(dataset_dir / "scene.json"),
+                        "dataset_scene": {key: scene.get(key) for key in ("family", "noise", "snr_db", "near_schedule", "far_schedule", "sample_rate", "seconds")},
+                        "input_sha256": {path.name: sha256_file(path) for path in required_inputs},
+                        "baseline": "mixed microphone channel 0; clean-beam near target; calibrated multi-microphone CLI input",
+                        "rx_processing": False, "scope": "single scene, one selected contract mode; no transport simulation",
+                        "pipeline_report": pipeline_data,
+                    }
+                    evaluation = evaluate_five_signal(mode=request.mode, uploads=uploads, execution=execution)
+                    assessment_detail = f"{request.mode} · 42 项工程映射 · 报告 {evaluation['evaluation_id']}"
+                    log.append(f"five_signal_evaluation={evaluation['evaluation_id']} output_sha256={execution['output_sha256']}")
+                except (OSError, ValueError, RuntimeError) as error:
+                    pipeline_ok = False
+                    assessment_detail = f"实际输出评估失败: {error}"
+                    failure_reasons.append(assessment_detail)
+                    log.append(assessment_detail)
+            else:
+                assessment_detail = "VCP 执行失败，未生成评估报告"
+            stages.append(_stage(3, "实际输出五路评估与归档", assessment_detail,
+                                 "passed" if evaluation else "failed",
+                                 round((time.monotonic() - assessment_started) * 1000)))
+
         # Stage 3-5: run pytest once and map real JUnit results into named gates.
         pytest_started = time.monotonic()
         junit_path = temp / "pytest.xml"
@@ -519,19 +621,19 @@ def run_alignment_suite(request: AlignmentRunRequest) -> dict[str, Any]:
 
         group_definitions = [
             (
-                3,
+                4,
                 "方法指标实现自检",
                 TEST_FILE_GROUPS["methods"],
                 "双讲、CNG、连续性等指标函数的正负例",
             ),
             (
-                4,
+                5,
                 "声学证据与门禁实现自检",
                 TEST_FILE_GROUPS["acoustic"],
                 "证据完整性、篡改阻断与仿真不得升格",
             ),
             (
-                5,
+                6,
                 "契约台账与防遮掩实现自检",
                 TEST_FILE_GROUPS["contract"],
                 "台账、发布门禁与失败不得被退出码 0 遮掩",
@@ -650,6 +752,8 @@ def run_alignment_suite(request: AlignmentRunRequest) -> dict[str, Any]:
                 for group, file_path in TEST_FILE_GROUPS.items()
             },
             "pipeline": pipeline_payload,
+            "algorithm_cluster_id": request.cluster_id,
+            "evaluation": ({key: evaluation[key] for key in ("evaluation_id", "mode", "summary", "execution", "result")} if evaluation else None),
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -675,12 +779,12 @@ def get_runner_status() -> dict[str, Any]:
                 "label": f"{spec['name']} (CLI profile: {spec['cli_profile']})",
                 "recommended": pipeline == "vcp_unified",
             }
-            for pipeline, spec in PIPELINE_SPECS.items()
+            for pipeline, spec in ((preset["id"], _pipeline_spec(preset["id"])) for preset in json.loads(CHAIN_CATALOG.read_bytes())["presets"])
         ],
         "supported_scopes": [
             {
                 "id": "full",
-                "label": "工程全检（真实 CLI 单场景 + 三组 pytest；不执行 8 模式或 336 项正式实测）",
+                "label": "工程联动（真实 CLI 单场景 + 单模式 42 项工程评估 + 三组 pytest；非 336 项正式实测）",
                 "recommended": True,
             },
             {
@@ -702,4 +806,13 @@ def get_runner_status() -> dict[str, Any]:
 async def execute_alignment_run(
     request: AlignmentRunRequest = Body(default=AlignmentRunRequest()),
 ) -> dict[str, Any]:
-    return await run_in_threadpool(run_alignment_suite, request)
+    from server.acoustic import acceptance_batch
+    with acceptance_batch._LOCK:
+        if acceptance_batch._ACTIVE or acceptance_batch._LEGACY_ACTIVE:
+            raise HTTPException(409, "已有音频测试正在执行，请等待批次或单场景测试完成")
+        acceptance_batch._LEGACY_ACTIVE = True
+    try:
+        return await run_in_threadpool(run_alignment_suite, request)
+    finally:
+        with acceptance_batch._LOCK:
+            acceptance_batch._LEGACY_ACTIVE = False

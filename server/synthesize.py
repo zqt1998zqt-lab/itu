@@ -23,7 +23,7 @@ import numpy as np
 import soundfile as sf
 from scipy import signal
 
-from server.audio import MAX_SECONDS, Audio, AudioError, db, decode, describe, power
+from server.audio import MAX_SECONDS, ROLES, Audio, AudioError, db, decode, describe, power
 
 ROOT = Path(__file__).resolve().parents[1]
 # The engine takes its rate from the microphone WAV and only implements 10 ms
@@ -37,7 +37,11 @@ CANDIDATE_BINARIES = (
     "build/itu_audio_cli",
     "build/rtd-low-delay-20261014-top/cpp/itu_audio_cli",
 )
-ROLE_TITLE = {"microphone": "麦克音", "reference": "参考音"}
+ROLE_TITLE = {
+    "microphone": "麦克风混合输入",
+    "reference": "远端播放信号 / 回声参考",
+    "clean": "干净近端参考",
+}
 
 
 def cli_path() -> Path:
@@ -55,19 +59,19 @@ def cli_path() -> Path:
 
 
 
-SUPPORTED_PROFILES = {"general", "vcp", "vcp_joint", "vehicle_stream"}
+SUPPORTED_PROFILES = {"general", "vcp", "vcp_joint", "vcp_unified", "vehicle_stream"}
 CHAIN_CATALOG = ROOT / "src/features/enhancement-chain-configs.json"
 
 
 def _chain_flags(profile: str, chain: dict | None) -> tuple[list[str], dict | None, str | None]:
     """Resolve trusted catalog choices, never client-supplied CLI arguments."""
     if profile not in SUPPORTED_PROFILES:
-        raise AudioError("不支持的处理档位；请选择 vcp、vcp_joint、general 或 vehicle_stream")
+        raise AudioError("不支持的处理档位；请选择 vcp、vcp_joint、vcp_unified、general 或 vehicle_stream")
     if chain is None:
         return [], None, None
     if not isinstance(chain, dict) or set(chain) - {"profile", "selection", "extra_flags"}:
         raise AudioError("链路配置只允许 profile、selection 和预设声明的 extra_flags")
-    if chain.get("profile") != profile or profile not in {"general", "vcp", "vcp_joint"}:
+    if chain.get("profile") != profile or profile not in {"general", "vcp", "vcp_joint", "vcp_unified"}:
         raise AudioError("链路档位与请求档位不一致或不支持")
     catalog_bytes = CHAIN_CATALOG.read_bytes()
     catalog = json.loads(catalog_bytes)
@@ -103,21 +107,21 @@ def _chain_flags(profile: str, chain: dict | None) -> tuple[list[str], dict | No
 
 def _microphone_flags(channels: int, mode: str | None, delays, chain: dict | None, rate: int):
     if channels not in {1, 2, 4}:
-        raise AudioError("引擎麦克风录音必须保留 1、2 或 4 个同步声道")
+        raise AudioError("麦克风混合输入必须保留 1、2 或 4 个同步声道")
     if mode not in {None, "channel0", "beamform"}:
         raise AudioError("microphone_mode 只能是 channel0 或 beamform")
     if channels > 1 and mode is None:
-        raise AudioError("多麦录音需明确选择第 1 麦克风，或提供逐通道标定延迟进行波束形成")
+        raise AudioError("多声道麦克风混合输入需明确选择第 1 声道，或提供逐通道标定延迟进行波束形成")
     mode = mode or "channel0"
     bf = chain["selection"]["bf"] if chain else None
     if mode == "channel0":
         if delays not in (None, []):
-            raise AudioError("第 1 麦克风模式不能同时提供波束延迟")
+            raise AudioError("第 1 声道模式不能同时提供波束延迟")
         if chain and ((channels > 1 and bf != "off") or (channels == 1 and bf not in {"off", "das"})):
             raise AudioError("所选 BF 需要多麦标定：请选择 BF 旁路，或选择波束形成并提供标定延迟")
         return mode, ["--no-bf"]
     if channels == 1:
-        raise AudioError("波束形成需要 2 或 4 个麦克风声道")
+        raise AudioError("波束形成需要 2 或 4 个同步声道")
     if bf == "off":
         raise AudioError("波束形成模式不能与 BF 旁路组合")
     if not isinstance(delays, list) or len(delays) != channels:
@@ -242,7 +246,7 @@ def _band_metrics(mic: np.ndarray, reference: np.ndarray, output: np.ndarray, ra
         active = 0.0
     return {
         "available": True,
-        "scope": "全程第1麦克风与固定时延补偿后的输出（含近端段），非 ERLE 或 SI-SDR",
+        "scope": "全程麦克风混合输入第1声道与固定时延补偿后的VCP 处理后的近端输出（含近端段），非 ERLE 或 SI-SDR",
         "level_change_db": round(level_change, 2),
         "band_change_db": bands,
         "reference_active_percent": round(active, 1),
@@ -285,12 +289,12 @@ def _mel_spectrogram(x: np.ndarray, rate: int, bands: int = 40, max_frames: int 
 def _quality_scores(clean: np.ndarray | None, output: np.ndarray, rate: int = 16000) -> dict:
     """SI-SDR and STOI against a clean near-end reference, when one is supplied."""
     if clean is None:
-        return {"available": False, "reason": "未提供干净近端，无法计算 SI-SDR / STOI"}
+        return {"available": False, "reason": "未提供干净近端参考，无法计算 SI-SDR / STOI"}
     n = min(len(clean), len(output))
     c = clean[:n].astype(np.float64)
     o = output[:n].astype(np.float64)
     if n < rate // 10 or power(c) < 1e-12 or power(o) < 1e-12:
-        return {"available": False, "reason": "干净近端或输出电平过低/长度不足"}
+        return {"available": False, "reason": "干净近端参考或VCP 处理后的近端输出电平过低/长度不足"}
     scale = float(np.dot(o, c) / max(np.dot(c, c), 1e-20))
     projected = scale * c
     residual = o - projected
@@ -307,7 +311,7 @@ def _quality_scores(clean: np.ndarray | None, output: np.ndarray, rate: int = 16
         "available": True,
         "si_sdr_db": round(si_sdr, 2),
         "stoi": None if stoi_value is None else round(stoi_value, 4),
-        "scope": "按引擎声明固定时延补偿后比较用户干净近端；不搜索最佳时延；STOI 使用实际采样率",
+        "scope": "按引擎声明固定时延补偿后比较用户干净近端参考；不搜索最佳时延；STOI 使用实际采样率",
     }
 
 
@@ -337,14 +341,21 @@ def synthesize(
     ref = _resample(reference.data, reference.rate, target)[: target * MAX_SECONDS]
     frames = min(len(mic), len(ref))
     if frames < target // 10:
-        raise AudioError("麦克音与参考音都至少需要 0.1 秒")
+        raise AudioError("麦克风混合输入与远端播放信号 / 回声参考都至少需要 0.1 秒")
     if power(mic) < 1e-12:
-        raise AudioError("麦克音是静音，无法生成输出")
+        raise AudioError("麦克风混合输入是静音，无法生成输出")
     trimmed = (len(mic) - frames) / target + (len(ref) - frames) / target
     mic, ref = mic[:frames], ref[:frames]
     clean = None
     if clean_blob:
-        decoded_clean = decode("after", clean_name or "clean.wav", clean_blob)
+        try:
+            decoded_clean = decode("after", clean_name or "clean.wav", clean_blob)
+        except AudioError as error:
+            detail = str(error)
+            output_prefix = f"{ROLES['after']}："
+            if detail.startswith(output_prefix):
+                detail = detail[len(output_prefix):]
+            raise AudioError(f"{ROLE_TITLE['clean']}：{detail}") from error
         clean = _resample(decoded_clean.data, decoded_clean.rate, target)[:frames]
 
     binary = cli_path()
@@ -536,15 +547,15 @@ def synthesis_graphics(context: dict):
     after_audio = Audio("after", "processed.wav", after[delay:delay + common, 0], rate,
                         1, 0, "WAV", context["after_sha256"], after_path.stat().st_size)
     report, figures = analyze_graphics(before_audio, after_audio, GraphOptions(
-        sample_rate=rate, align=False, before_label="第1麦克风输入", after_label="本次链路输出"))
+        sample_rate=rate, align=False, before_label="麦克风混合输入第1声道", after_label="VCP 处理后的近端输出"))
     report["alignment"] = {"requested": False, "applied": True, "method": "declared_dsp_delay",
         "delay_ms": delay * 1000 / rate, "correlation": None, "reliable": None,
         "note": "按本次引擎报告固定时延补偿输出；未搜索相关峰，未调整电平。"}
     report["notices"] = [note for note in report["notices"] if "共同起点" not in note]
     report["notices"].extend([
-        f"本次输出按引擎声明固定补偿 {delay} 样本（{delay * 1000 / rate:.3f} ms），无最佳时延搜索或电平归一化。",
-        "处理前显示上传录音第1麦克风，保留原电平；多麦波束形成时它不等同于校准DAS目标，差分图只观察电平与频谱变化。",
-        "播放参考的全部同步声道均用于执行；输入预览仅显示参考第1声道，不代表执行被截断。",
+        f"VCP 处理后的近端输出按引擎声明固定补偿 {delay} 样本（{delay * 1000 / rate:.3f} ms），无最佳时延搜索或电平归一化。",
+        "麦克风混合输入显示第1声道并保留原电平；多声道波束形成时它不等同于校准DAS目标，差分图只观察电平与频谱变化。",
+        "远端播放信号 / 回声参考的全部同步声道均用于执行；输入预览仅显示第1声道，不代表执行被截断。",
     ])
     report["synthesis"] = {key: value for key, value in context.items() if key != "work"}
     report["synthesis"].update({"fixed_delay_samples": delay, "before_scope": "microphone_channel_1",
@@ -560,23 +571,23 @@ DEMO_SECONDS = 8.0
 DEMOS = (
     {
         "id": "echo_and_noise",
-        "label": "回声 + 车噪风噪",
-        "description": "近端单讲、远端单讲与双讲依次出现，麦克风含声学回声、车内路噪与车窗阵风噪声。",
+        "label": "远端播放信号 / 回声参考 + 车噪风噪",
+        "description": "近端单讲、远端单讲与双讲依次出现，麦克风混合输入含声学回声、车内路噪与车窗阵风噪声。",
     },
     {
         "id": "near_only",
         "label": "仅近端 + 车噪风噪",
-        "description": "参考音为数字静音，麦克风含近端语音、车内路噪与车窗风噪。",
+        "description": "远端播放信号 / 回声参考为数字静音，麦克风混合输入含近端语音、车内路噪与车窗风噪。",
     },
     {
         "id": "wrong_reference",
-        "label": "参考不可靠",
-        "description": "参考音与麦克风内容不相关，用于观察车噪风噪与回声共存时的参考可靠性保护。",
+        "label": "回声参考不可靠",
+        "description": "远端播放信号 / 回声参考与麦克风混合输入内容不相关，用于观察车噪风噪与回声共存时的参考可靠性保护。",
     },
     {
         "id": "far_end_stops",
-        "label": "远端中途停止",
-        "description": "远端播放至 2.6 秒停止，用于观察车噪风噪底噪下的回声尾迹与保护释放。",
+        "label": "回声参考中途停止",
+        "description": "远端播放信号 / 回声参考在 2.6 秒停止播放，用于观察车噪风噪底噪下的回声尾迹与保护释放。",
     },
 )
 DEMO_IDS = tuple(item["id"] for item in DEMOS)

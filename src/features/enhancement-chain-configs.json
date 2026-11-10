@@ -74,7 +74,7 @@
       "id": "aec",
       "label": "AEC 回声消除",
       "tab": "aec",
-      "description": "接收 BF 波束与实际播放参考。DTD、参考可靠性与语音保护属于控制支路。",
+      "description": "接收 BF 波束与远端播放信号 / 回声参考。DTD、参考可靠性与语音保护属于控制支路。",
       "source": "cpp/src/speex_aec_pipeline.hpp · cpp/src/audio_engine.cpp",
       "options": [
         {

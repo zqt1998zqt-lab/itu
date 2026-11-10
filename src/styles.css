@@ -202,6 +202,16 @@ p {
   color: #2563eb;
   font-weight: 600;
 }
+.nav-item.nav-item-sub {
+  margin-left: 14px;
+  padding-left: 18px;
+  border-left: 1px solid var(--border);
+  font-size: .92em;
+}
+.nav-item.nav-item-sub svg {
+  width: 15px;
+  height: 15px;
+}
 .nav-active-dot {
   height: 5px;
   width: 5px;
@@ -311,6 +321,18 @@ p {
   max-width: 1536px;
   margin: 0 auto;
 }
+
+.main-content.is-acceptance {
+  max-width: none;
+  margin-inline: 0;
+}
+
+.main-content.is-acceptance .basic-uplink-page,
+.main-content.is-acceptance .alignment-page {
+  max-width: none;
+  margin-inline: 0;
+}
+
 .page-header {
   display: flex;
   align-items: center;

@@ -34,6 +34,8 @@ import type {
   AudioWindow,
 } from "./domain/audio";
 import { downloadFile } from "./lib/files";
+import AcceptanceWorkspace, { isAcceptanceView } from "./features/AcceptanceWorkspace";
+import { sceneSubpageRoute } from "./features/scoped-acoustic-model";
 import "./audio.css";
 
 const AudioResults = lazy(() => import("./features/AudioResults"));
@@ -49,14 +51,13 @@ const EqPipeline = lazy(() => import("./features/EqPipeline"));
 const EnhancementPipeline = lazy(() => import("./features/EnhancementPipeline"));
 const AudioEvaluation = lazy(() => import("./features/AudioEvaluation"));
 const EcnrEvaluation = lazy(() => import("./features/EcnrEvaluation"));
-const ItuAlignment = lazy(() => import("./features/ItuAlignment"));
 const AudioSynthesize = lazy(() => import("./features/AudioSynthesize"));
 const AudioGraphEngine = lazy(() => import("./features/AudioGraphEngine"));
 const AcousticQualification = lazy(() => import("./features/AcousticQualification").then(module => ({ default: module.AcousticQualification })));
 
 type AppView = View | "ecnr-v2";
 function viewFromHash(): AppView {
-  const value = window.location.hash.slice(1);
+  const value = sceneSubpageRoute(window.location.hash);
   if (value === "ecnr-v2") return "ecnr-v2";
   return NAV.some((item) => item.id === value) ? (value as View) : "workbench";
 }
@@ -64,35 +65,44 @@ const COPY = {
   "ecnr-v2": ["ECNR 协同优化实验", "对照固定基线，查看语音保真、噪声抑制和连续运行的实际结果。"],
   workbench: [
     "从音频，找到改善的依据",
-    "上传参考与录音，计算时延、语音保真、噪声和回声抑制。",
+    "上传麦克风混合输入与处理后发送输出，按需添加干净近端参考、远端播放信号 / 回声参考和独立噪声输入，计算时延、语音保真、噪声与回声抑制。",
   ],
   results: [
     "音频计算结果",
     "查看实际计算值、完整波形与频谱，以及每项指标的有效条件。",
   ],
   synthesize: [
-    "音频输出与失败样本试听",
-    "逐项试听共同失败样本的输入与降噪结果，查看失败指标；也可上传自己的音频，调用现有引擎生成输出。",
+    "发送处理输出（TX）与失败样本试听",
+    "逐项试听共同失败样本的麦克风混合输入与发送处理输出（TX），查看失败指标；也可上传自己的音频，调用现有引擎生成发送处理输出（TX）。",
   ],
   graphs: [
     "音频图形引擎",
-    "上传单文件或处理前后音频，自动生成波形、对数 STFT、频谱差分、LTAS、ERB、短时能量和瞬态分析图。",
+    "上传单文件，或麦克风混合输入与处理后发送输出配对音频，自动生成波形、对数 STFT、频谱差分、LTAS、ERB、短时能量和瞬态分析图。",
   ],
   workflow: ["音频从哪里来，指标如何得到", "沿着信号路径，查看录音位置、处理节点与计算条件。"],
   enhancement: ["综合语音增强链路", "按流程图串联 BF、AEC、降噪、EQ、AGC 与 DRC，查看同一配置的整链评测与案例。"],
   denoise: ["降噪算法与处理链路", "查看项目内的传统、神经、混合和离线对照算法，以及每个算法从 PCM 输入到增强输出的实际工作流。"],
-  aec: ["回声消除链路", "查看 AEC3、Speex MDF、前置波束和多参考保护从麦克风与播放参考到残差输出的实际路径。"],
+  aec: ["回声消除链路", "查看 AEC3、Speex MDF、前置波束和多参考保护从麦克风混合输入与远端播放信号 / 回声参考到处理后发送输出的实际路径。"],
   bf: ["多麦波束形成链路", "对比延迟求和、MVDR、连续 MPDR 与低频风压控制的配对结果和空间场边界。"],
   drc: ["动态范围控制链路", "对比 TX DRC 曲线、软饱和、终级限幅器与未接入的多段、前瞻和 true-peak 技术。"],
   agc: ["自动增益控制链路", "查看默认语句增益、AGC2 执行、协调上限、动态范围保护与未接入的响度技术，以及各自的评测边界。"],
   car3d: ["智能座舱与车载声学", "探索高保真座舱 3D 数字孪生、原厂车漆定制与主驾顶棚双麦拾音波束透视。"],
-  compare: ["处理前后对比", "把噪声变化与语音保真放在一起，看清优化的代价。"],
+  compare: ["麦克风混合输入 / 处理后发送输出", "把麦克风混合输入到处理后发送输出的噪声变化与语音保真放在一起，看清优化的代价。"],
   metrics: ["指标与计算方法", "音频工程计算与原表 17 类实验室指标的对应关系。"],
   evaluation: ["多维音频仿真评测", "浏览真实语音素材的配对数据集，比较不同场景与处理模式。"],
   eq: ["EQ 链路", "频响形状、校准反演与语音质量的同案例配对证据。"],
   alignment: ["ITU-T 对齐验收", "车载连续流、工程门限与正式声学测项。"],
+  "basic-uplink": ["基础上行测试", "选择测试集、业务模式与 VCP 算法簇，独立执行 8 项基础上行并查看逐项结果。"],
+  "basic-downlink": ["基础下行测试", "验证 VCP 接收处理输出（RX）、虚拟双耳声场与合同工程测项。"],
+  echo: ["回声测试", "从麦克风混合输入中的回声与远端播放信号 / 回声参考出发，沿 VCP 上行链路计算 TCLw 工程代理。"],
+  "double-talk": ["双讲测试", "检查近端与远端同时讲话时 VCP 上行链路的近端保护与处理后发送输出功率比。"],
+  "background-noise": ["背景噪声测试", "在 Sce1–Sce4 独立噪声输入工况下评估发送处理输出（TX）质量、舒适噪声电平与频谱。"],
+  "background-noise-idle": ["背景噪声 · 怠速 / 静止", "单独查看 Sce1 怠速 / 静止场景的发送处理输出（TX）质量与舒适噪声工程结果。"],
+  "background-noise-urban": ["背景噪声 · 60 km/h 市区", "单独查看 Sce2 市区行驶场景的发送处理输出（TX）质量与舒适噪声工程结果。"],
+  "background-noise-highway": ["背景噪声 · 120 km/h 高速", "单独查看 Sce3 高速行驶场景的发送处理输出（TX）质量与舒适噪声工程结果。"],
+  "background-noise-hvac": ["背景噪声 · 空调大风档", "单独查看 Sce4 空调大风档场景的发送处理输出（TX）质量与舒适噪声工程结果。"],
   acoustic: ["声学测试系统", "P.1100 / P.1110 / P.1120 标定、测量与证据门禁。"],
-};
+} satisfies Record<AppView, readonly [string, string]>;
 type RangeState = { start: string; end: string };
 function RangeInputs({
   title,
@@ -179,12 +189,21 @@ export default function App() {
     "checking",
   );
   useEffect(() => {
+    let previousRoute = sceneSubpageRoute(window.location.hash);
     const sync = () => {
-      setView(viewFromHash());
-      window.scrollTo({ top: 0 });
+      const route = sceneSubpageRoute(window.location.hash);
+      const routeChanged = route !== previousRoute;
+      previousRoute = route;
+      const nextView = viewFromHash();
+      setView((current) => (current === nextView ? current : nextView));
+      if (routeChanged) window.scrollTo({ top: 0 });
     };
     window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
+    window.addEventListener("popstate", sync);
+    return () => {
+      window.removeEventListener("hashchange", sync);
+      window.removeEventListener("popstate", sync);
+    };
   }, []);
   useEffect(() => {
     const controller = new AbortController();
@@ -269,7 +288,7 @@ export default function App() {
   }
   async function calculate() {
     if (!files.after) {
-      setError("请先上传麦克风处理后音频。");
+      setError("请先上传处理后发送输出。");
       return;
     }
     setBusy(true);
@@ -288,12 +307,12 @@ export default function App() {
         !Number.isFinite(compensation) ||
         Math.abs(compensation) > 2000
       )
-        throw Error("时延搜索需为 10–2000 ms，处理后补偿需为 −2000–2000 ms。");
+        throw Error("时延搜索需为 10–2000 ms，处理后发送输出补偿需为 −2000–2000 ms。");
       const options: AudioOptions = {
         sample_rate: Number(rate),
         channels,
-        speech: parseWindow(speech, "参考比较片段"),
-        noise: noiseEnabled ? parseWindow(noise, "噪声片段") : null,
+        speech: parseWindow(speech, "干净近端参考比较片段"),
+        noise: noiseEnabled ? parseWindow(noise, "独立噪声输入片段") : null,
         far_end: farEnabled ? parseWindow(far, "远端单讲片段") : null,
         max_delay_ms: delay,
         after_offset_ms: compensation,
@@ -373,7 +392,11 @@ export default function App() {
                 : "连接计算服务…"}
           </div>
         </header>
-        <div className="main-content">
+        <div
+          className={`main-content${
+            isAcceptanceView(view) ? " is-acceptance" : ""
+          }`}
+        >
           <div className="page-header">
             <div>
               <h1>{COPY[view][0]}</h1>
@@ -414,7 +437,8 @@ export default function App() {
               )}
             </div>
           </div>
-          <PageBoundary key={view}>
+          <AcceptanceWorkspace activeView={isAcceptanceView(view) ? view : null} />
+          {!isAcceptanceView(view) ? <PageBoundary key={view}>
           <Suspense fallback={<p className="page-loading" role="status"><LoaderCircle size={18} className="spin" />正在加载页面…</p>}>
           {view === "workbench" ? (
             <>
@@ -453,7 +477,7 @@ export default function App() {
               <div className="audio-section-title">
                 <div>
                   <h2>
-                    录音与参考信号 <span>{count} / 4</span>
+                    四路角色录音 <span>{count} / 4</span>
                   </h2>
                   <p>
                     支持 WAV、FLAC、MP3、OGG、M4A、AAC、AIFF。优先使用未压缩
@@ -499,7 +523,7 @@ export default function App() {
                   <div>
                     <h2>片段与计算条件</h2>
                     <p>
-                      时间单位为秒。噪声与回声使用麦克风处理前的时间轴；处理后可指定延迟补偿。
+                      时间单位为秒。独立噪声输入与回声使用麦克风混合输入的时间轴；处理后发送输出可指定延迟补偿。
                     </p>
                   </div>
                 </div>
@@ -537,10 +561,10 @@ export default function App() {
                       />
                     </label>
                     <label>
-                      <span>处理后补偿 / ms</span>
+                      <span>处理后发送输出补偿 / ms</span>
                       <input
                         type="number"
-                        aria-label="处理后延迟补偿毫秒"
+                        aria-label="处理后发送输出延迟补偿毫秒"
                         min="-2000"
                         max="2000"
                         value={offset}
@@ -552,14 +576,14 @@ export default function App() {
                     </label>
                   </div>
                   <p className="config-helper">
-                    采样率统一用于成对计算，文件信息保持原始值。补偿为正时，噪声/回声片段在处理后文件中向后移；相对时延仍独立测量。
+                    采样率统一用于成对计算，文件信息保持原始值。补偿为正时，独立噪声输入 / 回声片段在处理后发送输出中向后移；相对时延仍独立测量。
                   </p>
                   <div className="audio-windows">
                     <div className="window-card">
-                      <h3>参考比较片段</h3>
+                      <h3>干净近端参考比较片段</h3>
                       <p>相对时延 / SI-SDR / STOI / 传递函数</p>
                       <RangeInputs
-                        title="参考比较片段"
+                        title="干净近端参考比较片段"
                         value={speech}
                         disabled={disabled}
                         onChange={(value) => {
@@ -578,11 +602,11 @@ export default function App() {
                             setNoiseEnabled(e.target.checked);
                           }}
                         />
-                        噪声片段
+                        独立噪声输入片段
                       </label>
                       <p>无近端语音、无扬声器回声</p>
                       <RangeInputs
-                        title="噪声片段"
+                        title="独立噪声输入片段"
                         value={noise}
                         disabled={disabled || !noiseEnabled}
                         onChange={(value) => {
@@ -626,7 +650,7 @@ export default function App() {
                         }}
                       />
                       <span>
-                        处理前后来自同一信号，时钟、录音电平一致；片段已对应，或已填写处理后补偿。
+                        麦克风混合输入与处理后发送输出来自同一信号，时钟、录音电平一致；片段已对应，或已填写处理后发送输出补偿。
                       </span>
                     </label>
                     <label>
@@ -640,7 +664,7 @@ export default function App() {
                         }}
                       />
                       <span>
-                        远端单讲片段没有近端语音，且处理前包含扬声器回声。（启用回声片段总衰减）
+                        远端单讲片段没有近端语音，且麦克风混合输入包含扬声器回声。（启用回声片段总衰减）
                       </span>
                     </label>
                     <label>
@@ -654,7 +678,7 @@ export default function App() {
                         }}
                       />
                       <span>
-                        前后录音为 AEC
+                        麦克风混合输入与处理后发送输出为 AEC
                         滤波器的输入/输出，未包含后级非线性抑制、降噪或自动增益。（启用
                         ERLE 工程估计）
                       </span>
@@ -669,7 +693,7 @@ export default function App() {
                         }}
                       />
                       <span>
-                        干净参考的比较片段为真实语音。（启用
+                        干净近端参考的比较片段为真实语音。（启用
                         STOI；非语音测试信号请勿勾选）
                       </span>
                     </label>
@@ -695,9 +719,9 @@ export default function App() {
                     <strong>
                       {files.after
                         ? "已具备基本计算输入"
-                        : "等待麦克风处理后音频"}
+                        : "等待处理后发送输出"}
                     </strong>
-                    <span>缺少参考仍可计算电平、满幅比例和频谱。</span>
+                    <span>缺少干净近端参考仍可计算电平、满幅比例和频谱。</span>
                   </div>
                   <button
                     className="button primary compute-button"
@@ -774,8 +798,6 @@ export default function App() {
               <a className="button secondary ecnr-entry" href="#ecnr-v2">查看 ECNR 协同优化实验<ArrowRight size={15} /></a>
               <AudioEvaluation />
             </>
-          ) : view === "alignment" ? (
-            <ItuAlignment />
           ) : view === "acoustic" ? (
             <AcousticQualification />
           ) : view === "metrics" ? (
@@ -790,7 +812,7 @@ export default function App() {
             <section className="panel">
               <EmptyState
                 title="还没有音频计算结果"
-                description="先上传麦克风处理后音频；添加参考与处理前录音，可以进行成对比较。"
+                description="先上传处理后发送输出；添加干净近端参考与麦克风混合输入，可以进行成对比较。"
                 action={
                   <a href="#workbench" className="button primary">
                     选择实际音频
@@ -801,7 +823,7 @@ export default function App() {
             </section>
           )}
           </Suspense>
-          </PageBoundary>
+          </PageBoundary> : null}
           {report && (view === "results" || view === "compare") ? (
             <div className="audio-report-notices">
               {report.notices.map((note) => (

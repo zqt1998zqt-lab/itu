@@ -236,6 +236,12 @@ class MeasurementCompileRequest(BaseModel):
         return self
 
 
+class OutcomeAnalysisRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    evaluation_ids: list[str] = Field(default_factory=list, max_length=8)
+    refresh: bool = False
+
+
 class Measurement(BaseModel):
     model_config = ConfigDict(extra="forbid")
     item_id: str = Field(min_length=1, max_length=120)

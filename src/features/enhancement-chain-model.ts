@@ -5,7 +5,7 @@ export type StageId = "bf" | "aec" | "ns" | "eq" | "agc" | "drc" | "limiter";
 export type ChainOption = { id: string; label: string; flags: string[]; note: string; candidate?: boolean };
 export type ChainStage = { id: StageId; label: string; tab: string; description: string; source: string; options: ChainOption[] };
 export type ChainConfiguration = {
-  profile: "general" | "vcp" | "vcp_joint";
+  profile: "general" | "vcp" | "vcp_joint" | "vcp_unified";
   selection: Record<StageId, string>;
   extra_flags?: string[];
 };

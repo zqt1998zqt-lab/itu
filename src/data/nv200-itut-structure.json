@@ -1,0 +1,3390 @@
+[
+  {
+    "sheet": "NB-wired",
+    "path": "xl/worksheets/sheet1.xml",
+    "rows": [
+      {
+        "row": "1",
+        "values": {
+          "B1": "测试项",
+          "C1": "单位",
+          "D1": "Upper\nLimit",
+          "E1": "Lower\nLimit",
+          "F1": "结果（ok/no）",
+          "G1": "45863"
+        }
+      },
+      {
+        "row": "2",
+        "values": {
+          "A2": "延时",
+          "B2": "11.02.1 Cal.: Round Trip Delay DVNB",
+          "C2": "Calculated Value [ms]",
+          "D2": "275",
+          "E2": "170",
+          "G2": "648.6"
+        }
+      },
+      {
+        "row": "3",
+        "values": {
+          "A3": "1",
+          "B3": "11.03.3a Loudness Rating - Receiving, nominal BIN DVNB",
+          "C3": "RLR (binaural) [dB]",
+          "D3": "6",
+          "E3": "-2",
+          "G3": "3.36"
+        }
+      },
+      {
+        "row": "4",
+        "values": {
+          "B4": "11.03.05a Variation of RLR, -5dB, nominal BIN DVNB",
+          "C4": "RLR (binaural) [dB]",
+          "D4": "0.5",
+          "E4": "-0.5",
+          "G4": "0.13"
+        }
+      },
+      {
+        "row": "5",
+        "values": {
+          "B5": "11.03.05b Variation of RLR, +5dB, nominal BIN DVNB",
+          "C5": "RLR (binaural) [dB]",
+          "D5": "0.5",
+          "E5": "-0.5",
+          "G5": "-0.03"
+        }
+      },
+      {
+        "row": "6",
+        "values": {
+          "B6": "11.03.3b Loudness Rating - Receiving, maximum BIN DVNB",
+          "C6": "RLR (binaural) [dB]",
+          "D6": "45",
+          "E6": "15",
+          "G6": "17.47"
+        }
+      },
+      {
+        "row": "7",
+        "values": {
+          "B7": "11.04.2c Frequency Response RCV nominal Binaural DVNB",
+          "C7": "Min. dist. to tolerance scheme, 800.0 Hz",
+          "D7": "符合频响曲线",
+          "G7": "3.33"
+        }
+      },
+      {
+        "row": "8",
+        "values": {
+          "B8": "11.07.2a Idle Channel Noise - Receiving,nom 100ms DVNB",
+          "C8": "Level [dB[Pa]]",
+          "D8": "-53",
+          "E8": "-200",
+          "G8": "-73.39"
+        }
+      },
+      {
+        "row": "9",
+        "values": {
+          "B9": "11.07.2b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C9": "Min. dist. to tolerance scheme [Pa], 298.8 Hz",
+          "D9": "符合噪声曲线",
+          "G9": "-1.23"
+        }
+      },
+      {
+        "row": "10",
+        "values": {
+          "B10": "11.05.2 One Way Sp. Qual. in RCV (TMOS) nominal DVNB",
+          "C10": "MOS",
+          "D10": "5",
+          "E10": "3",
+          "G10": "3.4"
+        }
+      },
+      {
+        "row": "11",
+        "values": {
+          "B11": "11.08.2b Out-of-Band Signal - Receiving DVNB",
+          "C11": "Corrected value [dB[Pa]], 0",
+          "D11": "200",
+          "E11": "45",
+          "G11": "48.82"
+        }
+      },
+      {
+        "row": "12",
+        "values": {
+          "A12": "上行",
+          "B12": "11.03.2 Loudness Rating - Sending DVNB",
+          "C12": "SLR [dB]",
+          "D12": "17",
+          "E12": "9",
+          "G12": "16.72"
+        }
+      },
+      {
+        "row": "13",
+        "values": {
+          "B13": "11.04.1 Frequency Response - Sending DVNB",
+          "C13": "Min. dist. to tolerance scheme [dB], 1000.0 Hz",
+          "D13": "符合频响曲线",
+          "G13": "3.19"
+        }
+      },
+      {
+        "row": "14",
+        "values": {
+          "B14": "11.05.1 One Way Speech Quality in SND (TMOS) nom. DVNB",
+          "C14": "MOS",
+          "D14": "5",
+          "E14": "3",
+          "G14": "3.6"
+        }
+      },
+      {
+        "row": "15",
+        "values": {
+          "B15": "11.07.1a Idle Channel Noise - Sending, 100 ms DVNB",
+          "C15": "Level [dBm0]",
+          "D15": "-64",
+          "E15": "-200",
+          "G15": "-79.99"
+        }
+      },
+      {
+        "row": "16",
+        "values": {
+          "B16": "11.07.1b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C16": "Min. dist. to tolerance scheme [V], 3791.0 Hz",
+          "D16": "符合噪声曲线",
+          "G16": "3.06"
+        }
+      },
+      {
+        "row": "17",
+        "values": {
+          "B17": "11.08.1b Out-of-Band Signal - Sending DVNB",
+          "C17": "Corrected value [dBm0], 0",
+          "D17": "200",
+          "E17": "35",
+          "G17": "14.49"
+        }
+      },
+      {
+        "row": "18",
+        "values": {
+          "B18": "11.08.1c Out-of-Band Signal - Sending 100 ms DVNB",
+          "C18": "Corrected value [dBm0], 0",
+          "D18": "200",
+          "E18": "35",
+          "G18": "44.51"
+        }
+      },
+      {
+        "row": "19",
+        "values": {
+          "B19": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. nom. DVNB",
+          "C19": "DT Class A1 [%]+A2",
+          "D19": "100",
+          "E19": "50",
+          "G19": "92"
+        }
+      },
+      {
+        "row": "20",
+        "values": {
+          "B20": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. max DVNB",
+          "C20": "DT Class A1 [%]+A2",
+          "D20": "100",
+          "E20": "25",
+          "G20": "67.7"
+        }
+      },
+      {
+        "row": "21",
+        "values": {
+          "B21": "11.11.1a Terminal Coupling Loss (TCLw), nominal DVNB",
+          "C21": "Echo Loss [dB]",
+          "D21": "200",
+          "E21": "50",
+          "G21": "57.42"
+        }
+      },
+      {
+        "row": "22",
+        "values": {
+          "B22": "11.11.1b Terminal Coupl. Loss (TCLw), maximum Vol. DVNB",
+          "C22": "Echo Loss [dB]",
+          "D22": "200",
+          "E22": "50",
+          "G22": "25.87"
+        }
+      },
+      {
+        "row": "23",
+        "values": {
+          "B23": "11.03.3d Speech Level at HATS, S/N Calculation DVNB",
+          "C23": "Corrected value [dB], 0",
+          "D23": "200",
+          "E23": "6",
+          "G23": "11.61"
+        }
+      },
+      {
+        "row": "24",
+        "values": {
+          "B24": "11.13.3a EN Speech Quality BGN GMOS Sce1 DVNB",
+          "C24": "G-MOS (Average)",
+          "D24": "5",
+          "E24": "1",
+          "G24": "3.5"
+        }
+      },
+      {
+        "row": "25",
+        "values": {
+          "B25": "11.13.3b Check Noise Quality EN NMOS Sce1 DVNB",
+          "C25": "Calculated Value [MOS]",
+          "D25": "5",
+          "E25": "3",
+          "G25": "4.5"
+        }
+      },
+      {
+        "row": "26",
+        "values": {
+          "B26": "11.13.3c Check Speech Quality EN SMOS Sce1 DVNB",
+          "C26": "Calculated Value [MOS]",
+          "D26": "5",
+          "E26": "3",
+          "G26": "3.3"
+        }
+      },
+      {
+        "row": "27",
+        "values": {
+          "B27": "11.13.6b Comfort Noise: Level Adj. Sce1 DVNB",
+          "C27": "Corrected value [dBm0(A)], 0",
+          "D27": "2",
+          "E27": "-5",
+          "G27": "-0.33"
+        }
+      },
+      {
+        "row": "28",
+        "values": {
+          "B28": "11.13.6d Comfort Noise: Spectral Adjustment Sce1 DVNB",
+          "C28": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D28": "120",
+          "E28": "0",
+          "G28": "10.84"
+        }
+      },
+      {
+        "row": "29",
+        "values": {
+          "B29": "11.13.3a EN Speech Quality BGN GMOS Sce2 DVNB",
+          "C29": "G-MOS (Average)",
+          "D29": "5",
+          "E29": "1",
+          "G29": "2.9"
+        }
+      },
+      {
+        "row": "30",
+        "values": {
+          "B30": "11.13.3b Check Noise Quality EN NMOS Sce2 DVNB",
+          "C30": "Calculated Value [MOS]",
+          "D30": "5",
+          "E30": "3",
+          "G30": "3.5"
+        }
+      },
+      {
+        "row": "31",
+        "values": {
+          "B31": "11.13.3c Check Speech Quality EN SMOS Sce2 DVNB",
+          "C31": "Calculated Value [MOS]",
+          "D31": "5",
+          "E31": "3",
+          "G31": "3.1"
+        }
+      },
+      {
+        "row": "32",
+        "values": {
+          "B32": "11.13.6b Comfort Noise: Level Adj. Sce2 DVNB",
+          "C32": "Corrected value [dBm0(A)], 0",
+          "D32": "2",
+          "E32": "-5",
+          "G32": "-1.47"
+        }
+      },
+      {
+        "row": "33",
+        "values": {
+          "B33": "11.13.6d Comfort Noise: Spectral Adjustment Sce2 DVNB",
+          "C33": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D33": "120",
+          "E33": "0",
+          "G33": "11.76"
+        }
+      },
+      {
+        "row": "34",
+        "values": {
+          "B34": "11.13.3a EN Speech Quality BGN GMOS Sce3 DVNB",
+          "C34": "G-MOS (Average)",
+          "D34": "5",
+          "E34": "1",
+          "G34": "2.3"
+        }
+      },
+      {
+        "row": "35",
+        "values": {
+          "B35": "11.13.3b Check Noise Quality EN NMOS Sce3 DVNB",
+          "C35": "Calculated Value [MOS]",
+          "D35": "5",
+          "E35": "2.5",
+          "G35": "2.8"
+        }
+      },
+      {
+        "row": "36",
+        "values": {
+          "B36": "11.13.3c Check Speech Quality EN SMOS Sce3 DVNB",
+          "C36": "Calculated Value [MOS]",
+          "D36": "5",
+          "E36": "2.5",
+          "G36": "2.6"
+        }
+      },
+      {
+        "row": "37",
+        "values": {
+          "B37": "11.13.6b Comfort Noise: Level Adj. Sce3 DVNB",
+          "C37": "Corrected value [dBm0(A)], 0",
+          "D37": "2",
+          "E37": "-5",
+          "G37": "1.07"
+        }
+      },
+      {
+        "row": "38",
+        "values": {
+          "B38": "11.13.6d Comfort Noise: Spectral Adjustment Sce3 DVNB",
+          "C38": "Min. dist. to tolerance scheme [dB], 400.0 Hz",
+          "D38": "120",
+          "E38": "0",
+          "G38": "7.62"
+        }
+      },
+      {
+        "row": "39",
+        "values": {
+          "B39": "11.13.3a EN Speech Quality BGN GMOS Sce4 DVNB",
+          "C39": "G-MOS (Average)",
+          "D39": "5",
+          "E39": "1",
+          "G39": "2.3"
+        }
+      },
+      {
+        "row": "40",
+        "values": {
+          "B40": "11.13.3b Check Noise Quality EN NMOS Sce4 DVNB",
+          "C40": "Calculated Value [MOS]",
+          "D40": "5",
+          "E40": "2.5",
+          "G40": "2.7"
+        }
+      },
+      {
+        "row": "41",
+        "values": {
+          "B41": "11.13.3c Check Speech Quality EN SMOS Sce4 DVNB",
+          "C41": "Calculated Value [MOS]",
+          "D41": "5",
+          "E41": "2.5",
+          "G41": "2.7"
+        }
+      },
+      {
+        "row": "42",
+        "values": {
+          "B42": "11.13.6b Comfort Noise: Level Adj. Sce4 DVNB",
+          "C42": "Corrected value [dBm0(A)], 0",
+          "D42": "2",
+          "E42": "-5",
+          "G42": "-0.72"
+        }
+      },
+      {
+        "row": "43",
+        "values": {
+          "B43": "11.13.6d Comfort Noise: Spectral Adjustment Sce4 DVNB",
+          "C43": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D43": "120",
+          "E43": "0",
+          "G43": "11.76"
+        }
+      }
+    ]
+  },
+  {
+    "sheet": "WB-wired",
+    "path": "xl/worksheets/sheet2.xml",
+    "rows": [
+      {
+        "row": "1",
+        "values": {
+          "B1": "测试项",
+          "C1": "单位",
+          "D1": "Upper\nLimit",
+          "E1": "Lower\nLimit",
+          "F1": "结果（ok/no）",
+          "G1": "45862",
+          "H1": "45876",
+          "I1": "45877"
+        }
+      },
+      {
+        "row": "2",
+        "values": {
+          "A2": "延时",
+          "B2": "11.02.1 Cal.: Round Trip Delay DVWB",
+          "C2": "Calculated Value [ms]",
+          "D2": "275",
+          "E2": "170",
+          "G2": "664.3"
+        }
+      },
+      {
+        "row": "3",
+        "values": {
+          "A3": "下行",
+          "B3": "11.03.3a Loudness Rating - Receiving, nominal BIN DVWB",
+          "C3": "RLR (binaural) [dB]",
+          "D3": "6",
+          "E3": "-2",
+          "G3": "5.33"
+        }
+      },
+      {
+        "row": "4",
+        "values": {
+          "B4": "11.03.3b Loudness Rating - Receiving, maximum BIN DVWB",
+          "C4": "RLR (binaural) [dB]",
+          "D4": "45",
+          "E4": "15",
+          "G4": "15.67"
+        }
+      },
+      {
+        "row": "5",
+        "values": {
+          "B5": "11.03.05a Variation of RLR, -5dB, nominal BIN DVWB",
+          "C5": "RLR (binaural) [dB]",
+          "D5": "0.5",
+          "E5": "-0.5",
+          "G5": "0.06"
+        }
+      },
+      {
+        "row": "6",
+        "values": {
+          "B6": "11.03.05b Variation of RLR, +5dB, nominal BIN DVWB",
+          "C6": "RLR (binaural) [dB]",
+          "D6": "0.5",
+          "E6": "-0.5",
+          "G6": "-0.05"
+        }
+      },
+      {
+        "row": "7",
+        "values": {
+          "B7": "11.04.2c Frequency Response RCV nominal Binaural DVWB",
+          "C7": "Min. dist. to tolerance scheme, 630.0 Hz",
+          "D7": "符合频响曲线",
+          "G7": "2.69"
+        }
+      },
+      {
+        "row": "8",
+        "values": {
+          "B8": "11.07.2a Idle Channel Noise - Receiving,nom 100ms DVWB",
+          "C8": "Level [dB[Pa]]",
+          "D8": "-53",
+          "E8": "-200",
+          "G8": "-73.76"
+        }
+      },
+      {
+        "row": "9",
+        "values": {
+          "B9": "11.07.2b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C9": "Min. dist. to tolerance scheme [Pa], 199.2 Hz",
+          "D9": "符合噪声曲线",
+          "G9": "-3.67"
+        }
+      },
+      {
+        "row": "10",
+        "values": {
+          "B10": "11.05.2 One Way Sp. Qual. in RCV (TMOS) nominal DVWB",
+          "C10": "MOS",
+          "D10": "5",
+          "E10": "3",
+          "G10": "3.3"
+        }
+      },
+      {
+        "row": "11",
+        "values": {
+          "B11": "11.08.2b Out-of-Band Signal - Receiving DVWB",
+          "C11": "Corrected value [dB[Pa]], 0",
+          "D11": "10",
+          "E11": "-30"
+        }
+      },
+      {
+        "row": "12",
+        "values": {
+          "A12": "上行",
+          "B12": "11.03.2 Loudness Rating - Sending DVWB",
+          "C12": "SLR [dB]",
+          "D12": "17",
+          "E12": "9",
+          "G12": "16.28"
+        }
+      },
+      {
+        "row": "13",
+        "values": {
+          "B13": "11.04.1 Frequency Response - Sending DVWB",
+          "C13": "Min. dist. to tolerance scheme [dB], 200.0 Hz",
+          "D13": "符合频响曲线",
+          "G13": "-0.53"
+        }
+      },
+      {
+        "row": "14",
+        "values": {
+          "B14": "11.05.1 One Way Speech Quality in SND (TMOS) nom. DVWB",
+          "C14": "MOS",
+          "D14": "5",
+          "E14": "3",
+          "G14": "3.4"
+        }
+      },
+      {
+        "row": "15",
+        "values": {
+          "B15": "11.07.1a Idle Channel Noise - Sending, 100 ms DVWB",
+          "C15": "Level [dBm0]",
+          "D15": "-64",
+          "E15": "-200",
+          "G15": "-71.74"
+        }
+      },
+      {
+        "row": "16",
+        "values": {
+          "B16": "11.07.1b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C16": "Min. dist. to tolerance scheme [V], 7294.9 Hz",
+          "D16": "符合噪声曲线",
+          "G16": "3.94"
+        }
+      },
+      {
+        "row": "17",
+        "values": {
+          "B17": "11.08.1b Out-of-Band Signal - Sending DVWB",
+          "C17": "Corrected value [dBm0], 0",
+          "D17": "200",
+          "E17": "35",
+          "G17": "11.15"
+        }
+      },
+      {
+        "row": "18",
+        "values": {
+          "B18": "11.08.1c Out-of-Band Signal - Sending 100 ms DVWB",
+          "C18": "Corrected value [dBm0], 0",
+          "D18": "200",
+          "E18": "35",
+          "G18": "47.2"
+        }
+      },
+      {
+        "row": "19",
+        "values": {
+          "B19": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. nom. DVWB",
+          "C19": "DT Class A1 [%]",
+          "D19": "100",
+          "E19": "50",
+          "G19": "93.1"
+        }
+      },
+      {
+        "row": "20",
+        "values": {
+          "B20": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. max DVWB",
+          "C20": "DT Class A1 [%]",
+          "D20": "100",
+          "E20": "25",
+          "G20": "67.5"
+        }
+      },
+      {
+        "row": "21",
+        "values": {
+          "B21": "11.11.1a Terminal Coupling Loss (TCLw), DVWB",
+          "C21": "Echo Loss [dB]",
+          "D21": "200",
+          "E21": "50",
+          "G21": "52.6"
+        }
+      },
+      {
+        "row": "22",
+        "values": {
+          "B22": "11.11.1c Terminal Coupl Loss (TCLw), maximum Vol. DVWB",
+          "C22": "Echo Loss [dB]",
+          "D22": "200",
+          "E22": "50",
+          "G22": "21.13"
+        }
+      },
+      {
+        "row": "23",
+        "values": {
+          "B23": "11.03.3d Speech Level at HATS, S/N Calculation DVWB",
+          "C23": "Corrected value [dB], 0",
+          "D23": "200",
+          "E23": "6",
+          "G23": "12.03"
+        }
+      },
+      {
+        "row": "24",
+        "values": {
+          "B24": "U - EN Speech Quality BGN GMOS Sce1 DVWB",
+          "C24": "G-MOS (Average)",
+          "D24": "5",
+          "E24": "1",
+          "G24": "3.7"
+        }
+      },
+      {
+        "row": "25",
+        "values": {
+          "B25": "U - Check Noise Quality EN NMOS Sce1 DVWB",
+          "C25": "Calculated Value [MOS]",
+          "D25": "5",
+          "E25": "3",
+          "G25": "3.9"
+        }
+      },
+      {
+        "row": "26",
+        "values": {
+          "B26": "U - Check Speech Quality EN SMOS Sce1 DVWB",
+          "C26": "Calculated Value [MOS]",
+          "D26": "5",
+          "E26": "3",
+          "G26": "3.9"
+        }
+      },
+      {
+        "row": "27",
+        "values": {
+          "B27": "11.13.6b Comfort Noise: Level Adj. Sce1 DVWB",
+          "C27": "Corrected value [dBm0(A)], 0",
+          "D27": "2",
+          "E27": "-5",
+          "G27": "-2.43"
+        }
+      },
+      {
+        "row": "28",
+        "values": {
+          "B28": "11.13.6d Comfort Noise: Spectral Adjustment Sce1 DVWB",
+          "C28": "Min. dist. to tolerance scheme [dB], 8000.0 Hz",
+          "D28": "120",
+          "E28": "0",
+          "G28": "5.44"
+        }
+      },
+      {
+        "row": "29",
+        "values": {
+          "B29": "U - EN Speech Quality BGN GMOS Sce2 DVWB",
+          "C29": "G-MOS (Average)",
+          "D29": "5",
+          "E29": "1",
+          "G29": "3.4"
+        }
+      },
+      {
+        "row": "30",
+        "values": {
+          "B30": "U - Check Noise Quality EN NMOS Sce2 DVWB",
+          "C30": "Calculated Value [MOS]",
+          "D30": "5",
+          "E30": "3",
+          "G30": "3.1"
+        }
+      },
+      {
+        "row": "31",
+        "values": {
+          "B31": "U - Check Speech Quality EN SMOS Sce2 DVWB",
+          "C31": "Calculated Value [MOS]",
+          "D31": "5",
+          "E31": "3",
+          "G31": "4.1"
+        }
+      },
+      {
+        "row": "32",
+        "values": {
+          "B32": "11.13.6b Comfort Noise: Level Adj. Sce2 DVWB",
+          "C32": "Corrected value [dBm0(A)], 0",
+          "D32": "2",
+          "E32": "-5",
+          "G32": "-0.74"
+        }
+      },
+      {
+        "row": "33",
+        "values": {
+          "B33": "11.13.6d Comfort Noise: Spectral Adjustment Sce2 DVWB",
+          "C33": "Min. dist. to tolerance scheme [dB], 3150.0 Hz",
+          "D33": "120",
+          "E33": "0",
+          "G33": "10.35"
+        }
+      },
+      {
+        "row": "34",
+        "values": {
+          "B34": "U - EN Speech Quality BGN GMOS Sce3 DVWB",
+          "C34": "G-MOS (Average)",
+          "D34": "5",
+          "E34": "1",
+          "G34": "3.5"
+        }
+      },
+      {
+        "row": "35",
+        "values": {
+          "B35": "U - Check Noise Quality EN NMOS Sce3 DVWB",
+          "C35": "Calculated Value [MOS]",
+          "D35": "5",
+          "E35": "2.5",
+          "G35": "2.6"
+        }
+      },
+      {
+        "row": "36",
+        "values": {
+          "B36": "U - Check Speech Quality EN SMOS Sce3 DVWB",
+          "C36": "Calculated Value [MOS]",
+          "D36": "5",
+          "E36": "2.5",
+          "G36": "4.5"
+        }
+      },
+      {
+        "row": "37",
+        "values": {
+          "B37": "11.13.6b Comfort Noise: Level Adj. Sce3 DVWB",
+          "C37": "Corrected value [dBm0(A)], 0",
+          "D37": "2",
+          "E37": "-5",
+          "G37": "1.8"
+        }
+      },
+      {
+        "row": "38",
+        "values": {
+          "B38": "11.13.6d Comfort Noise: Spectral Adjustment Sce3 DVWB",
+          "C38": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D38": "120",
+          "E38": "0",
+          "G38": "7.17"
+        }
+      },
+      {
+        "row": "39",
+        "values": {
+          "B39": "U - EN Speech Quality BGN GMOS Sce4 DVWB",
+          "C39": "G-MOS (Average)",
+          "D39": "5",
+          "E39": "1",
+          "G39": "3.4"
+        }
+      },
+      {
+        "row": "40",
+        "values": {
+          "B40": "U - Check Noise Quality EN NMOS Sce4 DVWB",
+          "C40": "Calculated Value [MOS]",
+          "D40": "5",
+          "E40": "2.5",
+          "G40": "2.5"
+        }
+      },
+      {
+        "row": "41",
+        "values": {
+          "B41": "U - Check Speech Quality EN SMOS Sce4 DVWB",
+          "C41": "Calculated Value [MOS]",
+          "D41": "5",
+          "E41": "2.5",
+          "G41": "4.4"
+        }
+      },
+      {
+        "row": "42",
+        "values": {
+          "B42": "11.13.6b Comfort Noise: Level Adj. Sce4 DVWB",
+          "C42": "Corrected value [dBm0(A)], 0",
+          "D42": "2",
+          "E42": "-5",
+          "G42": "-0.13"
+        }
+      },
+      {
+        "row": "43",
+        "values": {
+          "B43": "11.13.6d Comfort Noise: Spectral Adjustment Sce4 DVWB",
+          "C43": "Min. dist. to tolerance scheme [dB], 3150.0 Hz",
+          "D43": "120",
+          "E43": "0",
+          "G43": "8.68"
+        }
+      }
+    ]
+  },
+  {
+    "sheet": "SWB-wired",
+    "path": "xl/worksheets/sheet3.xml",
+    "rows": [
+      {
+        "row": "1",
+        "values": {
+          "B1": "测试项",
+          "C1": "单位",
+          "D1": "Upper\nLimit",
+          "E1": "Lower\nLimit",
+          "F1": "结果（ok/no）",
+          "G1": "45860",
+          "H1": "45876",
+          "I1": "45877"
+        }
+      },
+      {
+        "row": "2",
+        "values": {
+          "A2": "延时",
+          "B2": "9.1.1 Cal.: Round Trip Delay (wired/wireless) DVSB",
+          "C2": "Calculated Value [ms]",
+          "D2": "275",
+          "E2": "170"
+        }
+      },
+      {
+        "row": "3",
+        "values": {
+          "A3": "下行",
+          "B3": "9.2.3a Loudness Rating - Receiving, nominal Bin. DVSB",
+          "C3": "RLR (binaural) [dB]",
+          "D3": "6",
+          "E3": "-2"
+        }
+      },
+      {
+        "row": "4",
+        "values": {
+          "B4": "9.2.3b Loudness Rating - Receiving, maximum Bin. DVSB",
+          "C4": "RLR (binaural) [dB]",
+          "D4": "45",
+          "E4": "15"
+        }
+      },
+      {
+        "row": "5",
+        "values": {
+          "B5": "9.4.2 Freq. Response RCV nominal Binaural DVSB",
+          "C5": "Min. dist. to tolerance scheme [Pa/V], 800.0 Hz",
+          "D5": "符合频响曲线"
+        }
+      },
+      {
+        "row": "6",
+        "values": {
+          "B6": "Optional: 9.5.2b Listening Speech Qual. POLQA RCV DVSB",
+          "C6": "MOS-LQO, Time range: 0.0 .. 8.0 s",
+          "D6": "5",
+          "E6": "3.6"
+        }
+      },
+      {
+        "row": "7",
+        "values": {
+          "B7": "9.7.2a Idle Channel Noise RCV, nom. 50ms DVSB",
+          "C7": "Level [dB[Pa]]",
+          "D7": "-53",
+          "E7": "-200"
+        }
+      },
+      {
+        "row": "8",
+        "values": {
+          "B8": "9.7.2b Idle Channel Noise Check for Spec. Peaks 50ms",
+          "C8": "Min. dist. to tolerance scheme [Pa], 298.8 Hz",
+          "D8": "符合噪声曲线"
+        }
+      },
+      {
+        "row": "9",
+        "values": {
+          "B9": "9.7.2c Idle Channel Noise RCV, nom 100ms DVSB",
+          "C9": "Level [dB[Pa]]",
+          "D9": "-53",
+          "E9": "-200"
+        }
+      },
+      {
+        "row": "10",
+        "values": {
+          "B10": "9.7.2d Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C10": "Min. dist. to tolerance scheme [Pa], 298.8 Hz",
+          "D10": "符合噪声曲线"
+        }
+      },
+      {
+        "row": "11",
+        "values": {
+          "A11": "上行",
+          "B11": "9.2.2 Loudness Rating - Sending DVSB",
+          "C11": "SLR [dB]",
+          "D11": "17",
+          "E11": "9"
+        }
+      },
+      {
+        "row": "12",
+        "values": {
+          "B12": "9.4.1 Frequency Response - Sending DVSB",
+          "C12": "Min. dist. to tolerance scheme [dB], 80.0 Hz",
+          "D12": "符合频响曲线"
+        }
+      },
+      {
+        "row": "13",
+        "values": {
+          "B13": "Optional: 9.5.1b Listening Speech Qual. POLQA SND DVSB",
+          "C13": "MOS-LQO (Average)",
+          "D13": "5",
+          "E13": "3.6"
+        }
+      },
+      {
+        "row": "14",
+        "values": {
+          "B14": "9.7.1a Idle Channel Noise - Sending, 50 ms DVSB",
+          "C14": "Level [dBm0]",
+          "D14": "-64",
+          "E14": "-200"
+        }
+      },
+      {
+        "row": "15",
+        "values": {
+          "B15": "9.7.1b Idle Channel Noise Check for Spec. Peaks 50ms",
+          "C15": "Min. dist. to tolerance scheme [V], 7300.8 Hz",
+          "D15": "符合噪声曲线"
+        }
+      },
+      {
+        "row": "16",
+        "values": {
+          "B16": "9.7.1c Idle Channel Noise - Sending, 100 ms DVSB",
+          "C16": "Level [dBm0]",
+          "D16": "-64",
+          "E16": "-200"
+        }
+      },
+      {
+        "row": "17",
+        "values": {
+          "B17": "9.7.1d Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C17": "Min. dist. to tolerance scheme [V], 7289.1 Hz",
+          "D17": "符合噪声曲线"
+        }
+      },
+      {
+        "row": "18",
+        "values": {
+          "B18": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. (S2) DVSB",
+          "C18": "DT Class A1 [%]",
+          "D18": "100",
+          "E18": "50"
+        }
+      },
+      {
+        "row": "19",
+        "values": {
+          "B19": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. max DVSB",
+          "C19": "DT Class A1 [%]",
+          "D19": "100",
+          "E19": "25"
+        }
+      },
+      {
+        "row": "20",
+        "values": {
+          "B20": "9.10.1a Terminal Coupling Loss (TCL), nominal DVSB",
+          "C20": "Echo Loss [dB]",
+          "D20": "200",
+          "E20": "50"
+        }
+      },
+      {
+        "row": "21",
+        "values": {
+          "B21": "9.10.1b TCL, nom. Recommended DVSB",
+          "C21": "Calculated Value [dB]",
+          "D21": "200",
+          "E21": "50"
+        }
+      },
+      {
+        "row": "22",
+        "values": {
+          "B22": "9.10.1c Terminal Coupl Loss (TCL), maximum Vol. DVSB",
+          "C22": "Echo Loss [dB]",
+          "D22": "200",
+          "E22": "50"
+        }
+      },
+      {
+        "row": "23",
+        "values": {
+          "B23": "9.2.3d Speech Level at HATS, S/N Calculation DVSB",
+          "C23": "Corrected value [dB], 0",
+          "D23": "200",
+          "E23": "6"
+        }
+      },
+      {
+        "row": "24",
+        "values": {
+          "B24": "Preliminary: 9.13.3a EN Speech Qual. BGN GMOS Sce1 DVSB",
+          "C24": "G-MOS (Average)",
+          "D24": "5",
+          "E24": "1"
+        }
+      },
+      {
+        "row": "25",
+        "values": {
+          "B25": "Preliminary: 9.13.3b Check Noise Qual. NMOS Sce1 DVSB",
+          "C25": "Calculated Value [MOS]",
+          "D25": "5",
+          "E25": "4"
+        }
+      },
+      {
+        "row": "26",
+        "values": {
+          "B26": "Preliminary: 9.13.3c Check Speech Qual. SMOS Sce1 DVSB",
+          "C26": "Calculated Value [MOS]",
+          "D26": "5",
+          "E26": "4"
+        }
+      },
+      {
+        "row": "27",
+        "values": {
+          "B27": "9.13.6b Comfort Noise: Level Adj. Sce1 DVSB",
+          "C27": "Corrected value [dBm0(A)], 0",
+          "D27": "2",
+          "E27": "-5"
+        }
+      },
+      {
+        "row": "28",
+        "values": {
+          "B28": "9.13.6d Comfort Noise: Spectral Adjustment Sce1 DVSB",
+          "C28": "Min. dist. to tolerance scheme [dB], 6300.0 Hz",
+          "D28": "120",
+          "E28": "0"
+        }
+      },
+      {
+        "row": "29",
+        "values": {
+          "B29": "Preliminary: 9.13.3a EN Speech Qual. BGN GMOS Sce2 DVSB",
+          "C29": "G-MOS (Average)",
+          "D29": "5",
+          "E29": "1"
+        }
+      },
+      {
+        "row": "30",
+        "values": {
+          "B30": "Preliminary: 9.13.3b Check Noise Qual. NMOS Sce2 DVSB",
+          "C30": "Calculated Value [MOS]",
+          "D30": "5",
+          "E30": "3"
+        }
+      },
+      {
+        "row": "31",
+        "values": {
+          "B31": "Preliminary: 9.13.3c Check Speech Qual. SMOS Sce2 DVSB",
+          "C31": "Calculated Value [MOS]",
+          "D31": "5",
+          "E31": "3"
+        }
+      },
+      {
+        "row": "32",
+        "values": {
+          "B32": "9.13.6b Comfort Noise: Level Adj. Sce2 DVSB",
+          "C32": "Corrected value [dBm0(A)], 0",
+          "D32": "2",
+          "E32": "-5"
+        }
+      },
+      {
+        "row": "33",
+        "values": {
+          "B33": "9.13.6d Comfort Noise: Spectral Adjustment Sce2 DVSB",
+          "C33": "Min. dist. to tolerance scheme [dB], 4000.0 Hz",
+          "D33": "120",
+          "E33": "0"
+        }
+      },
+      {
+        "row": "34",
+        "values": {
+          "B34": "Preliminary: 9.13.3a EN Speech Qual. BGN GMOS Sce3 DVSB",
+          "C34": "G-MOS (Average)",
+          "D34": "5",
+          "E34": "1"
+        }
+      },
+      {
+        "row": "35",
+        "values": {
+          "B35": "Preliminary: 9.13.3b Check Noise Qual. NMOS Sce3 DVSB",
+          "C35": "Calculated Value [MOS]",
+          "D35": "5",
+          "E35": "2.5"
+        }
+      },
+      {
+        "row": "36",
+        "values": {
+          "B36": "Preliminary: 9.13.3c Check Speech Qual. SMOS Sce3 DVSB",
+          "C36": "Calculated Value [MOS]",
+          "D36": "5",
+          "E36": "2.5"
+        }
+      },
+      {
+        "row": "37",
+        "values": {
+          "B37": "9.13.6b Comfort Noise: Level Adj. Sce3 DVSB",
+          "C37": "Corrected value [dBm0(A)], 0",
+          "D37": "2",
+          "E37": "-5"
+        }
+      },
+      {
+        "row": "38",
+        "values": {
+          "B38": "9.13.6d Comfort Noise: Spectral Adjustment Sce3 DVSB",
+          "C38": "Min. dist. to tolerance scheme [dB], 4000.0 Hz",
+          "D38": "120",
+          "E38": "0"
+        }
+      },
+      {
+        "row": "39",
+        "values": {
+          "B39": "Preliminary: 9.13.3a EN Speech Qual. BGN GMOS Sce4 DVSB",
+          "C39": "G-MOS (Average)",
+          "D39": "5",
+          "E39": "1"
+        }
+      },
+      {
+        "row": "40",
+        "values": {
+          "B40": "Preliminary: 9.13.3b Check Noise Qual. NMOS Sce4 DVSB",
+          "C40": "Calculated Value [MOS]",
+          "D40": "5",
+          "E40": "2.5"
+        }
+      },
+      {
+        "row": "41",
+        "values": {
+          "B41": "Preliminary: 9.13.3c Check Speech Qual. SMOS Sce4 DVSB",
+          "C41": "Calculated Value [MOS]",
+          "D41": "5",
+          "E41": "2.5"
+        }
+      },
+      {
+        "row": "42",
+        "values": {
+          "B42": "9.13.6b Comfort Noise: Level Adj. Sce4 DVSB",
+          "C42": "Corrected value [dBm0(A)], 0",
+          "D42": "2",
+          "E42": "-5"
+        }
+      },
+      {
+        "row": "43",
+        "values": {
+          "B43": "9.13.6d Comfort Noise: Spectral Adjustment Sce4 DVSB",
+          "C43": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D43": "120",
+          "E43": "0"
+        }
+      }
+    ]
+  },
+  {
+    "sheet": "NB-wireless",
+    "path": "xl/worksheets/sheet4.xml",
+    "rows": [
+      {
+        "row": "1",
+        "values": {
+          "B1": "测试项",
+          "C1": "单位",
+          "D1": "Upper\nLimit",
+          "E1": "Lower\nLimit",
+          "F1": "结果（ok/no）",
+          "G1": "45863",
+          "H1": "45876",
+          "I1": "45877"
+        }
+      },
+      {
+        "row": "2",
+        "values": {
+          "A2": "延时",
+          "B2": "11.02.1 Cal.: Round Trip Delay DVNB",
+          "C2": "Calculated Value [ms]",
+          "D2": "415",
+          "E2": "170",
+          "G2": "748.5"
+        }
+      },
+      {
+        "row": "3",
+        "values": {
+          "A3": "下行",
+          "B3": "11.03.3a Loudness Rating - Receiving, nominal BIN DVNB",
+          "C3": "RLR (binaural) [dB]",
+          "D3": "6",
+          "E3": "-2",
+          "G3": "3.31"
+        }
+      },
+      {
+        "row": "4",
+        "values": {
+          "B4": "11.03.05a Variation of RLR, -5dB, nominal BIN DVNB",
+          "C4": "RLR (binaural) [dB]",
+          "D4": "0.5",
+          "E4": "-0.5",
+          "G4": "0.15"
+        }
+      },
+      {
+        "row": "5",
+        "values": {
+          "B5": "11.03.05b Variation of RLR, +5dB, nominal BIN DVNB",
+          "C5": "RLR (binaural) [dB]",
+          "D5": "0.5",
+          "E5": "-0.5",
+          "G5": "-0.01"
+        }
+      },
+      {
+        "row": "6",
+        "values": {
+          "B6": "11.03.3b Loudness Rating - Receiving, maximum BIN DVNB",
+          "C6": "RLR (binaural) [dB]",
+          "D6": "45",
+          "E6": "15",
+          "G6": "16.21"
+        }
+      },
+      {
+        "row": "7",
+        "values": {
+          "B7": "11.04.2c Frequency Response RCV nominal Binaural DVNB",
+          "C7": "Min. dist. to tolerance scheme, 800.0 Hz",
+          "D7": "符合频响曲线",
+          "G7": "2.44"
+        }
+      },
+      {
+        "row": "8",
+        "values": {
+          "B8": "11.07.2a Idle Channel Noise - Receiving,nom 100ms DVNB",
+          "C8": "Level [dB[Pa]]",
+          "D8": "-53",
+          "E8": "-200",
+          "G8": "-69.17"
+        }
+      },
+      {
+        "row": "9",
+        "values": {
+          "B9": "11.07.2b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C9": "Min. dist. to tolerance scheme [Pa], 298.8 Hz",
+          "D9": "符合噪声曲线",
+          "G9": "-5.36"
+        }
+      },
+      {
+        "row": "10",
+        "values": {
+          "B10": "11.05.2 One Way Sp. Qual. in RCV (TMOS) nominal DVNB",
+          "C10": "MOS",
+          "D10": "5",
+          "E10": "3",
+          "G10": "3.2"
+        }
+      },
+      {
+        "row": "11",
+        "values": {
+          "B11": "11.08.2b Out-of-Band Signal - Receiving DVNB",
+          "C11": "Corrected value [dB[Pa]], 0",
+          "D11": "200",
+          "E11": "45",
+          "G11": "50.81"
+        }
+      },
+      {
+        "row": "12",
+        "values": {
+          "A12": "上行",
+          "B12": "11.03.2 Loudness Rating - Sending DVNB",
+          "C12": "SLR [dB]",
+          "D12": "17",
+          "E12": "9",
+          "G12": "16.92"
+        }
+      },
+      {
+        "row": "13",
+        "values": {
+          "B13": "11.04.1 Frequency Response - Sending DVNB",
+          "C13": "Min. dist. to tolerance scheme [dB], 1000.0 Hz",
+          "D13": "符合频响曲线",
+          "G13": "3.06"
+        }
+      },
+      {
+        "row": "14",
+        "values": {
+          "B14": "11.05.1 One Way Speech Quality in SND (TMOS) nom. DVNB",
+          "C14": "MOS",
+          "D14": "5",
+          "E14": "3",
+          "G14": "3.5"
+        }
+      },
+      {
+        "row": "15",
+        "values": {
+          "B15": "11.07.1a Idle Channel Noise - Sending, 100 ms DVNB",
+          "C15": "Level [dBm0]",
+          "D15": "-64",
+          "E15": "-200",
+          "G15": "-80.6"
+        }
+      },
+      {
+        "row": "16",
+        "values": {
+          "B16": "11.07.1b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C16": "Min. dist. to tolerance scheme [V], 3791.0 Hz",
+          "D16": "符合噪声曲线",
+          "G16": "3.25"
+        }
+      },
+      {
+        "row": "17",
+        "values": {
+          "B17": "11.08.1b Out-of-Band Signal - Sending DVNB",
+          "C17": "Corrected value [dBm0], 0",
+          "D17": "200",
+          "E17": "35",
+          "G17": "17.47"
+        }
+      },
+      {
+        "row": "18",
+        "values": {
+          "B18": "11.08.1c Out-of-Band Signal - Sending 100 ms DVNB",
+          "C18": "Corrected value [dBm0], 0",
+          "D18": "200",
+          "E18": "35",
+          "G18": "43.81"
+        }
+      },
+      {
+        "row": "19",
+        "values": {
+          "B19": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. nom. DVNB",
+          "C19": "DT Class A1 [%]+A2",
+          "D19": "100",
+          "E19": "50",
+          "G19": "94.9"
+        }
+      },
+      {
+        "row": "20",
+        "values": {
+          "B20": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. max DVNB",
+          "C20": "DT Class A1 [%]+A2",
+          "D20": "100",
+          "E20": "25",
+          "G20": "63.11"
+        }
+      },
+      {
+        "row": "21",
+        "values": {
+          "B21": "11.11.1a Terminal Coupling Loss (TCLw), nominal DVNB",
+          "C21": "Echo Loss [dB]",
+          "D21": "200",
+          "E21": "50",
+          "G21": "52.72"
+        }
+      },
+      {
+        "row": "22",
+        "values": {
+          "B22": "11.11.1b Terminal Coupl. Loss (TCLw), maximum Vol. DVNB",
+          "C22": "Echo Loss [dB]",
+          "D22": "200",
+          "E22": "50",
+          "G22": "39.31"
+        }
+      },
+      {
+        "row": "23",
+        "values": {
+          "B23": "11.03.3d Speech Level at HATS, S/N Calculation DVNB",
+          "C23": "Corrected value [dB], 0",
+          "D23": "200",
+          "E23": "6",
+          "G23": "11.47"
+        }
+      },
+      {
+        "row": "24",
+        "values": {
+          "B24": "11.13.3a EN Speech Quality BGN GMOS Sce1 DVNB",
+          "C24": "G-MOS (Average)",
+          "D24": "5",
+          "E24": "1",
+          "G24": "3.5"
+        }
+      },
+      {
+        "row": "25",
+        "values": {
+          "B25": "11.13.3b Check Noise Quality EN NMOS Sce1 DVNB",
+          "C25": "Calculated Value [MOS]",
+          "D25": "5",
+          "E25": "3",
+          "G25": "4.6"
+        }
+      },
+      {
+        "row": "26",
+        "values": {
+          "B26": "11.13.3c Check Speech Quality EN SMOS Sce1 DVNB",
+          "C26": "Calculated Value [MOS]",
+          "D26": "5",
+          "E26": "3",
+          "G26": "3.2"
+        }
+      },
+      {
+        "row": "27",
+        "values": {
+          "B27": "11.13.6b Comfort Noise: Level Adj. Sce1 DVNB",
+          "C27": "Corrected value [dBm0(A)], 0",
+          "D27": "2",
+          "E27": "-5",
+          "G27": "0.35"
+        }
+      },
+      {
+        "row": "28",
+        "values": {
+          "B28": "11.13.6d Comfort Noise: Spectral Adjustment Sce1 DVNB",
+          "C28": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D28": "120",
+          "E28": "0",
+          "G28": "11.68"
+        }
+      },
+      {
+        "row": "29",
+        "values": {
+          "B29": "11.13.3a EN Speech Quality BGN GMOS Sce2 DVNB",
+          "C29": "G-MOS (Average)",
+          "D29": "5",
+          "E29": "1",
+          "G29": "3.2"
+        }
+      },
+      {
+        "row": "30",
+        "values": {
+          "B30": "11.13.3b Check Noise Quality EN NMOS Sce2 DVNB",
+          "C30": "Calculated Value [MOS]",
+          "D30": "5",
+          "E30": "3",
+          "G30": "4.4"
+        }
+      },
+      {
+        "row": "31",
+        "values": {
+          "B31": "11.13.3c Check Speech Quality EN SMOS Sce2 DVNB",
+          "C31": "Calculated Value [MOS]",
+          "D31": "5",
+          "E31": "3",
+          "G31": "3"
+        }
+      },
+      {
+        "row": "32",
+        "values": {
+          "B32": "11.13.6b Comfort Noise: Level Adj. Sce2 DVNB",
+          "C32": "Corrected value [dBm0(A)], 0",
+          "D32": "2",
+          "E32": "-5",
+          "G32": "-0.46"
+        }
+      },
+      {
+        "row": "33",
+        "values": {
+          "B33": "11.13.6d Comfort Noise: Spectral Adjustment Sce2 DVNB",
+          "C33": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D33": "120",
+          "E33": "0",
+          "G33": "9.45"
+        }
+      },
+      {
+        "row": "34",
+        "values": {
+          "B34": "11.13.3a EN Speech Quality BGN GMOS Sce3 DVNB",
+          "C34": "G-MOS (Average)",
+          "D34": "5",
+          "E34": "1",
+          "G34": "2.3"
+        }
+      },
+      {
+        "row": "35",
+        "values": {
+          "B35": "11.13.3b Check Noise Quality EN NMOS Sce3 DVNB",
+          "C35": "Calculated Value [MOS]",
+          "D35": "5",
+          "E35": "2.5",
+          "G35": "2.9"
+        }
+      },
+      {
+        "row": "36",
+        "values": {
+          "B36": "11.13.3c Check Speech Quality EN SMOS Sce3 DVNB",
+          "C36": "Calculated Value [MOS]",
+          "D36": "5",
+          "E36": "2.5",
+          "G36": "2.6"
+        }
+      },
+      {
+        "row": "37",
+        "values": {
+          "B37": "11.13.6b Comfort Noise: Level Adj. Sce3 DVNB",
+          "C37": "Corrected value [dBm0(A)], 0",
+          "D37": "2",
+          "E37": "-5",
+          "G37": "-1.59"
+        }
+      },
+      {
+        "row": "38",
+        "values": {
+          "B38": "11.13.6d Comfort Noise: Spectral Adjustment Sce3 DVNB",
+          "C38": "Min. dist. to tolerance scheme [dB], 400.0 Hz",
+          "D38": "120",
+          "E38": "0",
+          "G38": "10.59"
+        }
+      },
+      {
+        "row": "39",
+        "values": {
+          "B39": "11.13.3a EN Speech Quality BGN GMOS Sce4 DVNB",
+          "C39": "G-MOS (Average)",
+          "D39": "5",
+          "E39": "1",
+          "G39": "2.6"
+        }
+      },
+      {
+        "row": "40",
+        "values": {
+          "B40": "11.13.3b Check Noise Quality EN NMOS Sce4 DVNB",
+          "C40": "Calculated Value [MOS]",
+          "D40": "5",
+          "E40": "2.5",
+          "G40": "3.5"
+        }
+      },
+      {
+        "row": "41",
+        "values": {
+          "B41": "11.13.3c Check Speech Quality EN SMOS Sce4 DVNB",
+          "C41": "Calculated Value [MOS]",
+          "D41": "5",
+          "E41": "2.5",
+          "G41": "2.6"
+        }
+      },
+      {
+        "row": "42",
+        "values": {
+          "B42": "11.13.6b Comfort Noise: Level Adj. Sce4 DVNB",
+          "C42": "Corrected value [dBm0(A)], 0",
+          "D42": "2",
+          "E42": "-5",
+          "G42": "-3.16"
+        }
+      },
+      {
+        "row": "43",
+        "values": {
+          "B43": "11.13.6d Comfort Noise: Spectral Adjustment Sce4 DVNB",
+          "C43": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D43": "120",
+          "E43": "0",
+          "G43": "11.48"
+        }
+      }
+    ]
+  },
+  {
+    "sheet": "WB-wireless",
+    "path": "xl/worksheets/sheet5.xml",
+    "rows": [
+      {
+        "row": "1",
+        "values": {
+          "B1": "测试项",
+          "C1": "单位",
+          "D1": "Upper\nLimit",
+          "E1": "Lower\nLimit",
+          "F1": "结果（ok/no）",
+          "G1": "45861",
+          "H1": "45862",
+          "I1": "45877"
+        }
+      },
+      {
+        "row": "2",
+        "values": {
+          "A2": "延时",
+          "B2": "11.02.1 Cal.: Round Trip Delay DVWB",
+          "C2": "Calculated Value [ms]",
+          "D2": "415",
+          "E2": "170",
+          "G2": "820.6"
+        }
+      },
+      {
+        "row": "3",
+        "values": {
+          "A3": "下行",
+          "B3": "11.03.3a Loudness Rating - Receiving, nominal BIN DVWB",
+          "C3": "RLR (binaural) [dB]",
+          "D3": "6",
+          "E3": "-2",
+          "G3": "4.65"
+        }
+      },
+      {
+        "row": "4",
+        "values": {
+          "B4": "11.03.3b Loudness Rating - Receiving, maximum BIN DVWB",
+          "C4": "RLR (binaural) [dB]",
+          "D4": "45",
+          "E4": "15",
+          "G4": "15.85"
+        }
+      },
+      {
+        "row": "5",
+        "values": {
+          "B5": "11.03.05a Variation of RLR, -5dB, nominal BIN DVWB",
+          "C5": "RLR (binaural) [dB]",
+          "D5": "0.5",
+          "E5": "-0.5",
+          "G5": "-0.03"
+        }
+      },
+      {
+        "row": "6",
+        "values": {
+          "B6": "11.03.05b Variation of RLR, +5dB, nominal BIN DVWB",
+          "C6": "RLR (binaural) [dB]",
+          "D6": "0.5",
+          "E6": "-0.5",
+          "G6": "0.08"
+        }
+      },
+      {
+        "row": "7",
+        "values": {
+          "B7": "11.04.2c Frequency Response RCV nominal Binaural DVWB",
+          "C7": "Min. dist. to tolerance scheme, 630.0 Hz",
+          "D7": "符合频响曲线",
+          "G7": "-6.16",
+          "H7": "2.94"
+        }
+      },
+      {
+        "row": "8",
+        "values": {
+          "B8": "11.07.2a Idle Channel Noise - Receiving,nom 100ms DVWB",
+          "C8": "Level [dB[Pa]]",
+          "D8": "-53",
+          "E8": "-200",
+          "G8": "-73.84"
+        }
+      },
+      {
+        "row": "9",
+        "values": {
+          "B9": "11.07.2b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C9": "Min. dist. to tolerance scheme [Pa], 199.2 Hz",
+          "D9": "符合噪声曲线",
+          "G9": "-6.35"
+        }
+      },
+      {
+        "row": "10",
+        "values": {
+          "B10": "11.05.2 One Way Sp. Qual. in RCV (TMOS) nominal DVWB",
+          "C10": "MOS",
+          "D10": "5",
+          "E10": "3",
+          "G10": "3.4"
+        }
+      },
+      {
+        "row": "11",
+        "values": {
+          "B11": "11.08.2b Out-of-Band Signal - Receiving DVWB",
+          "C11": "Corrected value [dB[Pa]], 0",
+          "D11": "10",
+          "E11": "-30",
+          "G11": "22.8",
+          "H11": "8.64"
+        }
+      },
+      {
+        "row": "12",
+        "values": {
+          "A12": "上行",
+          "B12": "11.03.2 Loudness Rating - Sending DVWB",
+          "C12": "SLR [dB]",
+          "D12": "17",
+          "E12": "9",
+          "G12": "25.69",
+          "H12": "15.23"
+        }
+      },
+      {
+        "row": "13",
+        "values": {
+          "B13": "11.04.1 Frequency Response - Sending DVWB",
+          "C13": "Min. dist. to tolerance scheme [dB], 200.0 Hz",
+          "D13": "符合频响曲线",
+          "G13": "-0.39",
+          "H13": "0.34"
+        }
+      },
+      {
+        "row": "14",
+        "values": {
+          "B14": "11.05.1 One Way Speech Quality in SND (TMOS) nom. DVWB",
+          "C14": "MOS",
+          "D14": "5",
+          "E14": "3",
+          "G14": "3.2"
+        }
+      },
+      {
+        "row": "15",
+        "values": {
+          "B15": "11.07.1a Idle Channel Noise - Sending, 100 ms DVWB",
+          "C15": "Level [dBm0]",
+          "D15": "-64",
+          "E15": "-200",
+          "G15": "-78.38"
+        }
+      },
+      {
+        "row": "16",
+        "values": {
+          "B16": "11.07.1b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C16": "Min. dist. to tolerance scheme [V], 7294.9 Hz",
+          "D16": "符合噪声曲线",
+          "G16": "4.14"
+        }
+      },
+      {
+        "row": "17",
+        "values": {
+          "B17": "11.08.1b Out-of-Band Signal - Sending DVWB",
+          "C17": "Corrected value [dBm0], 0",
+          "D17": "200",
+          "E17": "35",
+          "G17": "15.21"
+        }
+      },
+      {
+        "row": "18",
+        "values": {
+          "B18": "11.08.1c Out-of-Band Signal - Sending 100 ms DVWB",
+          "C18": "Corrected value [dBm0], 0",
+          "D18": "200",
+          "E18": "35",
+          "G18": "46.45"
+        }
+      },
+      {
+        "row": "19",
+        "values": {
+          "B19": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. nom. DVWB",
+          "C19": "DT Class A1 [%]",
+          "D19": "100",
+          "E19": "50",
+          "G19": "100"
+        }
+      },
+      {
+        "row": "20",
+        "values": {
+          "B20": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. max DVWB",
+          "C20": "DT Class A1 [%]",
+          "D20": "100",
+          "E20": "25",
+          "G20": "87.08"
+        }
+      },
+      {
+        "row": "21",
+        "values": {
+          "B21": "11.11.1a Terminal Coupling Loss (TCLw), DVWB",
+          "C21": "Echo Loss [dB]",
+          "D21": "200",
+          "E21": "50",
+          "G21": "55.17"
+        }
+      },
+      {
+        "row": "22",
+        "values": {
+          "B22": "11.11.1c Terminal Coupl Loss (TCLw), maximum Vol. DVWB",
+          "C22": "Echo Loss [dB]",
+          "D22": "200",
+          "E22": "50",
+          "G22": "26.6",
+          "H22": "39.32"
+        }
+      },
+      {
+        "row": "23",
+        "values": {
+          "B23": "11.03.3d Speech Level at HATS, S/N Calculation DVWB",
+          "C23": "Corrected value [dB], 0",
+          "D23": "200",
+          "E23": "6",
+          "G23": "10.95"
+        }
+      },
+      {
+        "row": "24",
+        "values": {
+          "B24": "U - EN Speech Quality BGN GMOS Sce1 DVWB",
+          "C24": "G-MOS (Average)",
+          "D24": "5",
+          "E24": "1",
+          "G24": "3.7"
+        }
+      },
+      {
+        "row": "25",
+        "values": {
+          "B25": "U - Check Noise Quality EN NMOS Sce1 DVWB",
+          "C25": "Calculated Value [MOS]",
+          "D25": "5",
+          "E25": "3",
+          "G25": "3.8"
+        }
+      },
+      {
+        "row": "26",
+        "values": {
+          "B26": "U - Check Speech Quality EN SMOS Sce1 DVWB",
+          "C26": "Calculated Value [MOS]",
+          "D26": "5",
+          "E26": "3",
+          "G26": "4"
+        }
+      },
+      {
+        "row": "27",
+        "values": {
+          "B27": "11.13.6b Comfort Noise: Level Adj. Sce1 DVWB",
+          "C27": "Corrected value [dBm0(A)], 0",
+          "D27": "2",
+          "E27": "-5",
+          "G27": "-0.01"
+        }
+      },
+      {
+        "row": "28",
+        "values": {
+          "B28": "11.13.6d Comfort Noise: Spectral Adjustment Sce1 DVWB",
+          "C28": "Min. dist. to tolerance scheme [dB], 8000.0 Hz",
+          "D28": "120",
+          "E28": "0",
+          "G28": "7.36"
+        }
+      },
+      {
+        "row": "29",
+        "values": {
+          "B29": "U - EN Speech Quality BGN GMOS Sce2 DVWB",
+          "C29": "G-MOS (Average)",
+          "D29": "5",
+          "E29": "1",
+          "G29": "3.5",
+          "H29": "3.6"
+        }
+      },
+      {
+        "row": "30",
+        "values": {
+          "B30": "U - Check Noise Quality EN NMOS Sce2 DVWB",
+          "C30": "Calculated Value [MOS]",
+          "D30": "5",
+          "E30": "3",
+          "G30": "2.7",
+          "H30": "3.1"
+        }
+      },
+      {
+        "row": "31",
+        "values": {
+          "B31": "U - Check Speech Quality EN SMOS Sce2 DVWB",
+          "C31": "Calculated Value [MOS]",
+          "D31": "5",
+          "E31": "3",
+          "G31": "4.5",
+          "H31": "4.3"
+        }
+      },
+      {
+        "row": "32",
+        "values": {
+          "B32": "11.13.6b Comfort Noise: Level Adj. Sce2 DVWB",
+          "C32": "Corrected value [dBm0(A)], 0",
+          "D32": "2",
+          "E32": "-5",
+          "G32": "-0.7"
+        }
+      },
+      {
+        "row": "33",
+        "values": {
+          "B33": "11.13.6d Comfort Noise: Spectral Adjustment Sce2 DVWB",
+          "C33": "Min. dist. to tolerance scheme [dB], 3150.0 Hz",
+          "D33": "120",
+          "E33": "0",
+          "G33": "7.19"
+        }
+      },
+      {
+        "row": "34",
+        "values": {
+          "B34": "U - EN Speech Quality BGN GMOS Sce3 DVWB",
+          "C34": "G-MOS (Average)",
+          "D34": "5",
+          "E34": "1",
+          "G34": "3.3",
+          "H34": "3.3"
+        }
+      },
+      {
+        "row": "35",
+        "values": {
+          "B35": "U - Check Noise Quality EN NMOS Sce3 DVWB",
+          "C35": "Calculated Value [MOS]",
+          "D35": "5",
+          "E35": "2.5",
+          "G35": "2.4",
+          "H35": "2.5"
+        }
+      },
+      {
+        "row": "36",
+        "values": {
+          "B36": "U - Check Speech Quality EN SMOS Sce3 DVWB",
+          "C36": "Calculated Value [MOS]",
+          "D36": "5",
+          "E36": "2.5",
+          "G36": "4.4",
+          "H36": "4.3"
+        }
+      },
+      {
+        "row": "37",
+        "values": {
+          "B37": "11.13.6b Comfort Noise: Level Adj. Sce3 DVWB",
+          "C37": "Corrected value [dBm0(A)], 0",
+          "D37": "2",
+          "E37": "-5",
+          "G37": "-0.07"
+        }
+      },
+      {
+        "row": "38",
+        "values": {
+          "B38": "11.13.6d Comfort Noise: Spectral Adjustment Sce3 DVWB",
+          "C38": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D38": "120",
+          "E38": "0",
+          "G38": "7.7"
+        }
+      },
+      {
+        "row": "39",
+        "values": {
+          "B39": "U - EN Speech Quality BGN GMOS Sce4 DVWB",
+          "C39": "G-MOS (Average)",
+          "D39": "5",
+          "E39": "1",
+          "G39": "3",
+          "H39": "2"
+        }
+      },
+      {
+        "row": "40",
+        "values": {
+          "B40": "U - Check Noise Quality EN NMOS Sce4 DVWB",
+          "C40": "Calculated Value [MOS]",
+          "D40": "5",
+          "E40": "2.5",
+          "G40": "2",
+          "H40": "2.5"
+        }
+      },
+      {
+        "row": "41",
+        "values": {
+          "B41": "U - Check Speech Quality EN SMOS Sce4 DVWB",
+          "C41": "Calculated Value [MOS]",
+          "D41": "5",
+          "E41": "2.5",
+          "G41": "4.3",
+          "H41": "2.6"
+        }
+      },
+      {
+        "row": "42",
+        "values": {
+          "B42": "11.13.6b Comfort Noise: Level Adj. Sce4 DVWB",
+          "C42": "Corrected value [dBm0(A)], 0",
+          "D42": "2",
+          "E42": "-5",
+          "G42": "-0.84"
+        }
+      },
+      {
+        "row": "43",
+        "values": {
+          "B43": "11.13.6d Comfort Noise: Spectral Adjustment Sce4 DVWB",
+          "C43": "Min. dist. to tolerance scheme [dB], 3150.0 Hz",
+          "D43": "120",
+          "E43": "0",
+          "G43": "7.94"
+        }
+      }
+    ]
+  },
+  {
+    "sheet": "SWB-wireless",
+    "path": "xl/worksheets/sheet6.xml",
+    "rows": [
+      {
+        "row": "1",
+        "values": {
+          "B1": "测试项",
+          "C1": "单位",
+          "D1": "Upper\nLimit",
+          "E1": "Lower\nLimit",
+          "F1": "结果（ok/no）",
+          "G1": "45861",
+          "H1": "45862",
+          "I1": "45877"
+        }
+      },
+      {
+        "row": "2",
+        "values": {
+          "A2": "延时",
+          "B2": "9.1.1 Cal.: Round Trip Delay (wired/wireless) DVSB",
+          "C2": "Calculated Value [ms]",
+          "D2": "415",
+          "E2": "170",
+          "G2": "909.4"
+        }
+      },
+      {
+        "row": "3",
+        "values": {
+          "A3": "下行",
+          "B3": "9.2.3a Loudness Rating - Receiving, nominal Bin. DVSB",
+          "C3": "RLR (binaural) [dB]",
+          "D3": "6",
+          "E3": "-2",
+          "G3": "4.53"
+        }
+      },
+      {
+        "row": "4",
+        "values": {
+          "B4": "9.2.3b Loudness Rating - Receiving, maximum Bin. DVSB",
+          "C4": "RLR (binaural) [dB]",
+          "D4": "45",
+          "E4": "15",
+          "G4": "15.83"
+        }
+      },
+      {
+        "row": "5",
+        "values": {
+          "B5": "9.4.2 Freq. Response RCV nominal Binaural DVSB",
+          "C5": "Min. dist. to tolerance scheme [Pa/V], 800.0 Hz",
+          "D5": "符合频响曲线",
+          "G5": "-11.17",
+          "H5": "1.15"
+        }
+      },
+      {
+        "row": "6",
+        "values": {
+          "B6": "Optional: 9.5.2b Listening Speech Qual. POLQA RCV DVSB",
+          "C6": "MOS-LQO, Time range: 0.0 .. 8.0 s",
+          "D6": "5",
+          "E6": "3.6",
+          "G6": "2.5",
+          "H6": "3.1"
+        }
+      },
+      {
+        "row": "7",
+        "values": {
+          "B7": "9.7.2a Idle Channel Noise RCV, nom. 50ms DVSB",
+          "C7": "Level [dB[Pa]]",
+          "D7": "-53",
+          "E7": "-200",
+          "G7": "-72.51"
+        }
+      },
+      {
+        "row": "8",
+        "values": {
+          "B8": "9.7.2b Idle Channel Noise Check for Spec. Peaks 50ms",
+          "C8": "Min. dist. to tolerance scheme [Pa], 298.8 Hz",
+          "D8": "符合噪声曲线",
+          "G8": "-3.12"
+        }
+      },
+      {
+        "row": "9",
+        "values": {
+          "B9": "9.7.2c Idle Channel Noise RCV, nom 100ms DVSB",
+          "C9": "Level [dB[Pa]]",
+          "D9": "-53",
+          "E9": "-200",
+          "G9": "-73.79"
+        }
+      },
+      {
+        "row": "10",
+        "values": {
+          "B10": "9.7.2d Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C10": "Min. dist. to tolerance scheme [Pa], 298.8 Hz",
+          "D10": "符合噪声曲线",
+          "G10": "-3.24"
+        }
+      },
+      {
+        "row": "11",
+        "values": {
+          "A11": "上行",
+          "B11": "9.2.2 Loudness Rating - Sending DVSB",
+          "C11": "SLR [dB]",
+          "D11": "17",
+          "E11": "9",
+          "G11": "25.53",
+          "H11": "15.66"
+        }
+      },
+      {
+        "row": "12",
+        "values": {
+          "B12": "9.4.1 Frequency Response - Sending DVSB",
+          "C12": "Min. dist. to tolerance scheme [dB], 80.0 Hz",
+          "D12": "符合频响曲线",
+          "G12": "-8.05",
+          "H12": "-6.89"
+        }
+      },
+      {
+        "row": "13",
+        "values": {
+          "B13": "Optional: 9.5.1b Listening Speech Qual. POLQA SND DVSB",
+          "C13": "MOS-LQO (Average)",
+          "D13": "5",
+          "E13": "3.6",
+          "G13": "3.3",
+          "H13": "3.5"
+        }
+      },
+      {
+        "row": "14",
+        "values": {
+          "B14": "9.7.1a Idle Channel Noise - Sending, 50 ms DVSB",
+          "C14": "Level [dBm0]",
+          "D14": "-64",
+          "E14": "-200",
+          "G14": "-77.7"
+        }
+      },
+      {
+        "row": "15",
+        "values": {
+          "B15": "9.7.1b Idle Channel Noise Check for Spec. Peaks 50ms",
+          "C15": "Min. dist. to tolerance scheme [V], 7300.8 Hz",
+          "D15": "符合噪声曲线",
+          "G15": "0.91"
+        }
+      },
+      {
+        "row": "16",
+        "values": {
+          "B16": "9.7.1c Idle Channel Noise - Sending, 100 ms DVSB",
+          "C16": "Level [dBm0]",
+          "D16": "-64",
+          "E16": "-200",
+          "G16": "-78.06"
+        }
+      },
+      {
+        "row": "17",
+        "values": {
+          "B17": "9.7.1d Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C17": "Min. dist. to tolerance scheme [V], 7289.1 Hz",
+          "D17": "符合噪声曲线",
+          "G17": "4.67"
+        }
+      },
+      {
+        "row": "18",
+        "values": {
+          "B18": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. (S2) DVSB",
+          "C18": "DT Class A1 [%]",
+          "D18": "100",
+          "E18": "50",
+          "G18": "66.7"
+        }
+      },
+      {
+        "row": "19",
+        "values": {
+          "B19": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. max DVSB",
+          "C19": "DT Class A1 [%]",
+          "D19": "100",
+          "E19": "25",
+          "G19": "45.64"
+        }
+      },
+      {
+        "row": "20",
+        "values": {
+          "B20": "9.10.1a Terminal Coupling Loss (TCL), nominal DVSB",
+          "C20": "Echo Loss [dB]",
+          "D20": "200",
+          "E20": "50",
+          "G20": "17.84"
+        }
+      },
+      {
+        "row": "21",
+        "values": {
+          "B21": "9.10.1b TCL, nom. Recommended DVSB",
+          "C21": "Calculated Value [dB]",
+          "D21": "200",
+          "E21": "50",
+          "G21": "17.84"
+        }
+      },
+      {
+        "row": "22",
+        "values": {
+          "B22": "9.10.1c Terminal Coupl Loss (TCL), maximum Vol. DVSB",
+          "C22": "Echo Loss [dB]",
+          "D22": "200",
+          "E22": "50",
+          "G22": "9.98"
+        }
+      },
+      {
+        "row": "23",
+        "values": {
+          "B23": "9.2.3d Speech Level at HATS, S/N Calculation DVSB",
+          "C23": "Corrected value [dB], 0",
+          "D23": "200",
+          "E23": "6",
+          "G23": "11.96"
+        }
+      },
+      {
+        "row": "24",
+        "values": {
+          "B24": "Preliminary: 9.13.3a EN Speech Qual. BGN GMOS Sce1 DVSB",
+          "C24": "G-MOS (Average)",
+          "D24": "5",
+          "E24": "1",
+          "G24": "3.5"
+        }
+      },
+      {
+        "row": "25",
+        "values": {
+          "B25": "Preliminary: 9.13.3b Check Noise Qual. NMOS Sce1 DVSB",
+          "C25": "Calculated Value [MOS]",
+          "D25": "5",
+          "E25": "4",
+          "G25": "3.9"
+        }
+      },
+      {
+        "row": "26",
+        "values": {
+          "B26": "Preliminary: 9.13.3c Check Speech Qual. SMOS Sce1 DVSB",
+          "C26": "Calculated Value [MOS]",
+          "D26": "5",
+          "E26": "4",
+          "G26": "3.8"
+        }
+      },
+      {
+        "row": "27",
+        "values": {
+          "B27": "9.13.6b Comfort Noise: Level Adj. Sce1 DVSB",
+          "C27": "Corrected value [dBm0(A)], 0",
+          "D27": "2",
+          "E27": "-5",
+          "G27": "25.1"
+        }
+      },
+      {
+        "row": "28",
+        "values": {
+          "B28": "9.13.6d Comfort Noise: Spectral Adjustment Sce1 DVSB",
+          "C28": "Min. dist. to tolerance scheme [dB], 6300.0 Hz",
+          "D28": "120",
+          "E28": "0",
+          "G28": "-9.42"
+        }
+      },
+      {
+        "row": "29",
+        "values": {
+          "B29": "Preliminary: 9.13.3a EN Speech Qual. BGN GMOS Sce2 DVSB",
+          "C29": "G-MOS (Average)",
+          "D29": "5",
+          "E29": "1",
+          "G29": "2.8"
+        }
+      },
+      {
+        "row": "30",
+        "values": {
+          "B30": "Preliminary: 9.13.3b Check Noise Qual. NMOS Sce2 DVSB",
+          "C30": "Calculated Value [MOS]",
+          "D30": "5",
+          "E30": "3",
+          "G30": "3.3"
+        }
+      },
+      {
+        "row": "31",
+        "values": {
+          "B31": "Preliminary: 9.13.3c Check Speech Qual. SMOS Sce2 DVSB",
+          "C31": "Calculated Value [MOS]",
+          "D31": "5",
+          "E31": "3",
+          "G31": "3.4"
+        }
+      },
+      {
+        "row": "32",
+        "values": {
+          "B32": "9.13.6b Comfort Noise: Level Adj. Sce2 DVSB",
+          "C32": "Corrected value [dBm0(A)], 0",
+          "D32": "2",
+          "E32": "-5",
+          "G32": "-5.61"
+        }
+      },
+      {
+        "row": "33",
+        "values": {
+          "B33": "9.13.6d Comfort Noise: Spectral Adjustment Sce2 DVSB",
+          "C33": "Min. dist. to tolerance scheme [dB], 4000.0 Hz",
+          "D33": "120",
+          "E33": "0",
+          "G33": "7.9"
+        }
+      },
+      {
+        "row": "34",
+        "values": {
+          "B34": "Preliminary: 9.13.3a EN Speech Qual. BGN GMOS Sce3 DVSB",
+          "C34": "G-MOS (Average)",
+          "D34": "5",
+          "E34": "1",
+          "G34": "2.4"
+        }
+      },
+      {
+        "row": "35",
+        "values": {
+          "B35": "Preliminary: 9.13.3b Check Noise Qual. NMOS Sce3 DVSB",
+          "C35": "Calculated Value [MOS]",
+          "D35": "5",
+          "E35": "2.5",
+          "G35": "3.1"
+        }
+      },
+      {
+        "row": "36",
+        "values": {
+          "B36": "Preliminary: 9.13.3c Check Speech Qual. SMOS Sce3 DVSB",
+          "C36": "Calculated Value [MOS]",
+          "D36": "5",
+          "E36": "2.5",
+          "G36": "3.3"
+        }
+      },
+      {
+        "row": "37",
+        "values": {
+          "B37": "9.13.6b Comfort Noise: Level Adj. Sce3 DVSB",
+          "C37": "Corrected value [dBm0(A)], 0",
+          "D37": "2",
+          "E37": "-5",
+          "G37": "-6.11"
+        }
+      },
+      {
+        "row": "38",
+        "values": {
+          "B38": "9.13.6d Comfort Noise: Spectral Adjustment Sce3 DVSB",
+          "C38": "Min. dist. to tolerance scheme [dB], 4000.0 Hz",
+          "D38": "120",
+          "E38": "0",
+          "G38": "9.54"
+        }
+      },
+      {
+        "row": "39",
+        "values": {
+          "B39": "Preliminary: 9.13.3a EN Speech Qual. BGN GMOS Sce4 DVSB",
+          "C39": "G-MOS (Average)",
+          "D39": "5",
+          "E39": "1",
+          "G39": "2.3"
+        }
+      },
+      {
+        "row": "40",
+        "values": {
+          "B40": "Preliminary: 9.13.3b Check Noise Qual. NMOS Sce4 DVSB",
+          "C40": "Calculated Value [MOS]",
+          "D40": "5",
+          "E40": "2.5",
+          "G40": "2.6"
+        }
+      },
+      {
+        "row": "41",
+        "values": {
+          "B41": "Preliminary: 9.13.3c Check Speech Qual. SMOS Sce4 DVSB",
+          "C41": "Calculated Value [MOS]",
+          "D41": "5",
+          "E41": "2.5",
+          "G41": "3.3"
+        }
+      },
+      {
+        "row": "42",
+        "values": {
+          "B42": "9.13.6b Comfort Noise: Level Adj. Sce4 DVSB",
+          "C42": "Corrected value [dBm0(A)], 0",
+          "D42": "2",
+          "E42": "-5",
+          "G42": "-5.92"
+        }
+      },
+      {
+        "row": "43",
+        "values": {
+          "B43": "9.13.6d Comfort Noise: Spectral Adjustment Sce4 DVSB",
+          "C43": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D43": "120",
+          "E43": "0",
+          "G43": "7.14"
+        }
+      }
+    ]
+  },
+  {
+    "sheet": "NB-bt",
+    "path": "xl/worksheets/sheet7.xml",
+    "rows": [
+      {
+        "row": "1",
+        "values": {
+          "B1": "测试项",
+          "C1": "单位",
+          "D1": "Upper\nLimit",
+          "E1": "Lower\nLimit",
+          "F1": "结果（ok/no）",
+          "G1": "46200",
+          "H1": "45876",
+          "I1": "45877"
+        }
+      },
+      {
+        "row": "2",
+        "values": {
+          "A2": "延时",
+          "B2": "11.02.1 Cal.: Round Trip Delay DVNB",
+          "C2": "Calculated Value [ms]"
+        }
+      },
+      {
+        "row": "3",
+        "values": {
+          "A3": "下行",
+          "B3": "11.03.3a Loudness Rating - Receiving, nominal BIN DVNB",
+          "C3": "RLR (binaural) [dB]",
+          "D3": "6",
+          "E3": "-2"
+        }
+      },
+      {
+        "row": "4",
+        "values": {
+          "B4": "11.03.05a Variation of RLR, -5dB, nominal BIN DVNB",
+          "C4": "RLR (binaural) [dB]",
+          "D4": "0.5",
+          "E4": "-0.5"
+        }
+      },
+      {
+        "row": "5",
+        "values": {
+          "B5": "11.03.05b Variation of RLR, +5dB, nominal BIN DVNB",
+          "C5": "RLR (binaural) [dB]",
+          "D5": "0.5",
+          "E5": "-0.5"
+        }
+      },
+      {
+        "row": "6",
+        "values": {
+          "B6": "11.03.3b Loudness Rating - Receiving, maximum BIN DVNB",
+          "C6": "RLR (binaural) [dB]",
+          "D6": "45",
+          "E6": "15"
+        }
+      },
+      {
+        "row": "7",
+        "values": {
+          "B7": "11.04.2c Frequency Response RCV nominal Binaural DVNB",
+          "C7": "Min. dist. to tolerance scheme, 800.0 Hz",
+          "D7": "符合频响曲线"
+        }
+      },
+      {
+        "row": "8",
+        "values": {
+          "B8": "11.07.2a Idle Channel Noise - Receiving,nom 100ms DVNB",
+          "C8": "Level [dB[Pa]]",
+          "D8": "-53",
+          "E8": "-200"
+        }
+      },
+      {
+        "row": "9",
+        "values": {
+          "B9": "11.07.2b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C9": "Min. dist. to tolerance scheme [Pa], 298.8 Hz",
+          "D9": "符合噪声曲线"
+        }
+      },
+      {
+        "row": "10",
+        "values": {
+          "B10": "11.05.2 One Way Sp. Qual. in RCV (TMOS) nominal DVNB",
+          "C10": "MOS",
+          "D10": "5",
+          "E10": "3"
+        }
+      },
+      {
+        "row": "11",
+        "values": {
+          "B11": "11.08.2b Out-of-Band Signal - Receiving DVNB",
+          "C11": "Corrected value [dB[Pa]], 0",
+          "D11": "200",
+          "E11": "45"
+        }
+      },
+      {
+        "row": "12",
+        "values": {
+          "A12": "上行",
+          "B12": "11.03.2 Loudness Rating - Sending DVNB",
+          "C12": "SLR [dB]",
+          "D12": "17",
+          "E12": "9"
+        }
+      },
+      {
+        "row": "13",
+        "values": {
+          "B13": "11.04.1 Frequency Response - Sending DVNB",
+          "C13": "Min. dist. to tolerance scheme [dB], 1000.0 Hz",
+          "D13": "符合频响曲线"
+        }
+      },
+      {
+        "row": "14",
+        "values": {
+          "B14": "11.05.1 One Way Speech Quality in SND (TMOS) nom. DVNB",
+          "C14": "MOS",
+          "D14": "5",
+          "E14": "3"
+        }
+      },
+      {
+        "row": "15",
+        "values": {
+          "B15": "11.07.1a Idle Channel Noise - Sending, 100 ms DVNB",
+          "C15": "Level [dBm0]",
+          "D15": "-64",
+          "E15": "-200"
+        }
+      },
+      {
+        "row": "16",
+        "values": {
+          "B16": "11.07.1b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C16": "Min. dist. to tolerance scheme [V], 3791.0 Hz",
+          "D16": "符合噪声曲线"
+        }
+      },
+      {
+        "row": "17",
+        "values": {
+          "B17": "11.08.1b Out-of-Band Signal - Sending DVNB",
+          "C17": "Corrected value [dBm0], 0",
+          "D17": "200",
+          "E17": "35"
+        }
+      },
+      {
+        "row": "18",
+        "values": {
+          "B18": "11.08.1c Out-of-Band Signal - Sending 100 ms DVNB",
+          "C18": "Corrected value [dBm0], 0",
+          "D18": "200",
+          "E18": "35"
+        }
+      },
+      {
+        "row": "19",
+        "values": {
+          "B19": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. nom. DVNB",
+          "C19": "DT Class A1 [%]+A2",
+          "D19": "100",
+          "E19": "50"
+        }
+      },
+      {
+        "row": "20",
+        "values": {
+          "B20": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. max DVNB",
+          "C20": "DT Class A1 [%]+A2",
+          "D20": "100",
+          "E20": "25"
+        }
+      },
+      {
+        "row": "21",
+        "values": {
+          "B21": "11.11.1a Terminal Coupling Loss (TCLw), nominal DVNB",
+          "C21": "Echo Loss [dB]",
+          "D21": "200",
+          "E21": "50"
+        }
+      },
+      {
+        "row": "22",
+        "values": {
+          "B22": "11.11.1b Terminal Coupl. Loss (TCLw), maximum Vol. DVNB",
+          "C22": "Echo Loss [dB]",
+          "D22": "200",
+          "E22": "50"
+        }
+      },
+      {
+        "row": "23",
+        "values": {
+          "B23": "11.03.3d Speech Level at HATS, S/N Calculation DVNB",
+          "C23": "Corrected value [dB], 0",
+          "D23": "200",
+          "E23": "6"
+        }
+      },
+      {
+        "row": "24",
+        "values": {
+          "B24": "11.13.3a EN Speech Quality BGN GMOS Sce1 DVNB",
+          "C24": "G-MOS (Average)",
+          "D24": "5",
+          "E24": "1"
+        }
+      },
+      {
+        "row": "25",
+        "values": {
+          "B25": "11.13.3b Check Noise Quality EN NMOS Sce1 DVNB",
+          "C25": "Calculated Value [MOS]",
+          "D25": "5",
+          "E25": "3"
+        }
+      },
+      {
+        "row": "26",
+        "values": {
+          "B26": "11.13.3c Check Speech Quality EN SMOS Sce1 DVNB",
+          "C26": "Calculated Value [MOS]",
+          "D26": "5",
+          "E26": "3"
+        }
+      },
+      {
+        "row": "27",
+        "values": {
+          "B27": "11.13.6b Comfort Noise: Level Adj. Sce1 DVNB",
+          "C27": "Corrected value [dBm0(A)], 0",
+          "D27": "2",
+          "E27": "-5"
+        }
+      },
+      {
+        "row": "28",
+        "values": {
+          "B28": "11.13.6d Comfort Noise: Spectral Adjustment Sce1 DVNB",
+          "C28": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D28": "120",
+          "E28": "0"
+        }
+      },
+      {
+        "row": "29",
+        "values": {
+          "B29": "11.13.3a EN Speech Quality BGN GMOS Sce2 DVNB",
+          "C29": "G-MOS (Average)",
+          "D29": "5",
+          "E29": "1"
+        }
+      },
+      {
+        "row": "30",
+        "values": {
+          "B30": "11.13.3b Check Noise Quality EN NMOS Sce2 DVNB",
+          "C30": "Calculated Value [MOS]",
+          "D30": "5",
+          "E30": "3"
+        }
+      },
+      {
+        "row": "31",
+        "values": {
+          "B31": "11.13.3c Check Speech Quality EN SMOS Sce2 DVNB",
+          "C31": "Calculated Value [MOS]",
+          "D31": "5",
+          "E31": "3"
+        }
+      },
+      {
+        "row": "32",
+        "values": {
+          "B32": "11.13.6b Comfort Noise: Level Adj. Sce2 DVNB",
+          "C32": "Corrected value [dBm0(A)], 0",
+          "D32": "2",
+          "E32": "-5"
+        }
+      },
+      {
+        "row": "33",
+        "values": {
+          "B33": "11.13.6d Comfort Noise: Spectral Adjustment Sce2 DVNB",
+          "C33": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D33": "120",
+          "E33": "0"
+        }
+      },
+      {
+        "row": "34",
+        "values": {
+          "B34": "11.13.3a EN Speech Quality BGN GMOS Sce3 DVNB",
+          "C34": "G-MOS (Average)",
+          "D34": "5",
+          "E34": "1"
+        }
+      },
+      {
+        "row": "35",
+        "values": {
+          "B35": "11.13.3b Check Noise Quality EN NMOS Sce3 DVNB",
+          "C35": "Calculated Value [MOS]",
+          "D35": "5",
+          "E35": "2.5"
+        }
+      },
+      {
+        "row": "36",
+        "values": {
+          "B36": "11.13.3c Check Speech Quality EN SMOS Sce3 DVNB",
+          "C36": "Calculated Value [MOS]",
+          "D36": "5",
+          "E36": "2.5"
+        }
+      },
+      {
+        "row": "37",
+        "values": {
+          "B37": "11.13.6b Comfort Noise: Level Adj. Sce3 DVNB",
+          "C37": "Corrected value [dBm0(A)], 0",
+          "D37": "2",
+          "E37": "-5"
+        }
+      },
+      {
+        "row": "38",
+        "values": {
+          "B38": "11.13.6d Comfort Noise: Spectral Adjustment Sce3 DVNB",
+          "C38": "Min. dist. to tolerance scheme [dB], 400.0 Hz",
+          "D38": "120",
+          "E38": "0"
+        }
+      },
+      {
+        "row": "39",
+        "values": {
+          "B39": "11.13.3a EN Speech Quality BGN GMOS Sce4 DVNB",
+          "C39": "G-MOS (Average)",
+          "D39": "5",
+          "E39": "1"
+        }
+      },
+      {
+        "row": "40",
+        "values": {
+          "B40": "11.13.3b Check Noise Quality EN NMOS Sce4 DVNB",
+          "C40": "Calculated Value [MOS]",
+          "D40": "5",
+          "E40": "2.5"
+        }
+      },
+      {
+        "row": "41",
+        "values": {
+          "B41": "11.13.3c Check Speech Quality EN SMOS Sce4 DVNB",
+          "C41": "Calculated Value [MOS]",
+          "D41": "5",
+          "E41": "2.5"
+        }
+      },
+      {
+        "row": "42",
+        "values": {
+          "B42": "11.13.6b Comfort Noise: Level Adj. Sce4 DVNB",
+          "C42": "Corrected value [dBm0(A)], 0",
+          "D42": "2",
+          "E42": "-5"
+        }
+      },
+      {
+        "row": "43",
+        "values": {
+          "B43": "11.13.6d Comfort Noise: Spectral Adjustment Sce4 DVNB",
+          "C43": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D43": "120",
+          "E43": "0"
+        }
+      }
+    ]
+  },
+  {
+    "sheet": "WB-bt",
+    "path": "xl/worksheets/sheet8.xml",
+    "rows": [
+      {
+        "row": "1",
+        "values": {
+          "B1": "测试项",
+          "C1": "单位",
+          "D1": "Upper\nLimit",
+          "E1": "Lower\nLimit",
+          "F1": "结果（ok/no）",
+          "G1": "45834",
+          "H1": "45876",
+          "I1": "45877"
+        }
+      },
+      {
+        "row": "2",
+        "values": {
+          "A2": "延时",
+          "B2": "11.02.1 Cal.: Round Trip Delay DVWB",
+          "C2": "Calculated Value [ms]",
+          "D2": "415",
+          "E2": "170"
+        }
+      },
+      {
+        "row": "3",
+        "values": {
+          "A3": "下行",
+          "B3": "11.03.3a Loudness Rating - Receiving, nominal BIN DVWB",
+          "C3": "RLR (binaural) [dB]",
+          "D3": "6",
+          "E3": "-2"
+        }
+      },
+      {
+        "row": "4",
+        "values": {
+          "B4": "11.03.3b Loudness Rating - Receiving, maximum BIN DVWB",
+          "C4": "RLR (binaural) [dB]",
+          "D4": "45",
+          "E4": "15"
+        }
+      },
+      {
+        "row": "5",
+        "values": {
+          "B5": "11.03.05a Variation of RLR, -5dB, nominal BIN DVWB",
+          "C5": "RLR (binaural) [dB]",
+          "D5": "0.5",
+          "E5": "-0.5"
+        }
+      },
+      {
+        "row": "6",
+        "values": {
+          "B6": "11.03.05b Variation of RLR, +5dB, nominal BIN DVWB",
+          "C6": "RLR (binaural) [dB]",
+          "D6": "0.5",
+          "E6": "-0.5"
+        }
+      },
+      {
+        "row": "7",
+        "values": {
+          "B7": "11.04.2c Frequency Response RCV nominal Binaural DVWB",
+          "C7": "Min. dist. to tolerance scheme, 630.0 Hz",
+          "D7": "符合频响曲线"
+        }
+      },
+      {
+        "row": "8",
+        "values": {
+          "B8": "11.07.2a Idle Channel Noise - Receiving,nom 100ms DVWB",
+          "C8": "Level [dB[Pa]]",
+          "D8": "-53",
+          "E8": "-200"
+        }
+      },
+      {
+        "row": "9",
+        "values": {
+          "B9": "11.07.2b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C9": "Min. dist. to tolerance scheme [Pa], 199.2 Hz",
+          "D9": "符合噪声曲线"
+        }
+      },
+      {
+        "row": "10",
+        "values": {
+          "B10": "11.05.2 One Way Sp. Qual. in RCV (TMOS) nominal DVWB",
+          "C10": "MOS",
+          "D10": "5",
+          "E10": "3"
+        }
+      },
+      {
+        "row": "11",
+        "values": {
+          "B11": "11.08.2b Out-of-Band Signal - Receiving DVWB",
+          "C11": "Corrected value [dB[Pa]], 0",
+          "D11": "10",
+          "E11": "-30"
+        }
+      },
+      {
+        "row": "12",
+        "values": {
+          "A12": "上行",
+          "B12": "11.03.2 Loudness Rating - Sending DVWB",
+          "C12": "SLR [dB]",
+          "D12": "17",
+          "E12": "9"
+        }
+      },
+      {
+        "row": "13",
+        "values": {
+          "B13": "11.04.1 Frequency Response - Sending DVWB",
+          "C13": "Min. dist. to tolerance scheme [dB], 200.0 Hz",
+          "D13": "符合频响曲线"
+        }
+      },
+      {
+        "row": "14",
+        "values": {
+          "B14": "11.05.1 One Way Speech Quality in SND (TMOS) nom. DVWB",
+          "C14": "MOS",
+          "D14": "5",
+          "E14": "3"
+        }
+      },
+      {
+        "row": "15",
+        "values": {
+          "B15": "11.07.1a Idle Channel Noise - Sending, 100 ms DVWB",
+          "C15": "Level [dBm0]",
+          "D15": "-64",
+          "E15": "-200"
+        }
+      },
+      {
+        "row": "16",
+        "values": {
+          "B16": "11.07.1b Idle Channel Noise Check for Spec. Peaks 100ms",
+          "C16": "Min. dist. to tolerance scheme [V], 7294.9 Hz",
+          "D16": "符合噪声曲线"
+        }
+      },
+      {
+        "row": "17",
+        "values": {
+          "B17": "11.08.1b Out-of-Band Signal - Sending DVWB",
+          "C17": "Corrected value [dBm0], 0",
+          "D17": "200",
+          "E17": "35"
+        }
+      },
+      {
+        "row": "18",
+        "values": {
+          "B18": "11.08.1c Out-of-Band Signal - Sending 100 ms DVWB",
+          "C18": "Corrected value [dBm0], 0",
+          "D18": "200",
+          "E18": "35"
+        }
+      },
+      {
+        "row": "19",
+        "values": {
+          "B19": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. nom. DVWB",
+          "C19": "DT Class A1 [%]",
+          "D19": "100",
+          "E19": "50"
+        }
+      },
+      {
+        "row": "20",
+        "values": {
+          "B20": "U - 3GPP Attn. Range in SND, DT - Sent. Seq. max DVWB",
+          "C20": "DT Class A1 [%]",
+          "D20": "100",
+          "E20": "25"
+        }
+      },
+      {
+        "row": "21",
+        "values": {
+          "B21": "11.11.1a Terminal Coupling Loss (TCLw), DVWB",
+          "C21": "Echo Loss [dB]",
+          "D21": "200",
+          "E21": "50"
+        }
+      },
+      {
+        "row": "22",
+        "values": {
+          "B22": "11.11.1c Terminal Coupl Loss (TCLw), maximum Vol. DVWB",
+          "C22": "Echo Loss [dB]",
+          "D22": "200",
+          "E22": "50"
+        }
+      },
+      {
+        "row": "23",
+        "values": {
+          "B23": "11.03.3d Speech Level at HATS, S/N Calculation DVWB",
+          "C23": "Corrected value [dB], 0",
+          "D23": "200",
+          "E23": "6"
+        }
+      },
+      {
+        "row": "24",
+        "values": {
+          "B24": "U - EN Speech Quality BGN GMOS Sce1 DVWB",
+          "C24": "G-MOS (Average)",
+          "D24": "5",
+          "E24": "1"
+        }
+      },
+      {
+        "row": "25",
+        "values": {
+          "B25": "U - Check Noise Quality EN NMOS Sce1 DVWB",
+          "C25": "Calculated Value [MOS]",
+          "D25": "5",
+          "E25": "3"
+        }
+      },
+      {
+        "row": "26",
+        "values": {
+          "B26": "U - Check Speech Quality EN SMOS Sce1 DVWB",
+          "C26": "Calculated Value [MOS]",
+          "D26": "5",
+          "E26": "3"
+        }
+      },
+      {
+        "row": "27",
+        "values": {
+          "B27": "11.13.6b Comfort Noise: Level Adj. Sce1 DVWB",
+          "C27": "Corrected value [dBm0(A)], 0",
+          "D27": "2",
+          "E27": "-5"
+        }
+      },
+      {
+        "row": "28",
+        "values": {
+          "B28": "11.13.6d Comfort Noise: Spectral Adjustment Sce1 DVWB",
+          "C28": "Min. dist. to tolerance scheme [dB], 8000.0 Hz",
+          "D28": "120",
+          "E28": "0"
+        }
+      },
+      {
+        "row": "29",
+        "values": {
+          "B29": "U - EN Speech Quality BGN GMOS Sce2 DVWB",
+          "C29": "G-MOS (Average)",
+          "D29": "5",
+          "E29": "1"
+        }
+      },
+      {
+        "row": "30",
+        "values": {
+          "B30": "U - Check Noise Quality EN NMOS Sce2 DVWB",
+          "C30": "Calculated Value [MOS]",
+          "D30": "5",
+          "E30": "3"
+        }
+      },
+      {
+        "row": "31",
+        "values": {
+          "B31": "U - Check Speech Quality EN SMOS Sce2 DVWB",
+          "C31": "Calculated Value [MOS]",
+          "D31": "5",
+          "E31": "3"
+        }
+      },
+      {
+        "row": "32",
+        "values": {
+          "B32": "11.13.6b Comfort Noise: Level Adj. Sce2 DVWB",
+          "C32": "Corrected value [dBm0(A)], 0",
+          "D32": "2",
+          "E32": "-5"
+        }
+      },
+      {
+        "row": "33",
+        "values": {
+          "B33": "11.13.6d Comfort Noise: Spectral Adjustment Sce2 DVWB",
+          "C33": "Min. dist. to tolerance scheme [dB], 3150.0 Hz",
+          "D33": "120",
+          "E33": "0"
+        }
+      },
+      {
+        "row": "34",
+        "values": {
+          "B34": "U - EN Speech Quality BGN GMOS Sce3 DVWB",
+          "C34": "G-MOS (Average)",
+          "D34": "5",
+          "E34": "1"
+        }
+      },
+      {
+        "row": "35",
+        "values": {
+          "B35": "U - Check Noise Quality EN NMOS Sce3 DVWB",
+          "C35": "Calculated Value [MOS]",
+          "D35": "5",
+          "E35": "2.5"
+        }
+      },
+      {
+        "row": "36",
+        "values": {
+          "B36": "U - Check Speech Quality EN SMOS Sce3 DVWB",
+          "C36": "Calculated Value [MOS]",
+          "D36": "5",
+          "E36": "2.5"
+        }
+      },
+      {
+        "row": "37",
+        "values": {
+          "B37": "11.13.6b Comfort Noise: Level Adj. Sce3 DVWB",
+          "C37": "Corrected value [dBm0(A)], 0",
+          "D37": "2",
+          "E37": "-5"
+        }
+      },
+      {
+        "row": "38",
+        "values": {
+          "B38": "11.13.6d Comfort Noise: Spectral Adjustment Sce3 DVWB",
+          "C38": "Min. dist. to tolerance scheme [dB], 2500.0 Hz",
+          "D38": "120",
+          "E38": "0"
+        }
+      },
+      {
+        "row": "39",
+        "values": {
+          "B39": "U - EN Speech Quality BGN GMOS Sce4 DVWB",
+          "C39": "G-MOS (Average)",
+          "D39": "5",
+          "E39": "1"
+        }
+      },
+      {
+        "row": "40",
+        "values": {
+          "B40": "U - Check Noise Quality EN NMOS Sce4 DVWB",
+          "C40": "Calculated Value [MOS]",
+          "D40": "5",
+          "E40": "2.5"
+        }
+      },
+      {
+        "row": "41",
+        "values": {
+          "B41": "U - Check Speech Quality EN SMOS Sce4 DVWB",
+          "C41": "Calculated Value [MOS]",
+          "D41": "5",
+          "E41": "2.5"
+        }
+      },
+      {
+        "row": "42",
+        "values": {
+          "B42": "11.13.6b Comfort Noise: Level Adj. Sce4 DVWB",
+          "C42": "Corrected value [dBm0(A)], 0",
+          "D42": "2",
+          "E42": "-5"
+        }
+      },
+      {
+        "row": "43",
+        "values": {
+          "B43": "11.13.6d Comfort Noise: Spectral Adjustment Sce4 DVWB",
+          "C43": "Min. dist. to tolerance scheme [dB], 3150.0 Hz",
+          "D43": "120",
+          "E43": "0"
+        }
+      }
+    ]
+  }
+]

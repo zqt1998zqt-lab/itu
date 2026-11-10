@@ -1,12 +1,18 @@
 import json
 
+import pytest
+from pydantic import ValidationError
+
 from server.alignment_runner import (
+    AlignmentRunRequest,
+    DATASET_ROLES,
     _pipeline_spec,
     compute_overall_success,
     compute_pytest_ok,
     get_runner_status,
     group_status,
     parse_junit,
+    resolve_algorithm_cluster,
     validate_pipeline_artifacts,
 )
 
@@ -15,6 +21,41 @@ def test_default_profile_maps_to_pinned_cli_name() -> None:
     assert _pipeline_spec("vcp_default")["cli_profile"] == "vcp"
     assert _pipeline_spec("vcp_joint")["cli_profile"] == "vcp_joint"
     assert _pipeline_spec("vcp_unified")["cli_profile"] == "vcp_unified"
+
+
+def test_algorithm_clusters_resolve_only_trusted_catalog_flags() -> None:
+    preset, flags, configuration, digest = resolve_algorithm_cluster("vcp_default")
+    assert preset["id"] == "vcp_default"
+    assert configuration["profile"] == "vcp"
+    assert "--profile" not in flags
+    assert len(digest) == 64
+
+    unified, unified_flags, unified_configuration, _ = resolve_algorithm_cluster(
+        "vcp_unified_eq_fused"
+    )
+    assert unified["profile"] == "vcp_unified"
+    assert unified_configuration["selection"]["eq"] == "three_band"
+    assert "--eq-preamp-db" in unified_flags
+    assert "--eq-band" in unified_flags
+    assert unified_flags != flags
+
+    with pytest.raises(ValueError, match="未知算法簇"):
+        resolve_algorithm_cluster("client-injected-flags")
+    with pytest.raises(ValidationError):
+        AlignmentRunRequest(
+            algorithm_cluster_id="vcp_default",
+            mode="WB-wired",
+            cli_flags=["--no-ns"],
+        )
+
+
+def test_five_signal_dataset_roles_match_generator_semantics() -> None:
+    assert DATASET_ROLES == {
+        "microphone": "before.wav",
+        "noise": "noise-component.wav",
+        "far_end": "playback.wav",
+        "reference": "clean-beam.wav",
+    }
 
 
 def test_pipeline_failure_cannot_be_masked_by_passing_tests() -> None:

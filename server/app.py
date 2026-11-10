@@ -16,12 +16,15 @@ from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from server.audio import AudioError, MAX_BYTES, Options, ROLES, analyze, decode, demo_wav
-from server.synthesize import DEMOS, DEMO_RATE, DEMO_SECONDS, SUPPORTED_RATES, _demo_clean, demo_pair, synthesize, synthesis_graphics
+from server.synthesize import DEMOS, DEMO_RATE, DEMO_SECONDS, ROLE_TITLE, SUPPORTED_RATES, _demo_clean, demo_pair, synthesize, synthesis_graphics
 from server.ns_failures import router as ns_failures_router
 from server.quality.api import router as quality_router
 from server.acoustic.api import router as acoustic_router
 from server.graph_engine.api import router as audio_graphics_router, _FIGURE_GENERATION_LOCK, _publish_result
 from server.alignment_runner import router as alignment_router
+from server.acoustic.acceptance_api import router as acceptance_router
+from server.acoustic.acceptance_scene_condition_api import router as scene_condition_router
+from server.acoustic.scene_condition_batch_api import router as scene_condition_batch_router
 
 app = FastAPI(title="ITU Audio Lab", version="2.0.0")
 app.include_router(ns_failures_router)
@@ -29,6 +32,9 @@ app.include_router(quality_router)
 app.include_router(acoustic_router)
 app.include_router(audio_graphics_router)
 app.include_router(alignment_router)
+app.include_router(acceptance_router)
+app.include_router(scene_condition_router)
+app.include_router(scene_condition_batch_router)
 
 
 @app.get("/api/health")
@@ -120,7 +126,7 @@ async def synthesize_pair(
         for role, upload in uploads.items():
             data = await upload.read(MAX_BYTES + 1)
             if len(data) > MAX_BYTES:
-                raise AudioError(f"{'麦克音' if role == 'microphone' else '参考音'}：文件超过 32 MB")
+                raise AudioError(f"{ROLE_TITLE[role]}：文件超过 32 MB")
             blobs[role] = (upload.filename or "audio.wav", data)
 
         def calculate():

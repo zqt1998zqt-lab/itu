@@ -1,0 +1,99 @@
+.scoped-tree { min-width: 0; margin: 0; border-bottom: 1px solid var(--border); }
+.scoped-tree-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; padding: 22px 24px 16px; }
+.scoped-tree-header h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; color: var(--ink, #233248); text-wrap: balance; }
+.scoped-tree-header p { max-width: 760px; margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; text-wrap: pretty; }
+.scoped-tree-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.scoped-tree-meta code { padding: 5px 8px; color: var(--blue); border: 1px solid #c9d9f3; border-radius: 5px; background: #f5f8ff; }
+.scoped-tree-notice { margin: 0 24px 16px; padding: 10px 12px; border-left: 3px solid #d9a64c; background: #fffaf0; color: #805b23; font-size: 12px; line-height: 1.6; }
+.scoped-tree-scroll { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-gutter: stable; background: #f8fafc; border-top: 1px solid var(--border); }
+.scoped-tree-scroll:focus-visible { outline: 2px solid var(--blue); outline-offset: -3px; }
+.scoped-tree-canvas { position: relative; flex-shrink: 0; }
+.scoped-tree-column { position: absolute; top: 28px; display: flex; gap: 10px; color: #8493a5; font-size: 12px; font-variant-numeric: tabular-nums; }
+.scoped-tree-column span { color: #4c6078; font-weight: 600; }
+.scoped-tree-edges { position: absolute; inset: 0; pointer-events: none; }
+.scoped-tree-edges path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.scoped-tree-main-edge { stroke: #7196cc; stroke-width: 2; }
+.scoped-tree-spine { stroke: #a8bcd7; stroke-width: 1.5; }
+.scoped-tree-branch { stroke: #94adcc; stroke-width: 1.5; }
+.scoped-tree-junction { fill: #94adcc; }
+.scoped-tree-edges .is-muted { opacity: 0.25; }
+.scoped-tree-focus-route { stroke: var(--blue); stroke-width: 2.5; }
+.scoped-tree-node { position: absolute; box-sizing: border-box; padding: 20px; background: #fff; border: 1px solid #d8e1ed; border-radius: 8px; }
+.scoped-tree-source { position: absolute; left: 24px; width: 264px; }
+.scoped-tree-source > .scoped-tree-node { position: relative; left: auto; }
+.scoped-tree-source > .scoped-tree-guide { margin-top: 24px; }
+.scoped-tree-input { left: 24px; width: 264px; min-height: 288px; }
+.scoped-tree-guide { left: 24px; width: 264px; }
+.scoped-tree-guide h4 { margin: 0 0 10px; font-size: 13px; text-wrap: balance; }
+.scoped-tree-guide p { margin: 8px 0; color: var(--muted); font-size: 12px; line-height: 1.7; text-wrap: pretty; }
+.scoped-tree-guide a { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--blue); font-size: 12px; }
+.scoped-tree-processing { left: 360px; width: 364px; min-height: 568px; border-color: #b7cdef; }
+.scoped-tree-processing.is-receive { min-height: 460px; }
+.scoped-tree-node.is-muted { opacity: 0.55; }
+.scoped-tree-analysis.is-focused { border-color: var(--blue); background: #f8fbff; }
+.scoped-tree-node-label { display: flex; align-items: center; gap: 6px; color: #5b7597; font-size: 11px; font-weight: 600; }
+.scoped-tree-dataset-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: 10px; overflow-wrap: anywhere; font-size: 14px; line-height: 1.5; }
+.scoped-tree-secondary { display: block; margin-top: 7px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+.scoped-tree-node dl { margin: 12px 0; font-size: 12px; }
+.scoped-tree-node dl > div { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 6px 0; }
+.scoped-tree-node dt { color: var(--muted); }
+.scoped-tree-node dd { margin: 0; font-weight: 600; }
+.scoped-tree-inputs { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; line-height: 1.8; white-space: pre-line; }
+.scoped-tree-processing h4 { margin: 8px 0 0; font-size: 17px; text-wrap: balance; }
+.scoped-tree-preset { margin: 5px 0 12px; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.scoped-tree-stages { list-style: none; display: grid; padding: 0; margin: 0; }
+.scoped-tree-stages li { display: flex; gap: 10px; min-height: 48px; padding: 6px 0; box-sizing: border-box; }
+.scoped-tree-stages li > span { color: #839bb8; font-size: 10px; line-height: 18px; font-variant-numeric: tabular-nums; }
+.scoped-tree-stages li > div { min-width: 0; }
+.scoped-tree-stages strong { display: block; font-size: 12px; line-height: 18px; }
+.scoped-tree-stages p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 3px 0 0; font-size: 11px; line-height: 16px; color: var(--muted); text-wrap: pretty; }
+.scoped-tree-stages .is-bypassed strong { color: var(--muted); }
+.scoped-tree-chain-note { margin: 12px 0 10px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.scoped-tree-output { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--blue); font-size: 12px; font-weight: 600; }
+.scoped-tree-scene { position: absolute; display: flex; width: 664px; justify-content: space-between; align-items: baseline; color: #4e6c92; font-size: 12px; }
+.scoped-tree-scene span { font-weight: 600; }
+.scoped-tree-scene small { color: var(--muted); font-size: 11px; }
+.scoped-tree-leaves { padding: 0; margin: 0; list-style: none; }
+.scoped-tree-leaves > li { position: absolute; }
+.scoped-tree-leaf { display: grid; grid-template-columns: 40px minmax(0, 1fr) 112px; align-items: center; gap: 14px; width: 100%; height: 100%; padding: 12px 16px; text-align: left; font: inherit; color: #233248; border: 1px solid #dce4ef; border-radius: 7px; background: #fff; cursor: pointer; box-sizing: border-box; }
+.scoped-tree-leaf.is-focused { border-color: var(--blue); background: #f4f8ff; }
+.scoped-tree-leaf.is-muted { opacity: 0.55; }
+.scoped-tree-leaf:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.scoped-tree-leaf:disabled { cursor: default; }
+.scoped-tree-row-id { display: grid; gap: 6px; font-variant-numeric: tabular-nums; }
+.scoped-tree-row-id > span { color: #a0aec0; font-size: 11px; }
+.scoped-tree-row-id code { font-size: 12px; color: #4f6d95; }
+.scoped-tree-method { min-width: 0; }
+.scoped-tree-method strong { display: block; font-size: 14px; line-height: 21px; }
+.scoped-tree-method > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: 4px; color: #63758c; font-size: 12px; line-height: 17px; text-wrap: pretty; }
+.scoped-tree-method small { display: block; margin-top: 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); font-size: 10px; line-height: 15px; }
+.scoped-tree-leaf-result { display: grid; justify-items: end; gap: 10px; font-variant-numeric: tabular-nums; }
+.scoped-tree-leaf-result > strong { font-size: 13px; line-height: 18px; }
+.scoped-tree-status { border: 1px solid #d8e1ec; border-radius: 4px; background: #f4f7fa; padding: 3px 6px; color: #647891; font-size: 10px; }
+.scoped-tree-status.is-review_required { color: #8c661e; background: #fff9ec; border-color: #ead6a8; }
+.scoped-tree-status.is-fail, .scoped-tree-status.is-invalid { color: #a34f4c; background: #fff3f2; border-color: #efceca; }
+.scoped-tree-status.is-pass { color: #2a7158; background: #eff8f3; border-color: #c9e4d6; }
+.scoped-tree-status.is-running { color: var(--blue); background: #f0f5ff; border-color: #c7d8f4; }
+.scoped-tree-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 12px 24px; color: var(--muted); font-size: 11px; }
+.scoped-tree-reference-edge, .scoped-tree-focus-route.is-reference { stroke: var(--blue); stroke-width: 1.75; stroke-dasharray: 6 5; }
+.scoped-tree-reference-label { position: absolute; left: 360px; top: 60px; color: #5b7597; font-size: 11px; }
+.scoped-tree-analysis { left: 824px; width: 340px; padding: 18px; border-color: #c7d8ed; }
+.scoped-tree-analysis h4 { margin: 8px 0; font-size: 15px; text-wrap: balance; }
+.scoped-tree-analysis-input { margin: 0 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); color: #63758c; font-size: 11px; line-height: 1.6; }
+.scoped-tree-operation { margin-top: 12px; font-size: 12px; line-height: 1.6; }
+.scoped-tree-operation > strong { display: block; color: #344d6c; font-size: 12px; }
+.scoped-tree-operation > span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; text-wrap: pretty; }
+.scoped-tree-ears { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.scoped-tree-ears > div { padding: 10px; border: 1px solid #dae4f1; border-radius: 5px; background: #f5f8fc; }
+.scoped-tree-ears strong { display: block; color: #40618b; font-size: 12px; }
+.scoped-tree-ears span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+.scoped-tree-formula { margin-top: 16px; padding: 11px; border: 1px solid #d8e5f5; border-radius: 5px; background: #f4f8ff; color: var(--blue); font-size: 13px; font-variant-numeric: tabular-nums; }
+.scoped-tree-analysis-note { margin: 12px 0 0; color: var(--muted); font-size: 11px; line-height: 1.65; text-wrap: pretty; }
+.scoped-tree-analysis-footer { position: absolute; right: 18px; bottom: 16px; left: 18px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.scoped-tree-analysis-footer strong { color: #4f6d95; font-weight: 600; }
+.scoped-tree-mos-outputs { display: grid; gap: 3px; margin-top: 5px; color: #4f6d95; font-size: 11px; }
+.scoped-tree-case { position: absolute; right: 18px; left: 18px; box-sizing: border-box; padding: 12px; border: 1px solid #dbe5f1; border-radius: 5px; background: #f7faff; }
+.scoped-tree-case > strong { display: block; color: #344d6c; font-size: 12px; line-height: 18px; }
+.scoped-tree-case > span { display: block; margin-top: 5px; color: #63758c; font-size: 11px; line-height: 17px; }
+.scoped-tree-case > small { display: block; margin-top: 8px; color: var(--muted); font-size: 10px; line-height: 16px; }
+.scoped-tree-case.is-muted { opacity: 0.5; }
