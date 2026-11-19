@@ -751,15 +751,23 @@ export type FiveSignalDetail = {
   mode: FiveSignalMode;
   created_at: string;
   execution?: {
-    source: "alignment_cli";
+    source: "alignment_cli" | "native_rate_path";
     algorithm_cluster_id: string;
-    algorithm_cluster_label: string;
-    output_sha256: string;
+    requested_algorithm_cluster_id?: string;
+    algorithm_cluster_label?: string;
+    output_sha256: string | { rx?: string; tx?: string };
     cli_sha256: string;
     catalog_sha256: string;
-    dataset_id: string;
+    dataset_id?: string;
     configuration: { profile: string; selection: Record<string, string>; extra_flags?: string[] };
-    rx_processing: boolean;
+    rx_processing?: boolean;
+    rate_path?: {
+      sample_rate_hz: number;
+      cluster_id: string;
+      aec_backend: string;
+      ns_backend: string;
+      rate_policy: string;
+    };
   };
   inputs: Record<typeof FIVE_SIGNAL_ROLES[number], FiveSignalInput>;
   analysis: {
@@ -793,8 +801,15 @@ export function parseFiveSignalDetail(value: unknown, expectedId: string, expect
   if (expectedCluster !== undefined) {
     const execution = record(report.execution);
     const output = record(inputs?.near_end);
-    if (!execution || execution.source !== "alignment_cli" ||
-      execution.algorithm_cluster_id !== expectedCluster || execution.output_sha256 !== output?.sha256) {
+    const declaredOutput = record(execution?.output_sha256);
+    const nearEndSha256 = declaredOutput
+      ? declaredOutput.tx
+      : execution?.output_sha256;
+    const requestedCluster = execution?.requested_algorithm_cluster_id
+      ?? execution?.algorithm_cluster_id;
+    if (!execution ||
+      (execution.source !== "alignment_cli" && execution.source !== "native_rate_path") ||
+      requestedCluster !== expectedCluster || nearEndSha256 !== output?.sha256) {
       throw Error("报告算法簇或实际输出身份与当前选择不一致");
     }
   }

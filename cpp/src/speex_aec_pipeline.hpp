@@ -9,6 +9,7 @@
 #include "speex_multirender_context.hpp"
 #include "ns_evidence.hpp"
 #include "aec_fusion.hpp"
+#include "complex_pf_dsp.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -24,11 +25,12 @@ class SpeexAecPipeline {
       capture_(c.frame_size*c.microphones),render_(c.frame_size*c.reference_channels),
       residual_(capture_.size()),audio_(capture_.size()),conditioned_(capture_.size()),
       filtered_render_(render_.size()),
-      fusion_render_(c.aec_backend==AecBackend::speex_fused && c.reference_channels>1 ? c.frame_size : 0),
+      fusion_render_(c.aec_backend==AecBackend::speex_fused_cpu && c.reference_channels>1 ? c.frame_size : 0),
       scratch_(c.frame_size),
       dry_history_((conditioning_delay(c)+(c.speex_residual_suppression ? c.frame_size : 0))*c.microphones),
       channel_(c.frame_size),channel_output_(c.frame_size),linear_native_(capture_.size()),
       linear_channel_(c.frame_size),linear_output_(160),post_(post_config(c),4096,true) {
+    complex_pf_cpu_=c.aec_backend==AecBackend::computer_pf_cpu;
     for(unsigned ch=0;ch<c.microphones;++ch)
       linear_down_.emplace_back(c.frame_size==160 ? nullptr : std::make_unique<RateConverter>(c.frame_size,160));
     // A mono render has an identifiable GCC observation. Do not classify a
@@ -59,9 +61,16 @@ class SpeexAecPipeline {
     }
     if(c.linear_phase_low_cut && !c.speex_native_conditioning)
       lowcut_=std::make_unique<LinearPhaseLowCut>(c.microphones+c.reference_channels,c.low_cut_hz,c.sample_rate);
-    if(c.aec_backend==AecBackend::speex_fused)
+    if(c.aec_backend==AecBackend::speex_fused_cpu)
       fused_aec_=std::make_unique<AecFusion>(c.sample_rate,c.frame_size,
-          c.speex_fused_learning_rate,c.speex_fused_shadow_taps_ms);
+          c.speex_fused_cpu_learning_rate,c.speex_fused_cpu_shadow_taps_ms);
+    if(c.aec_backend==AecBackend::speex_fused_dsp) {
+      complex_pf_dsp_=std::make_unique<ComplexPfDsp>(c);
+      const auto frames=complex_pf_dsp_->delay()/c.frame_size;
+      dsp_context_history_.resize(frames);
+      dsp_reference_history_.resize(frames*c.frame_size);
+      dsp_delayed_reference_.resize(c.frame_size);
+    }
     if(c.speex_residual_suppression) {
       // Upstream get_residual() is mono-capture only (mdf.c MC FIXME). Each
       // microphone therefore owns a mono-capture MDF with all render channels.
@@ -154,6 +163,29 @@ class SpeexAecPipeline {
       for(unsigned i=0;i<channel_.size();++i) linear_native_[i*res_.size()+ch]=channel_output_[i]/32768.f;
       speex_preprocess_run(res_[ch].get(),channel_output_.data());
       for(unsigned i=0;i<channel_.size();++i) residual_[i*res_.size()+ch]=channel_output_[i];
+    }
+    if(complex_pf_cpu_) {
+      const auto& pcm=*c_.complex_pf_cpu_pcm;
+      if(complex_pf_cpu_offset_>pcm.size() ||
+         pcm.size()-complex_pf_cpu_offset_<c_.frame_size)
+        return Status::invalid_length;
+      const float* frame=pcm.data()+complex_pf_cpu_offset_;
+      for(unsigned i=0;i<c_.frame_size;++i)
+        if(!std::isfinite(frame[i]) || std::abs(frame[i])>1.f)
+          return Status::non_finite;
+      std::copy_n(frame,c_.frame_size,audio_.data());
+      complex_pf_cpu_offset_+=c_.frame_size;
+      ++complex_pf_cpu_processed_frames_;
+    }
+    if(c_.complex_pf_residual_capture) {
+      try {
+        c_.complex_pf_residual_capture->insert(c_.complex_pf_residual_capture->end(),
+            linear_native_.begin(),linear_native_.end());
+        c_.complex_pf_reference_capture->insert(c_.complex_pf_reference_capture->end(),
+            filtered_render_.begin(),filtered_render_.end());
+      } catch(...) {
+        return Status::backend_error;
+      }
     }
     // Export the actual MDF error before RES, dry restoration, NS and AGC.
     // Keep every channel's converter advancing even when the caller omits lt.
@@ -253,12 +285,14 @@ class SpeexAecPipeline {
           render_power/render_.size()>c_.activity_floor,protect);
       fused_aec_->blend(linear_native_.data(),context.far_active,context.reference_state,near_hold_);
     }
-    const bool dry_idle=c_.speex_post_context ? !context.far_active : !render_hold_;
-    // An idle render has reference_state=unknown, while the monitor retains
-    // its unrelated-reference verdict across silence. Keep that independent
-    // verdict, delayed with RES, rather than erasing dry protection at idle.
-    const float target=(c_.speech_preserving_low_cut && dry_idle) || dry_unrelated ? 1.f : 0.f;
-    dry_mix_+=std::clamp(target-dry_mix_,-.2f,.05f);
+    if(!complex_pf_cpu_) {
+      const bool dry_idle=c_.speex_post_context ? !context.far_active : !render_hold_;
+      // An idle render has reference_state=unknown, while the monitor retains
+      // its unrelated-reference verdict across silence. Keep that independent
+      // verdict, delayed with RES, rather than erasing dry protection at idle.
+      const float target=(c_.speech_preserving_low_cut && dry_idle) || dry_unrelated ? 1.f : 0.f;
+      dry_mix_+=std::clamp(target-dry_mix_,-.2f,.05f);
+    }
     float residual_gain = 1.f;
     if(c_.speex_coherence_residual_suppression && c_.reference_channels==1) {
       // A causal, frame-rate residual echo postfilter. It only acts after a
@@ -301,7 +335,14 @@ class SpeexAecPipeline {
           target_gain < residual_gain_ ? -.22f : .08f, .08f);
       residual_gain = residual_gain_;
     }
-    for(std::size_t i=0;i<audio_.size();++i) {
+    if(complex_pf_cpu_) {
+      // The offline CPU result is the complete neural postfilter output. It
+      // enters the same post-AEC context and NS/EQ/AGC/DRC tail, without a
+      // shadow predictor, coherence estimator, dry blend or fabricated tail.
+    } else if(complex_pf_dsp_) {
+      const auto result=complex_pf_dsp_->process(linear_native_.data(),filtered_render_.data(),audio_.data());
+      if(result!=Status::ok) return result;
+    } else for(std::size_t i=0;i<audio_.size();++i) {
       const float dry=dry_history_.empty() ? mic[i] : dry_history_[dry_head_];
       if(!dry_history_.empty()) {
         dry_history_[dry_head_]=mic[i];dry_head_=(dry_head_+1)%dry_history_.size();
@@ -364,7 +405,22 @@ class SpeexAecPipeline {
       if(fused_aec_ && fused_aec_->frame().double_talk)
         context.near_hold_frames=std::max(context.near_hold_frames,3u);
     }
-    const auto status=post_.process_impl(audio_.data(),audio_.size(),ref,render_.size(),
+    const float* post_reference=ref;
+    if(complex_pf_dsp_) {
+      // The neural output carries an explicit whole-callback delay. Advance
+      // post-AEC evidence and reference with the same source audio block.
+      const auto current=context;
+      const auto nonlinear_probability=context.nonlinear_speech_probability;
+      context=dsp_context_history_[dsp_history_head_];
+      context.nonlinear_speech_probability=nonlinear_probability;
+      dsp_context_history_[dsp_history_head_]=current;
+      auto* slot=dsp_reference_history_.data()+dsp_history_head_*c_.frame_size;
+      std::copy_n(slot,c_.frame_size,dsp_delayed_reference_.data());
+      std::copy_n(ref,c_.frame_size,slot);
+      dsp_history_head_=(dsp_history_head_+1)%dsp_context_history_.size();
+      post_reference=dsp_delayed_reference_.data();
+    }
+    const auto status=post_.process_impl(audio_.data(),audio_.size(),post_reference,render_.size(),
         out,post_.config().frame_size,info,at,bt,nullptr,it,c_.speex_post_context ? &context : nullptr);
     if(c_.speex_post_context && !context.far_active) {
       const bool observed=info.control_evidence_probability>.55f &&
@@ -426,6 +482,10 @@ class SpeexAecPipeline {
     info.aec_input_delay_samples=conditioning_delay(c_);
     info.low_cut_delay_samples=conditioning_delay(c_);
     info.latency_samples+=conditioning_delay(c_);
+    if(complex_pf_dsp_) {
+      info.latency_samples+=complex_pf_dsp_->delay();
+      info.aec_output_delay_samples+=complex_pf_dsp_->delay();
+    }
     info.aec_output_delay_samples+=conditioning_delay(c_);
     if(!res_.empty()) {
       info.latency_samples+=channel_.size();
@@ -433,9 +493,16 @@ class SpeexAecPipeline {
     }
     if(c_.diagnostic_stages) {
       auto& taps=*c_.diagnostic_stages;
-      const unsigned extra=conditioning_delay(c_)+(res_.empty() ? 0 : c_.frame_size);
-      taps.core_delay_samples+=unsigned(std::lround(double(extra)*taps.core_sample_rate/c_.sample_rate));
-      taps.eq_delay_samples+=unsigned(std::lround(double(extra)*taps.eq_sample_rate/c_.sample_rate));
+      const unsigned extra=conditioning_delay(c_)+(res_.empty() ? 0 : c_.frame_size)+
+          (complex_pf_dsp_ ? complex_pf_dsp_->delay() : 0);
+      const unsigned core_extra=unsigned(std::lround(double(extra)*taps.core_sample_rate/c_.sample_rate));
+      const unsigned eq_extra=unsigned(std::lround(double(extra)*taps.eq_sample_rate/c_.sample_rate));
+      taps.core_delay_samples+=core_extra;
+      taps.agc_delay_samples+=core_extra;
+      taps.drc_delay_samples+=core_extra;
+      taps.pre_eq_delay_samples+=eq_extra;
+      taps.post_eq_delay_samples+=eq_extra;
+      taps.eq_delay_samples=taps.post_eq_delay_samples;
     }
     info.microphone_rms=0;
     double power=0; for(std::size_t i=0;i<audio_.size();++i) power+=double(mic[i])*mic[i];
@@ -462,7 +529,21 @@ class SpeexAecPipeline {
         +(cancellation_band_ ? cancellation_band_->memory_bytes() : 0)
         +echoes_.capacity()*sizeof(Echo)+res_.capacity()*sizeof(Preprocess)+(lowcut_ ? lowcut_->memory_bytes() : 0)
         +(fused_aec_ ? fused_aec_->memory_bytes() : 0)
+        +(complex_pf_dsp_ ? complex_pf_dsp_->memory_bytes() : 0)
+        +(dsp_reference_history_.capacity()+dsp_delayed_reference_.capacity())*sizeof(float)
+        +dsp_context_history_.capacity()*sizeof(PostAecContext)
         +post_.working_memory_bytes();
+  }
+  AecRouteDiagnostics aec_route_diagnostics() const {
+    if(complex_pf_cpu_) {
+      AecRouteDiagnostics d;
+      d.execution_provider="cpu";
+      d.device_id="host_cpu";
+      d.processed_frames=complex_pf_cpu_processed_frames_;
+      d.neural_delay_samples=0;
+      return d;
+    }
+    return complex_pf_dsp_ ? complex_pf_dsp_->diagnostics() : AecRouteDiagnostics{};
   }
  private:
   static unsigned conditioning_delay(const Config&) {return 0;}
@@ -475,6 +556,9 @@ class SpeexAecPipeline {
     if(c.speex_native_conditioning && !c.speex_post_context) c.linear_phase_low_cut=false;
     c.aec=false;
     c.aec_backend=AecBackend::webrtc;
+    c.complex_pf_cpu_pcm.reset();
+    c.complex_pf_residual_capture=nullptr;
+    c.complex_pf_reference_capture=nullptr;
     // The post-AEC engine is a WebRTC/NS/AGC tail. Speex-only residual
     // controls must not leak into this converted configuration.
     c.speex_coherence_residual_suppression=false;
@@ -487,6 +571,13 @@ class SpeexAecPipeline {
   SpeexEchoState* state_=nullptr;
   std::unique_ptr<LinearPhaseLowCut> lowcut_;
   std::unique_ptr<AecFusion> fused_aec_;
+  std::unique_ptr<ComplexPfDsp> complex_pf_dsp_;
+  bool complex_pf_cpu_=false;
+  std::size_t complex_pf_cpu_offset_=0;
+  std::uint64_t complex_pf_cpu_processed_frames_=0;
+  std::vector<PostAecContext> dsp_context_history_;
+  std::vector<float> dsp_reference_history_,dsp_delayed_reference_;
+  std::size_t dsp_history_head_=0;
   unsigned render_hold_=0;
   std::size_t dry_head_=0;
   float dry_mix_=0;

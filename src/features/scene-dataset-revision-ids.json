@@ -1,0 +1,45 @@
+{
+  "revision": "measurement-20261117-r1",
+  "scenes": {
+    "sce1": {
+      "NB-bt": "fd1ca4129c38bbb6239ff1ad294a595d",
+      "NB-wired": "7ad6835260dc78bfc6c516e0fecf0224",
+      "NB-wireless": "7cd17469cced704079f77e816d1db6d8",
+      "SWB-wired": "d27e5371573812f1916e55d02ad503d0",
+      "SWB-wireless": "a21d9e17d74968ff3f5f3ccc0fcff2f4",
+      "WB-bt": "11c0aa21f6131f0b1e982572d482cdd7",
+      "WB-wired": "ba42e063e1d48b93c03b9028fb56f7c1",
+      "WB-wireless": "06e1d7fdbc0beadeaf0d47a2d9130bf9"
+    },
+    "sce2": {
+      "NB-bt": "643ae669b71f58798a2163c0adb3e6f7",
+      "NB-wired": "8297bff58af7f58c59636271c399a71f",
+      "NB-wireless": "70e17ca7a7628150fec256bf1ff39cce",
+      "SWB-wired": "2f2aaed1b579e4c70da6221436c4e3b2",
+      "SWB-wireless": "bb1643d105b284e1143beb8ee1547b37",
+      "WB-bt": "fefe660b8b7e2df58bd2e1fbaaa160dc",
+      "WB-wired": "7e37ee43364d6beaad43a007af80e438",
+      "WB-wireless": "bd1af740b70dbd905020937a12795d72"
+    },
+    "sce3": {
+      "NB-bt": "74550142166a47aa8db7202704626294",
+      "NB-wired": "62239f033c06023899dc8896200d8aac",
+      "NB-wireless": "fd62a40e356e7020ff3165dcfdcfdb0a",
+      "SWB-wired": "34b61da8c970f17660c46954099b0456",
+      "SWB-wireless": "008e00742ec6c283114e28fe386a9cd1",
+      "WB-bt": "e972773d18d881bdf290878e4d272f42",
+      "WB-wired": "d2687a315d10281b08470fabc18c4afa",
+      "WB-wireless": "04055aa7c5ac6659841d2fa3f0d462bf"
+    },
+    "sce4": {
+      "NB-bt": "904d10862be287023af7e10a5b69acc8",
+      "NB-wired": "7637c21d542ac52a777ec356e3e086a7",
+      "NB-wireless": "eb9740e07ebed816e6f462b65b6bc0c0",
+      "SWB-wired": "faaf11f330048e34a92c0372f5568edd",
+      "SWB-wireless": "8fb87ece4ed214607583567eefc391cb",
+      "WB-bt": "6a6e7d12bdb8fcd05d728871ae7745a2",
+      "WB-wired": "2cddfdec002ea95577a8b0fa1c0df480",
+      "WB-wireless": "309a2d6695071687de746d8573dc17c5"
+    }
+  }
+}

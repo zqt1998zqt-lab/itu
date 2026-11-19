@@ -14,6 +14,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
+from starlette.middleware.gzip import GZipMiddleware
 
 from server.audio import AudioError, MAX_BYTES, Options, ROLES, analyze, decode, demo_wav
 from server.synthesize import DEMOS, DEMO_RATE, DEMO_SECONDS, ROLE_TITLE, SUPPORTED_RATES, _demo_clean, demo_pair, synthesize, synthesis_graphics
@@ -25,8 +26,14 @@ from server.alignment_runner import router as alignment_router
 from server.acoustic.acceptance_api import router as acceptance_router
 from server.acoustic.acceptance_scene_condition_api import router as scene_condition_router
 from server.acoustic.scene_condition_batch_api import router as scene_condition_batch_router
+from server.acoustic.acoustic_stress_api import router as acoustic_stress_router
+from server.localvqe_runner import router as localvqe_router
+from server.rate_path_api import router as rate_path_router
 
 app = FastAPI(title="ITU Audio Lab", version="2.0.0")
+# Large JSON previews and snapshots should not dominate remote page loads.
+# Starlette skips encoded, streaming event, partial, image and audio responses.
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=4)
 app.include_router(ns_failures_router)
 app.include_router(quality_router)
 app.include_router(acoustic_router)
@@ -35,6 +42,9 @@ app.include_router(alignment_router)
 app.include_router(acceptance_router)
 app.include_router(scene_condition_router)
 app.include_router(scene_condition_batch_router)
+app.include_router(acoustic_stress_router)
+app.include_router(localvqe_router)
+app.include_router(rate_path_router)
 
 
 @app.get("/api/health")
@@ -218,3 +228,20 @@ def synthesize_download(result_id: str):
     # uses the HTML download attribute for the saved filename.
     return Response(entry[1], media_type="audio/wav",
                     headers={"Content-Disposition": 'inline; filename="itu-processed.wav"'})
+
+from server.acoustic.dataset_revisions import install_from_activation
+install_from_activation()
+
+# R2 adds a delivered-PCM observation gate; the previous revision stays readable.
+from server.acoustic.dataset_revisions_v2 import install_from_activation as install_dataset_revision_r2
+install_dataset_revision_r2()
+
+from server.acoustic.retired_datasets import install_retired_datasets
+install_retired_datasets(app)
+
+# History validation reads immutable metadata; retired inputs cannot start new runs.
+from server.acoustic.dataset_dependency_archive import install_dataset_archive_readers
+install_dataset_archive_readers()
+
+from server.acoustic.dataset_dependency_archive import install_retired_execution_exception_handler
+install_retired_execution_exception_handler(app)

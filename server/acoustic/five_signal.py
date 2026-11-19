@@ -50,6 +50,11 @@ MODE_RATES = {
     "SWB": 48000,
 }
 MAX_BYTES = 32 * 1024 * 1024
+MODEL_A_ENABLED_ENV = "ITU_MODEL_A_ENABLED"
+MODEL_A_DISABLED_REASON = (
+    "ETSI TS 103 281 Model A 默认关闭；"
+    f"设置 {MODEL_A_ENABLED_ENV}=1 或传入 include_model_a=True 后启用"
+)
 _WRITE_LOCK = Lock()
 
 
@@ -73,6 +78,21 @@ def _db(value: float) -> float:
 
 def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _model_a_enabled(include_model_a: bool | None) -> bool:
+    if include_model_a is not None:
+        if not isinstance(include_model_a, bool):
+            raise FiveSignalError("include_model_a must be a boolean")
+        return include_model_a
+    raw = os.environ.get(MODEL_A_ENABLED_ENV, "0").strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"", "0", "false", "no", "off"}:
+        return False
+    raise FiveSignalError(
+        f"{MODEL_A_ENABLED_ENV} must be one of 1/0, true/false, yes/no, on/off"
+    )
 
 
 def _mode_spec(mode: str) -> tuple[str, str, dict]:
@@ -497,7 +517,13 @@ def list_evaluations(limit: int = 20, algorithm_cluster_id: str | None = None) -
         execution = value.get("execution")
         if algorithm_cluster_id is not None and (
             not isinstance(execution, dict)
-            or execution.get("algorithm_cluster_id") != algorithm_cluster_id
+            or (
+                execution.get(
+                    "requested_algorithm_cluster_id",
+                    execution.get("algorithm_cluster_id"),
+                )
+                != algorithm_cluster_id
+            )
         ):
             continue
         rows.append({
@@ -640,6 +666,7 @@ def evaluate_five_signal(
     max_delay_ms: float = 2000,
     execution: dict | None = None,
     persist: bool = True,
+    include_model_a: bool | None = None,
 ) -> dict:
     bandwidth, transport, rows = _mode_spec(mode)
     if set(uploads) != set(ROLE_ORDER):
@@ -804,18 +831,28 @@ def evaluate_five_signal(
         }
         for role, trace in traces.items()
     }
-    try:
-        model_a = evaluate_model_a(
-            samples["reference"],
-            samples["near_end"],
-            rate,
-        )
-    except (ModelAError, ValueError) as error:
+    if _model_a_enabled(include_model_a):
+        try:
+            model_a = evaluate_model_a(
+                samples["reference"],
+                samples["near_end"],
+                rate,
+            )
+        except (ModelAError, ValueError) as error:
+            model_a = {
+                "standard": "ETSI TS 103 281 V1.3.2",
+                "model": "A",
+                "compliance_status": "unavailable",
+                "error": str(error),
+            }
+    else:
         model_a = {
             "standard": "ETSI TS 103 281 V1.3.2",
             "model": "A",
-            "compliance_status": "unavailable",
-            "error": str(error),
+            "status": "disabled",
+            "compliance_status": "disabled",
+            "formal_compliance_claim_allowed": False,
+            "reason": MODEL_A_DISABLED_REASON,
         }
     segment_counts = {
         "near_only_seconds": float(np.count_nonzero(near_only_mask) / rate),
@@ -911,7 +948,13 @@ def evaluate_five_signal(
         ],
     }
     if execution is not None:
-        if execution.get("output_sha256") != traces["near_end"].sha256:
+        declared_output = execution.get("output_sha256")
+        near_end_sha256 = (
+            declared_output.get("tx")
+            if isinstance(declared_output, dict)
+            else declared_output
+        )
+        if near_end_sha256 != traces["near_end"].sha256:
             raise FiveSignalError("执行输出身份与 VCP 处理后的近端输出不一致")
         report["execution"] = execution
     if persist:

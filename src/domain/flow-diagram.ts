@@ -1,3 +1,4 @@
+import { ROLE_LABEL } from "./audio.ts";
 import type { AudioRole } from "./audio.ts";
 
 export type DiagramMode = "device" | "website";
@@ -24,9 +25,9 @@ export type FlowDiagram = {
 // Device mode: Dual-rail HSAE VCP architecture (TX Uplink / RX Downlink) with spacious layout
 const vcpDeviceNodes: DiagramNode[] = [
   // Left Endpoints (Network / Codec)
-  { id: "reference", title: "干净参考语音", tag: "录音 01 · 纯净", lines: ["未混噪的标准语音源", "SI-SDR / STOI 真实参考"], role: "reference", x: 40, y: 40, width: 140, height: 80 },
-  { id: "after", title: "上行输出 · TX Out", tag: "录音 03 · 必需", lines: ["经 HSAE VCP 净化输出", "送至车机蓝牙 / 蜂窝网络"], role: "after", x: 40, y: 150, width: 140, height: 92 },
-  { id: "echo", title: "下行输入 · RX In", tag: "录音 04 · 参考", lines: ["远端网络通话音频", "下行算法处理与播放基准"], role: "echo", x: 40, y: 350, width: 140, height: 92 },
+  { id: "reference", title: "干净近端参考", tag: "录音 01 · 纯净", lines: ["与麦克风混合输入对应的干净语音", "SI-SDR / STOI 真实参考"], role: "reference", x: 40, y: 40, width: 140, height: 80 },
+  { id: "after", title: "发送处理输出（TX）", tag: "录音 03 · 必需", lines: ["经 HSAE VCP 净化输出", "送至车机蓝牙 / 蜂窝网络"], role: "after", x: 40, y: 150, width: 140, height: 92 },
+  { id: "echo", title: "远端播放信号 / 回声参考", tag: "录音 04 · 参考", lines: ["远端网络通话音频", "下行算法处理与播放基准"], role: "echo", x: 40, y: 350, width: 140, height: 92 },
 
   // HSAE VCP Box - Top Track: TX / Uplink path (flowing right to left)
   { id: "gain", title: "上行增益 · AGC/DRC", tag: "AGC / DRC", lines: ["动态范围控制", "满幅保护与平稳"], optional: true, x: 230, y: 150, width: 125, height: 92 },
@@ -43,7 +44,7 @@ const vcpDeviceNodes: DiagramNode[] = [
   // Right Acoustic Coupling & Cabin Environment
   { id: "voice", title: "近端语音声源", tag: "语音声源", lines: ["主驾/乘员真实语音", "目标方向拾音"], x: 1020, y: 40, width: 130, height: 80 },
   { id: "noise", title: "车舱背景噪声", tag: "环境噪声", lines: ["胎噪 / 风噪 / 空调", "弥散声场混入"], x: 1170, y: 40, width: 130, height: 80 },
-  { id: "before", title: "麦克风采集 (TX In)", tag: "录音 02 · 原始", lines: ["麦克风阵列拾音", "语音 + 噪声 + 回声"], role: "before", x: 1020, y: 150, width: 140, height: 92 },
+  { id: "before", title: "麦克风混合输入", tag: "录音 02 · 原始", lines: ["麦克风阵列同步拾音", "近端语音 + 独立噪声 + 回声"], role: "before", x: 1020, y: 150, width: 140, height: 92 },
   { id: "speaker", title: "扬声器播放与回声", tag: "车舱扬声器", lines: ["功放电声还原播放", "空间声学耦合形成回声"], x: 1020, y: 350, width: 140, height: 92 },
 ];
 
@@ -66,7 +67,7 @@ const vcpDeviceEdges: DiagramEdge[] = [
   {
     from: "rx_drc", to: "aec", kind: "reference",
     points: [[630, 396], [715, 396], [715, 242]],
-    label: { text: "AEC 纯净回声参考 (Ref)", x: 640, y: 310, width: 150, height: 24 }
+    label: { text: "远端播放信号 / 回声参考", x: 640, y: 310, width: 150, height: 24 }
   },
 
   // Acoustic coupling: speaker -> before (purple echo)
@@ -96,7 +97,7 @@ const websiteNodes: DiagramNode[] = [
   { id: "align", title: "重采样与时间对齐", tag: "网站 · 按需对齐", lines: ["成对互相关与重采样", "单文件分析无需对齐"], x: 776, y: 936, width: 160, height: 112 },
   { id: "windows", title: "有效片段与共有范围", tag: "网站 · 有效片段", lines: ["按指标复核有效片段", "延迟补偿与共同参考"], x: 424, y: 1120, width: 152, height: 112 },
   ...metricGroups.map((group, index) => ({ ...group, tag: "分项指标计算", x: 56 + index * 184, y: 1352, width: 152, height: 112 })),
-  { id: "compare", title: "处理前后对比", tag: "网站 · 对比", lines: ["同一参考范围与电平", "保真、降噪、回声改善"], x: 412, y: 1552, width: 176, height: 112 },
+  { id: "compare", title: "输入与发送输出对比", tag: "网站 · 对比", lines: ["同一参考范围与电平", "保真、降噪、回声改善"], x: 412, y: 1552, width: 176, height: 112 },
   { id: "report", title: "最终指标与报告", tag: "最终结果", lines: ["含有效性与不可计算原因", "CSV / JSON 导出"], focal: true, x: 776, y: 1552, width: 160, height: 112 },
 ];
 const websiteEdges: DiagramEdge[] = [
@@ -121,7 +122,7 @@ const websiteEdges: DiagramEdge[] = [
 export const DIAGRAMS: Record<DiagramMode, FlowDiagram> = {
   device: {
     mode: "device", detail: "faithful", title: "Hsae VCP：完整语音增强处理链路",
-    description: "HSAE VCP 车载语音增强处理链路：上行拾音与降噪回声消除、频响补偿与动态管理，下行远端降噪、均衡校准与功放 DRC 保护。",
+    description: "HSAE VCP 车载语音增强处理链路：麦克风混合输入经 BF、AEC、降噪、均衡与增益控制形成发送处理输出（TX）；远端播放信号 / 回声参考经 RX NR、RX EQ 与 RX DRC 形成接收处理输出（RX）。",
     width: 1640, height: 620, nodes: vcpDeviceNodes,
     zones: [
       { title: "01  车舱物理声学环境与系统端点 · 7 节点", x: 20, y: 20, width: 1600, height: 580 },
@@ -198,8 +199,8 @@ export function renderDiagram(diagram: FlowDiagram, options: { prefix?: string; 
       <!-- HSAE VCP Container Title -->
       <text x="595" y="116" font-size="18" font-weight="700" letter-spacing="3" fill="#1e293b" text-anchor="middle">HSAE VCP</text>
       <!-- Dual-Rail Track Subtitles -->
-      <text x="230" y="138" font-size="12" font-weight="600" fill="#475569">TX / Uplink path</text>
-      <text x="230" y="338" font-size="12" font-weight="600" fill="#475569">RX / Downlink path</text>
+      <text x="230" y="138" font-size="12" font-weight="600" fill="#475569">发送处理（TX）</text>
+      <text x="230" y="338" font-size="12" font-weight="600" fill="#475569">接收处理（RX）</text>
       
       <!-- Right Experience Panel (Completely separated, no line collisions) -->
       <g transform="translate(1330, 80)">
@@ -240,11 +241,11 @@ export function renderDiagram(diagram: FlowDiagram, options: { prefix?: string; 
     const classes = `df-node${node.focal ? " df-focal" : ""}${node.optional ? " df-optional" : ""}${options.selected === node.id ? " df-selected" : ""}`;
     const tagWidth = Math.min(node.width - 20, Math.ceil(node.tag.length * 11 / 4) * 4 + 10);
     const labelY = node.y + 40;
-    return `<g data-node-id="${xml(node.id)}"><rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="8" class="${classes}"/><rect x="${node.x + 8}" y="${node.y + 6}" width="${tagWidth}" height="18" rx="3" class="df-tag-box"/><text x="${node.x + 12}" y="${node.y + 19}" class="df-tag">${xml(node.tag)}</text><text x="${node.x + 8}" y="${labelY}" class="df-title">${xml(node.title)}</text>${node.lines.map((line, index) => `<text x="${node.x + 8}" y="${labelY + 16 + index * 14}" class="df-sub">${xml(line)}</text>`).join("")}${node.role ? `<text x="${node.x + 8}" y="${node.y + node.height - 8}" class="df-file">${uploaded.has(node.role) ? "已选择录音" : `保存 ${xml(node.role)}`}</text>` : ""}</g>`;
+    return `<g data-node-id="${xml(node.id)}"><rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="8" class="${classes}"/><rect x="${node.x + 8}" y="${node.y + 6}" width="${tagWidth}" height="18" rx="3" class="df-tag-box"/><text x="${node.x + 12}" y="${node.y + 19}" class="df-tag">${xml(node.tag)}</text><text x="${node.x + 8}" y="${labelY}" class="df-title">${xml(node.title)}</text>${node.lines.map((line, index) => `<text x="${node.x + 8}" y="${labelY + 16 + index * 14}" class="df-sub">${xml(line)}</text>`).join("")}${node.role ? `<text x="${node.x + 8}" y="${node.y + node.height - 8}" class="df-file">${uploaded.has(node.role) ? "已选择录音" : `保存 ${xml(ROLE_LABEL[node.role])}`}</text>` : ""}</g>`;
   }).join("");
 
   const legendKinds = diagram.mode === "device"
-    ? [["signal", "主信号流 (TX / RX)"], ["reference", "AEC 纯净播放参考"], ["optional", "声学回声物理耦合 (Echo)"]]
+    ? [["signal", "主信号流 (TX / RX)"], ["reference", "远端播放信号 / 回声参考"], ["optional", "声学回声物理耦合 (Echo)"]]
     : [["signal", "录音与计算数据"], ["focal", "指标报告输出"]];
   const legendGap = diagram.mode === "device" ? 280 : 264;
   const legend = legendKinds.map(([kind, title], index) => {

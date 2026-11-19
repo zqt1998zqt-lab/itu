@@ -22,7 +22,14 @@ import {
   Upload,
   XCircle,
 } from "lucide-react";
-import { chainPresets } from "./enhancement-chain-model";
+import {
+  algorithmClusterById,
+  algorithmClusterGroupsForMode,
+  algorithmClusterLabel,
+  algorithmClustersForMode,
+  isAlgorithmClusterSupportedForMode,
+  sampleRateForBusinessMode,
+} from "./rate-algorithm-clusters";
 import {
   FIVE_SIGNAL_MODES,
   type FiveSignalMode,
@@ -35,7 +42,7 @@ import {
   SCENE_SUBPAGE_LABELS,
   SCOPED_BATCH_LABELS,
   SCOPED_STATUS_LABELS,
-  isIdle20ConditionPreview,
+  isSceneCondition20Preview,
   readScopedDatasetView,
   sceneSubpageFromHash,
   sceneSubpageHash,
@@ -59,9 +66,18 @@ import {
   type ScopedTestDefinition,
   type ScopedTestPageProps,
 } from "./scoped-acoustic-model";
+import { businessModeLabel as modeLabel } from "../domain/business-modes.ts";
 import { ACOUSTIC_OUTPUT_LABELS } from "../domain/acoustic-terminology.ts";
+import AlgorithmClusterSummary from "./AlgorithmClusterSummary";
 import "./basic-uplink-test.css";
 import "./scoped-acoustic-test.css";
+import DatasetCaseRuns from "./DatasetCaseRuns";
+import {
+  assertCaseExecutionSnapshot,
+  readSingleCaseSelection,
+  type CaseRunSnapshot,
+  type SingleCaseSelection,
+} from "./dataset-case-runs-model.ts";
 
 const DATASETS_URL = "/api/alignment/acceptance/datasets";
 const BATCHES_URL = "/api/alignment/acceptance/batches";
@@ -93,20 +109,6 @@ function SceneSubpagePanel({
   );
 }
 
-const MODE_LABELS: Record<FiveSignalMode, string> = {
-  "NB-wired": "窄带 · 有线",
-  "NB-wireless": "窄带 · 无线",
-  "NB-bt": "窄带 · 蓝牙",
-  "WB-wired": "宽带 · 有线",
-  "WB-wireless": "宽带 · 无线",
-  "WB-bt": "宽带 · 蓝牙",
-  "SWB-wired": "超宽带 · 有线",
-  "SWB-wireless": "超宽带 · 无线",
-};
-
-const VCP_PRESETS = chainPresets.filter((preset) =>
-  preset.profile.startsWith("vcp"),
-);
 const INTEGER_FORMAT = new Intl.NumberFormat("zh-CN");
 const DATE_FORMAT = new Intl.DateTimeFormat("zh-CN", {
   timeZone: "Asia/Shanghai",
@@ -249,13 +251,8 @@ function isZipArchive(file: File): boolean {
   );
 }
 
-function modeLabel(mode: FiveSignalMode): string {
-  return `${MODE_LABELS[mode]} · ${mode}`;
-}
-
 function algorithmLabel(id: string): string {
-  const preset = chainPresets.find((item) => item.id === id);
-  return preset ? `${preset.label} · ${preset.id}` : id || "未选择";
+  return id ? algorithmClusterLabel(id) : "未选择";
 }
 
 function storageKey(definition: ScopedTestDefinition): string {
@@ -296,6 +293,7 @@ function batchCaseUrl(
 }
 
 function asBatchSummary(snapshot: ScopedSnapshot): ScopedBatchSummary {
+  const selection = readSingleCaseSelection(snapshot);
   return {
     batch_id: snapshot.batch_id,
     dataset_id: snapshot.dataset_id,
@@ -307,6 +305,17 @@ function asBatchSummary(snapshot: ScopedSnapshot): ScopedBatchSummary {
     status: snapshot.status,
     progress: snapshot.progress,
     summary: snapshot.summary,
+    ...(selection
+      ? {
+          execution_scope: "single_case" as const,
+          selected_case_id: selection.selected_case_id,
+          dataset_case_count: selection.dataset_case_count,
+          dataset_observation_count:
+            selection.dataset_observation_count,
+          preview_condition_group_count:
+            selection.preview_condition_group_count,
+        }
+      : {}),
   };
 }
 
@@ -318,13 +327,39 @@ function sameItemIdentity(
     snapshot.selected_mode !== catalog.mode ||
     snapshot.test_scope !== catalog.test_scope
   ) {
-    return true;
+    return false;
   }
-  const reportIds = snapshot.items.map((item) => item.item_id).sort();
-  const catalogIds = catalog.items.map((item) => item.id).sort();
+  const catalogIds = new Set(catalog.items.map((item) => item.id));
+  let selection: SingleCaseSelection | null;
+  try {
+    selection = readSingleCaseSelection(snapshot);
+  } catch {
+    return false;
+  }
+  const reportIds = snapshot.items.map((item) => item.item_id);
+  if (new Set(reportIds).size !== reportIds.length) return false;
+  const reportItemsById = new Map(
+    snapshot.items.map((item) => [item.item_id, item]),
+  );
+  if (selection) {
+    return (
+      reportIds.length > 0 &&
+      reportIds.length <= catalog.items.length &&
+      reportIds.every(
+        (itemId) =>
+          catalogIds.has(itemId) &&
+          reportItemsById.get(itemId)?.evidence_binding?.case_id ===
+            selection.selected_case_id,
+      )
+    );
+  }
+  const sortedReportIds = [...reportIds].sort();
+  const sortedCatalogIds = [...catalogIds].sort();
   return (
-    reportIds.length === catalogIds.length &&
-    reportIds.every((id, index) => id === catalogIds[index])
+    sortedReportIds.length === sortedCatalogIds.length &&
+    sortedReportIds.every(
+      (id, index) => id === sortedCatalogIds[index],
+    )
   );
 }
 
@@ -338,6 +373,31 @@ function assertSnapshotCatalogIdentity(
     );
   }
   return snapshot;
+}
+
+function assertBasicDownlinkExecutionIdentity(
+  snapshot: ScopedSnapshot,
+  scope: ScopedSnapshot["test_scope"],
+  fullItemCount: number,
+  catalog: ScopedCatalog | null,
+): void {
+  if (scope !== "basic_downlink") return;
+  const selection = readSingleCaseSelection(snapshot);
+  assertCaseExecutionSnapshot(
+    snapshot as unknown as CaseRunSnapshot,
+    {
+      scope: "basic_downlink",
+      mode: snapshot.selected_mode,
+      fullItemCount,
+      caseId: selection?.selected_case_id,
+      datasetObservationCount:
+        selection?.dataset_observation_count,
+      contractItemIds:
+        catalog?.mode === snapshot.selected_mode
+          ? catalog.items.map((item) => item.id)
+          : undefined,
+    },
+  );
 }
 
 async function fetchScopedSnapshot(
@@ -615,7 +675,7 @@ export default function ScopedAcousticTest({
     mode,
     definition.scene,
   );
-  const idle20Preview = isIdle20ConditionPreview(definition, mode);
+  const idle20Preview = isSceneCondition20Preview(definition, mode);
   const latestStorageKey = storageKey(definition);
 
   const [catalog, setCatalog] = useState<ScopedCatalog | null>(null);
@@ -706,9 +766,19 @@ export default function ScopedAcousticTest({
     Boolean(selectedDataset) && (selectedDataset?.case_count ?? 0) > 0;
   const selectedDatasetReady =
     selectedDatasetIsComplete && selectedDatasetHasData;
-  const algorithmIsSupported = VCP_PRESETS.some(
-    (preset) => preset.id === algorithmClusterId,
+  const modeRateHz = sampleRateForBusinessMode(mode);
+  const availableAlgorithmGroups = algorithmClusterGroupsForMode(mode, {
+    vcpOnly: true,
+  });
+  const availableAlgorithmCount = algorithmClustersForMode(mode, {
+    vcpOnly: true,
+  }).length;
+  const algorithmIsSupported = isAlgorithmClusterSupportedForMode(
+    algorithmClusterId,
+    mode,
+    { vcpOnly: true },
   );
+  const selectedAlgorithmCluster = algorithmClusterById(algorithmClusterId);
   const isBatchActive =
     snapshot?.status === "queued" || snapshot?.status === "running";
   const controlsLocked =
@@ -814,6 +884,14 @@ export default function ScopedAcousticTest({
     snapshot?.status === "completed" ||
     snapshot?.status === "failed" ||
     snapshot?.status === "cancelled";
+  const snapshotSingleSelection = useMemo(() => {
+    if (!snapshot) return null;
+    try {
+      return readSingleCaseSelection(snapshot);
+    } catch {
+      return null;
+    }
+  }, [snapshot]);
   const outputLeaf: OutputLeaf =
     definition.outputKind === "rx" ? "outputs/rx" : "outputs/tx";
   const outputLabel = ACOUSTIC_OUTPUT_LABELS[definition.outputKind];
@@ -963,6 +1041,12 @@ export default function ScopedAcousticTest({
           controller.signal,
           `恢复${definition.title}结果`,
         );
+        assertBasicDownlinkExecutionIdentity(
+          next,
+          definition.scope,
+          expectedItemCount,
+          catalogRef.current,
+        );
         assertSnapshotCatalogIdentity(next, catalogRef.current);
         if (controller.signal.aborted) return;
         setSnapshot(next);
@@ -988,6 +1072,12 @@ export default function ScopedAcousticTest({
               definition,
               controller.signal,
               `恢复最新${definition.title}结果`,
+            );
+            assertBasicDownlinkExecutionIdentity(
+              fallback,
+              definition.scope,
+              expectedItemCount,
+              catalogRef.current,
             );
             assertSnapshotCatalogIdentity(fallback, catalogRef.current);
             if (controller.signal.aborted) return;
@@ -1059,6 +1149,7 @@ export default function ScopedAcousticTest({
     const batchId = current.batch_id;
     const batchMode = current.selected_mode;
     const batchCluster = current.algorithm_cluster_id;
+    const selection = readSingleCaseSelection(current);
     let timer: number | undefined;
     let disposed = false;
     let inFlight = false;
@@ -1078,6 +1169,23 @@ export default function ScopedAcousticTest({
             mode: batchMode,
           },
         );
+        if (definition.scope === "basic_downlink") {
+          assertCaseExecutionSnapshot(
+            next as unknown as CaseRunSnapshot,
+            {
+              scope: "basic_downlink",
+              mode: batchMode,
+              fullItemCount: expectedItemCount,
+              caseId: selection?.selected_case_id,
+              datasetObservationCount:
+                selection?.dataset_observation_count,
+              contractItemIds:
+                catalogRef.current?.mode === batchMode
+                  ? catalogRef.current.items.map((item) => item.id)
+                  : undefined,
+            },
+          );
+        }
         assertSnapshotCatalogIdentity(next, catalogRef.current);
         if (disposed) return;
         setSnapshot(next);
@@ -1211,7 +1319,7 @@ export default function ScopedAcousticTest({
     }
   }
 
-  async function handleStart() {
+  async function handleStart(caseId?: string) {
     if (
       !canStart ||
       !selectedDataset ||
@@ -1240,6 +1348,7 @@ export default function ScopedAcousticTest({
             dataset_id: requestedDatasetId,
             algorithm_cluster_id: requestedClusterId,
             mode: requestedMode,
+            ...(caseId ? { case_id: caseId } : {}),
           }),
           signal: controller.signal,
         },
@@ -1251,6 +1360,21 @@ export default function ScopedAcousticTest({
         mode: requestedMode,
         scene: definition.scene,
       });
+      if (definition.scope === "basic_downlink") {
+        assertCaseExecutionSnapshot(
+          next as unknown as CaseRunSnapshot,
+          {
+            scope: "basic_downlink",
+            mode: requestedMode,
+            fullItemCount: expectedItemCount,
+            caseId,
+            datasetObservationCount: caseId
+              ? expectedItemCount
+              : undefined,
+            contractItemIds: catalog.items.map((item) => item.id),
+          },
+        );
+      }
       assertSnapshotCatalogIdentity(next, catalog);
       if (controller.signal.aborted) return;
       setSnapshot(next);
@@ -1512,13 +1636,26 @@ export default function ScopedAcousticTest({
               {restoring ? "正在恢复…" : "暂无历史"}
             </option>
           ) : null}
-          {historyChoices.map((row) => (
-            <option key={row.batch_id} value={row.batch_id}>
-              {formatDate(row.created_at)} · {modeLabel(row.selected_mode)} ·{" "}
-              {row.algorithm_cluster_id} ·{" "}
-              {SCOPED_BATCH_LABELS[row.status]} · {row.batch_id.slice(0, 8)}
-            </option>
-          ))}
+          {historyChoices.map((row) => {
+            let selection: SingleCaseSelection | null = null;
+            try {
+              selection = readSingleCaseSelection(row);
+            } catch {
+              selection = null;
+            }
+            return (
+              <option key={row.batch_id} value={row.batch_id}>
+                {formatDate(row.created_at)} ·{" "}
+                {modeLabel(row.selected_mode)} ·{" "}
+                {row.algorithm_cluster_id} ·{" "}
+                {selection
+                  ? `单组 ${selection.selected_case_id} · `
+                  : ""}
+                {SCOPED_BATCH_LABELS[row.status]} ·{" "}
+                {row.batch_id.slice(0, 8)}
+              </option>
+            );
+          })}
         </select>
         <button
           className="button secondary"
@@ -1575,12 +1712,12 @@ export default function ScopedAcousticTest({
           </select>
           <small>
             当前模式要求 {expectedItemCount} 个唯一合同测项；目录、批次和报告
-            都按此模式严格校验。
+            都按此模式严格校验。选项为业务参考率，实际输入/处理率依音频与算法确定。
           </small>
         </label>
 
         <label htmlFor={clusterSelectId}>
-          <span>VCP 算法簇</span>
+          <span>VCP 算法簇（{modeRateHz / 1000} kHz 可选 {availableAlgorithmCount} 项）</span>
           <select
             id={clusterSelectId}
             aria-label={`${definition.title}VCP 算法簇`}
@@ -1593,20 +1730,24 @@ export default function ScopedAcousticTest({
             {!algorithmIsSupported ? (
               <option value={algorithmClusterId}>
                 {algorithmClusterId
-                  ? `${algorithmClusterId}（非 VCP，不可执行）`
+                  ? `${algorithmClusterId}（当前 ${modeRateHz / 1000} kHz 不可执行）`
                   : "未选择算法簇"}
               </option>
             ) : null}
-            {VCP_PRESETS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label} · {preset.id}
-              </option>
+            {availableAlgorithmGroups.map((group) => (
+              <optgroup key={group.id} label={group.label}>
+                {group.clusters.map((cluster) => (
+                  <option key={cluster.id} value={cluster.id}>
+                    {cluster.label} · {cluster.id}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
           <small>
             {algorithmIsSupported
-              ? algorithmLabel(algorithmClusterId)
-              : "本页只允许执行 VCP 预设；非 VCP 算法簇保持不可执行。"}
+              ? `${modeRateHz / 1000} kHz 可选 ${availableAlgorithmCount} 项 · ${algorithmLabel(algorithmClusterId)}`
+              : `本页在 ${modeRateHz / 1000} kHz（${mode}）下只允许执行对应的 VCP 算法簇。`}
           </small>
         </label>
 
@@ -1675,6 +1816,8 @@ export default function ScopedAcousticTest({
           </small>
         </div>
         ) : null}
+
+        <AlgorithmClusterSummary cluster={selectedAlgorithmCluster} />
       </div>
 
       {datasetError ? (
@@ -1806,6 +1949,18 @@ export default function ScopedAcousticTest({
           {buttonLabel}
         </button>
       </div>
+
+      {definition.scope === "basic_downlink" && !isScenePage ? (
+        <DatasetCaseRuns
+          dataset={selectedDataset}
+          mode={mode}
+          algorithm={algorithmClusterId}
+          scope="basic_downlink"
+          currentSnapshot={snapshot as CaseRunSnapshot | null}
+          canRun={canStart}
+          onRunCase={(caseId) => handleStart(caseId)}
+        />
+      ) : null}
 
       {runError ? (
         <div className="basic-uplink-alert" role="alert">
@@ -1998,6 +2153,7 @@ export default function ScopedAcousticTest({
                 </span>
                 <h3 id={resultTitleId}>
                   {showingPreviousSnapshot ? "上次成功快照 · " : ""}
+                  {snapshotSingleSelection ? "单组结果 · " : ""}
                   {SCOPED_BATCH_LABELS[snapshot.status]}
                 </h3>
                 <p>
@@ -2045,12 +2201,19 @@ export default function ScopedAcousticTest({
 
             <div className="basic-uplink-progress">
               <div>
-                <strong>
-                  条件组 {snapshot.progress.completed_cases} /{" "}
-                  {snapshot.progress.total_cases}
-                </strong>
+                {snapshotSingleSelection ? (
+                  <strong>
+                    单组{snapshot.progress.completed_cases}/1，完整范围{expectedItemCount}项
+                  </strong>
+                ) : (
+                  <strong>
+                    条件组 {snapshot.progress.completed_cases} /{" "}
+                    {snapshot.progress.total_cases}
+                  </strong>
+                )}
                 <span>
-                  逐项 {snapshot.progress.completed_items} /{" "}
+                  {snapshotSingleSelection ? "本组逐项" : "逐项"}{" "}
+                  {snapshot.progress.completed_items} /{" "}
                   {snapshot.progress.total_items}
                 </span>
               </div>
@@ -2133,15 +2296,25 @@ export default function ScopedAcousticTest({
               <span>
                 测试范围{" "}
                 <code>
-                  {definition.title} ·{" "}
-                  {scopedItemCount(
-                    definition.scope,
-                    snapshot.selected_mode,
-                    definition.scene,
-                  )}{" "}
-                  项
+                  {snapshotSingleSelection
+                    ? `单组${snapshot.progress.completed_cases}/1，完整范围${scopedItemCount(
+                        definition.scope,
+                        snapshot.selected_mode,
+                        definition.scene,
+                      )}项`
+                    : `${definition.title} · ${scopedItemCount(
+                        definition.scope,
+                        snapshot.selected_mode,
+                        definition.scene,
+                      )} 项`}
                 </code>
               </span>
+              {snapshotSingleSelection ? (
+                <span>
+                  所选条件组{" "}
+                  <code>{snapshotSingleSelection.selected_case_id}</code>
+                </span>
+              ) : null}
               <span>
                 业务模式 <code>{modeLabel(snapshot.selected_mode)}</code>
               </span>
@@ -2212,7 +2385,9 @@ export default function ScopedAcousticTest({
                   ITEM EVIDENCE
                 </span>
                 <h3 id={itemsTitleId}>
-                  {snapshot.summary.total} 项逐项结果
+                  {snapshotSingleSelection
+                    ? "单组逐项结果"
+                    : `${snapshot.summary.total} 项逐项结果`}
                 </h3>
                 <p>
                   合同单位、合同限值、工程指标、工程值和工程单位分列展示；

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { cp, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { extname, resolve, sep } from "node:path";
 
@@ -192,7 +192,6 @@ export async function publishAssets(root: string, target: string, manifest: Asse
     await writeFile(resolve(stage, "evaluation-assets.json"), JSON.stringify(manifest));
     await rename(stage, target);
   } catch (error) {
-    await rm(stage, { recursive: true, force: true });
     throw error;
   }
 }

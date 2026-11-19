@@ -2,6 +2,12 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { PageBoundary } from "../components/PageBoundary";
 import type { FiveSignalMode } from "./five-signal-flow-model";
+import {
+  initialAlgorithmClustersByRate,
+  isAlgorithmClusterSupportedForRate,
+  sampleRateForBusinessMode,
+  type BusinessSampleRateHz,
+} from "./rate-algorithm-clusters";
 
 const ItuAlignment = lazy(() => import("./ItuAlignment"));
 const BasicUplinkTest = lazy(() => import("./BasicUplinkTest"));
@@ -44,8 +50,29 @@ export default function AcceptanceWorkspace({
   activeView: AcceptanceView | null;
 }) {
   const [openedViews, setOpenedViews] = useState<AcceptanceView[]>([]);
-  const [algorithmClusterId, setAlgorithmClusterId] = useState("vcp_unified");
+  const [clusterByRate, setClusterByRate] = useState<
+    Record<BusinessSampleRateHz, string>
+  >(initialAlgorithmClustersByRate);
   const [mode, setMode] = useState<FiveSignalMode>("WB-wired");
+  const activeSampleRate = sampleRateForBusinessMode(mode);
+  const algorithmClusterId = clusterByRate[activeSampleRate];
+
+  const handleAlgorithmClusterChange = (nextClusterId: string) => {
+    if (
+      activeSampleRate === 8_000
+      && !isAlgorithmClusterSupportedForRate(nextClusterId, 8_000, { vcpOnly: false })
+      && isAlgorithmClusterSupportedForRate(nextClusterId, 16_000, { vcpOnly: false })
+    ) {
+      setMode("WB-wired");
+      setClusterByRate((current) => ({ ...current, 16_000: nextClusterId }));
+      return;
+    }
+    setClusterByRate((current) =>
+      current[activeSampleRate] === nextClusterId
+        ? current
+        : { ...current, [activeSampleRate]: nextClusterId },
+    );
+  };
   const [busyByView, setBusyByView] = useState<BusyByView>({
     alignment: false,
     "basic-uplink": false,
@@ -96,7 +123,7 @@ export default function AcceptanceWorkspace({
           <Suspense fallback={loading}>
             <ItuAlignment
               algorithmClusterId={algorithmClusterId}
-              onAlgorithmClusterChange={setAlgorithmClusterId}
+              onAlgorithmClusterChange={handleAlgorithmClusterChange}
               selectedMode={mode}
               onModeChange={setMode}
               externalRunning={externalRunning("alignment")}
@@ -112,7 +139,7 @@ export default function AcceptanceWorkspace({
           <Suspense fallback={loading}>
             <BasicUplinkTest
               algorithmClusterId={algorithmClusterId}
-              onAlgorithmClusterChange={setAlgorithmClusterId}
+              onAlgorithmClusterChange={handleAlgorithmClusterChange}
               mode={mode}
               onModeChange={setMode}
               externalRunning={externalRunning("basic-uplink")}
@@ -128,7 +155,7 @@ export default function AcceptanceWorkspace({
           <Suspense fallback={loading}>
             <BasicDownlinkTest
               algorithmClusterId={algorithmClusterId}
-              onAlgorithmClusterChange={setAlgorithmClusterId}
+              onAlgorithmClusterChange={handleAlgorithmClusterChange}
               mode={mode}
               onModeChange={setMode}
               externalRunning={externalRunning("basic-downlink")}
@@ -144,11 +171,12 @@ export default function AcceptanceWorkspace({
           <Suspense fallback={loading}>
             <EchoTest
               algorithmClusterId={algorithmClusterId}
-              onAlgorithmClusterChange={setAlgorithmClusterId}
+              onAlgorithmClusterChange={handleAlgorithmClusterChange}
               mode={mode}
               onModeChange={setMode}
               externalRunning={externalRunning("echo")}
               onBusyChange={busySetters.echo}
+              pageVisible={activeView === "echo"}
             />
           </Suspense>
         </PageBoundary>
@@ -160,11 +188,12 @@ export default function AcceptanceWorkspace({
           <Suspense fallback={loading}>
             <DoubleTalkTest
               algorithmClusterId={algorithmClusterId}
-              onAlgorithmClusterChange={setAlgorithmClusterId}
+              onAlgorithmClusterChange={handleAlgorithmClusterChange}
               mode={mode}
               onModeChange={setMode}
               externalRunning={externalRunning("double-talk")}
               onBusyChange={busySetters["double-talk"]}
+              pageVisible={activeView === "double-talk"}
             />
           </Suspense>
         </PageBoundary>
@@ -176,7 +205,7 @@ export default function AcceptanceWorkspace({
           <Suspense fallback={loading}>
             <BackgroundNoiseTest
               algorithmClusterId={algorithmClusterId}
-              onAlgorithmClusterChange={setAlgorithmClusterId}
+              onAlgorithmClusterChange={handleAlgorithmClusterChange}
               mode={mode}
               onModeChange={setMode}
               externalRunning={externalRunning("background-noise")}
@@ -192,7 +221,7 @@ export default function AcceptanceWorkspace({
           <Suspense fallback={loading}>
             <BackgroundNoiseIdleTest
               algorithmClusterId={algorithmClusterId}
-              onAlgorithmClusterChange={setAlgorithmClusterId}
+              onAlgorithmClusterChange={handleAlgorithmClusterChange}
               mode={mode}
               onModeChange={setMode}
               externalRunning={externalRunning("background-noise-idle")}
@@ -209,7 +238,7 @@ export default function AcceptanceWorkspace({
           <Suspense fallback={loading}>
             <BackgroundNoiseUrbanTest
               algorithmClusterId={algorithmClusterId}
-              onAlgorithmClusterChange={setAlgorithmClusterId}
+              onAlgorithmClusterChange={handleAlgorithmClusterChange}
               mode={mode}
               onModeChange={setMode}
               externalRunning={externalRunning("background-noise-urban")}
@@ -226,7 +255,7 @@ export default function AcceptanceWorkspace({
           <Suspense fallback={loading}>
             <BackgroundNoiseHighwayTest
               algorithmClusterId={algorithmClusterId}
-              onAlgorithmClusterChange={setAlgorithmClusterId}
+              onAlgorithmClusterChange={handleAlgorithmClusterChange}
               mode={mode}
               onModeChange={setMode}
               externalRunning={externalRunning("background-noise-highway")}
@@ -243,7 +272,7 @@ export default function AcceptanceWorkspace({
           <Suspense fallback={loading}>
             <BackgroundNoiseHvacTest
               algorithmClusterId={algorithmClusterId}
-              onAlgorithmClusterChange={setAlgorithmClusterId}
+              onAlgorithmClusterChange={handleAlgorithmClusterChange}
               mode={mode}
               onModeChange={setMode}
               externalRunning={externalRunning("background-noise-hvac")}

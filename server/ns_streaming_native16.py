@@ -1,0 +1,3 @@
+"""Control lifecycle for explicit 256-point stateful native16 callbacks."""
+from server.native16_variants import load_base
+load_base('ns_streaming',globals(),replace=[('"cofilite"', '"cofilite_native16"', 7), ('from server import ns_routes as routes', 'from server import ns_routes_native16 as routes', 1), ('"server.ns_stream_worker"', '"server.ns_stream_worker_native16"', 1), ('with_name("ns_stream_worker.py")', 'with_name("ns_stream_worker_native16.py")', 1), ('"itu-ns-f32le-v1"', '"itu-ns-f32le-native16-v1"', 1), ('persistent_f32le_v1', 'persistent_f32le_native16_v1', 1), ('over_10ms', 'over_16ms', 7)],patterns=[('\\b160\\b', '256', 2)])

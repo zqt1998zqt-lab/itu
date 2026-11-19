@@ -106,6 +106,8 @@ def test_five_signal_maps_one_mode_to_42_rows_and_keeps_formal_boundary(
     assert all(item["standard_compliance"] is False for item in report["items"])
     assert report["analysis"]["values"]["output_sisdr_db"] is not None
     assert report["analysis"]["segments"]["noise_only_seconds"] > 0
+    assert report["analysis"]["model_a"]["status"] == "disabled"
+    assert report["analysis"]["model_a"]["compliance_status"] == "disabled"
     result = build / report["result"]["path"]
     assert result.is_file()
     assert json.loads(result.read_text())["evaluation_id"] == report["evaluation_id"]
@@ -165,7 +167,7 @@ def test_algorithm_filter_is_applied_before_limit(tmp_path, monkeypatch):
     root = build / "five-signal-evaluations"
     monkeypatch.setattr(service, "BUILD", build)
     for evaluation_id, cluster, mtime in (
-        ("a" * 32, "wanted", 1_000),
+        ("a" * 32, "effective-native", 1_000),
         ("b" * 32, "other", 2_000),
     ):
         destination = root / evaluation_id
@@ -176,12 +178,20 @@ def test_algorithm_filter_is_applied_before_limit(tmp_path, monkeypatch):
             "created_at": "2026-10-28T00:00:00Z",
             "mode": "WB-wired",
             "summary": {"total": 42},
-            "execution": {"algorithm_cluster_id": cluster},
+            "execution": {
+                "algorithm_cluster_id": cluster,
+                    "requested_algorithm_cluster_id": (
+                        "wanted"
+                        if cluster == "effective-native"
+                        else "other-request"
+                    ),
+            },
         }))
         os.utime(path, (mtime, mtime))
     rows = list_evaluations(limit=1, algorithm_cluster_id="wanted")
     assert [row["evaluation_id"] for row in rows] == ["a" * 32]
-    assert rows[0]["execution"]["algorithm_cluster_id"] == "wanted"
+    assert rows[0]["execution"]["algorithm_cluster_id"] == "effective-native"
+    assert rows[0]["execution"]["requested_algorithm_cluster_id"] == "wanted"
 
 
 def test_execution_provenance_must_match_persisted_output_hash(tmp_path, monkeypatch):
@@ -194,6 +204,33 @@ def test_execution_provenance_must_match_persisted_output_hash(tmp_path, monkeyp
             uploads=_signals(),
             execution={"output_sha256": "0" * 64},
         )
+
+
+def test_native_execution_output_mapping_binds_tx_as_near_end(
+    tmp_path,
+    monkeypatch,
+):
+    build = tmp_path / "build"
+    monkeypatch.setattr(service, "BUILD", build)
+    monkeypatch.setattr(service, "EVIDENCE", build / "evidence")
+    uploads = _signals(rate=8_000)
+    near_end_sha256 = hashlib.sha256(
+        uploads["near_end"][1]
+    ).hexdigest()
+    report = evaluate_five_signal(
+        mode="NB-wired",
+        uploads=uploads,
+        execution={
+            "source": "native_rate_path",
+            "algorithm_cluster_id": "speex_dpdfnet2_8khz",
+            "requested_algorithm_cluster_id": "vcp_unified",
+            "output_sha256": {
+                "rx": "d" * 64,
+                "tx": near_end_sha256,
+            },
+        },
+    )
+    assert report["execution"]["output_sha256"]["tx"] == near_end_sha256
 
 
 def test_same_five_signals_are_not_treated_as_eight_formal_modes(tmp_path, monkeypatch):

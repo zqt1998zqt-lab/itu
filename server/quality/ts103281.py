@@ -17,6 +17,7 @@ compliance.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import csv
 import hashlib
 import json
 from pathlib import Path
@@ -25,8 +26,17 @@ import math
 
 import numpy as np
 from scipy import signal
-from scipy.special import comb
 from scipy.stats import kurtosis
+
+from .ts103281_activity import classify_activity
+from .ts103281_hearing import auditory_spectrum
+from .ts103281_modulation import modulation_features
+from .ts103281_noise import NoiseReconstructionError, reconstruct_noise_log_envelope
+from .ts103281_reference import optimize_reference
+from .ts103281_spectral import (
+    calibrate_reference, correct_reference_gain, ltass_activity_mask,
+)
+from .ts103281_validation import validate_annex_c_evidence
 
 
 SAMPLE_RATE = 48_000
@@ -37,7 +47,6 @@ P0_PA = 20e-6
 MODEL_DIR = Path(__file__).with_name("assets") / "ts103281"
 OFFICIAL_VALIDATION = MODEL_DIR / "annex-c-validation.json"
 EXPECTED_TOLERANCE_MOS = 0.1
-_ACTIVE_NOISE_MASK = 0.4
 
 # The published forests expect features on the scales of HEAD's original
 # hearing-model implementation.  These constants provide a transparent
@@ -297,44 +306,27 @@ def _align(reference: np.ndarray, degraded: np.ndarray) -> tuple[np.ndarray, dic
     )
 
 
-def _frame_rms(x: np.ndarray) -> np.ndarray:
-    count = len(x) // FRAME_SIZE
-    if count == 0:
-        return np.empty(0, dtype=np.float64)
-    frames = x[: count * FRAME_SIZE].reshape(count, FRAME_SIZE)
-    return np.sqrt(np.mean(frames * frames, axis=1))
-
-
 def _activity(reference: np.ndarray) -> tuple[np.ndarray, dict]:
-    activity_frame_size = round(SAMPLE_RATE * 0.010)
-    activity_frame_count = len(reference) // activity_frame_size
-    if not activity_frame_count:
-        raise ModelAError("reference is too short for 10 ms activity frames")
-    frames = reference[: activity_frame_count * activity_frame_size].reshape(
-        activity_frame_count,
-        activity_frame_size,
-    )
-    rms = np.sqrt(np.mean(frames * frames, axis=1))
-    levels = 20 * np.log10(np.maximum(rms / P0_PA, 1e-30))
-    floor = float(np.percentile(levels, 15))
-    peak = float(np.percentile(levels, 95))
-    threshold = max(floor + 8.0, peak - 30.0)
-    active_activity_frames = levels > threshold
-    if np.count_nonzero(active_activity_frames) < 3:
-        raise ModelAError("reference has insufficient active speech")
+    try:
+        labels, details = classify_activity(reference, SAMPLE_RATE)
+    except ValueError as error:
+        raise ModelAError(str(error)) from error
     spectral_frame_count = len(reference) // FRAME_SIZE
     spectral_centres = (np.arange(spectral_frame_count) + 0.5) * FRAME_SECONDS
     activity_indices = np.minimum(
         (spectral_centres / 0.010).astype(np.int64),
-        activity_frame_count - 1,
+        len(labels) - 1,
     )
-    active = active_activity_frames[activity_indices]
+    spectral_labels = labels[activity_indices]
+    active = spectral_labels != "S"
     return active, dict(
-        floor_dbfs_pa=floor,
-        peak_dbfs_pa=peak,
-        threshold_dbfs_pa=threshold,
+        method="ITU-T P.56 Method B / G.160 Appendix II Amendment 2",
+        asl_db=details["asl_db"],
         activity_frame_ms=10.0,
-        active_activity_frames=int(np.count_nonzero(active_activity_frames)),
+        class_counts=details["counts"],
+        activity_classes=labels.tolist(),
+        spectral_classes=spectral_labels.tolist(),
+        active_activity_frames=int(np.count_nonzero(labels != "S")),
         active_spectral_frames=int(np.count_nonzero(active)),
     )
 
@@ -367,62 +359,30 @@ def _aggregate_basic_bands(
 
 
 def _auditory_spectrum(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Return the rectified 8 ms auditory-filter output on 99 bands."""
+    """Return the pressure spectrum after the full linear hearing front-end.
+
+    The centre-frequency grid and original ear coefficients are still being
+    checked against the cited hearing model.  The independent front-end
+    records these remaining assumptions explicitly.
+    """
     centres = _band_centres()
-    count = len(x) // FRAME_SIZE
-    if count == 0:
-        raise ModelAError("audio is too short for 8 ms auditory frames")
-    framed_length = count * FRAME_SIZE
-    bandwidth = np.sqrt(50.0**2 + (0.14 * centres) ** 2)
-    order = 5
-    coefficients = np.asarray([0, 1, 11, 11, 1], dtype=np.float64)
-    amplitude = np.empty((len(centres), count), dtype=np.float64)
-    for index, (frequency, dfz) in enumerate(zip(centres, bandwidth)):
-        tau = (
-            comb(2 * order - 2, order - 1)
-            / (2 ** (2 * order - 1) * dfz)
-        )
-        decay = np.exp(-1.0 / (SAMPLE_RATE * tau))
-        phase = np.exp(
-            1j
-            * 2
-            * np.pi
-            * frequency
-            * np.arange(0, order + 2)
-            / SAMPLE_RATE
-        )
-        m_a = np.arange(1, order + 1)
-        denominator = np.append(
-            1,
-            ((-decay) ** m_a) * comb(order, m_a),
-        ) * phase[: order + 1]
-        m_b = np.arange(0, order)
-        b_index = np.arange(1, order)
-        numerator = (
-            ((1 - decay) ** order)
-            / np.sum(coefficients[1:] * (decay**b_index))
-            * (decay**m_b)
-            * coefficients
-            * phase[:order]
-        )
-        filtered = 2 * np.real(
-            signal.lfilter(numerator, denominator, x[:framed_length])
-        )
-        rectified = np.maximum(filtered, 0.0).reshape(count, FRAME_SIZE)
-        amplitude[index] = np.sqrt(
-            2.0 * np.mean(rectified * rectified, axis=1)
-        )
-    return amplitude, centres
+    return auditory_spectrum(x, centres, SAMPLE_RATE, FRAME_SECONDS), centres
 
 
 def _nonlinear(x: np.ndarray) -> np.ndarray:
-    # ETSI EG 202 396-3 Annex K, equation K.1/K.2-K.4.
+    """Compress pressure in Pa using EG 202 396-3 Annex K.1--K.4.
+
+    Annex K defines its input as p_eff / p_0, not absolute pressure in Pa.
+    Its output is normalized compressed pressure.  Keeping the normalization
+    here prevents callers from applying different units to the speech and
+    noise branches.
+    """
     exponent = 0.2
     threshold = 5.66
     a = 0.5 * (1.0 - exponent) / (2.0 - exponent) / threshold
-    b = (1.0 / exponent) * (1.0 / (2.0 - exponent)) * threshold ** (1.0 - 1.0 / exponent)
+    b = threshold ** (1.0 - exponent) / (exponent * (2.0 - exponent))
     c = 0.5 * (1.0 - exponent) / exponent * threshold
-    value = np.maximum(np.asarray(x, dtype=np.float64), 0.0)
+    value = np.maximum(np.asarray(x, dtype=np.float64), 0.0) / P0_PA
     return np.where(
         value < threshold,
         value - a * value * value,
@@ -438,15 +398,31 @@ def _a_weight(frequencies: np.ndarray) -> np.ndarray:
         * np.sqrt((f2 + 107.7**2) * (f2 + 737.9**2))
         * (f2 + 12_194.0**2)
     )
-    return 10 ** (20 * np.log10(np.maximum(numerator / denominator, 1e-30)) / 20)
+    # IEC 61672 A-weighting is normalized to approximately 0 dB at 1 kHz.
+    return (numerator / denominator) * 10 ** (2.0 / 20.0)
 
 
 def _transfer_and_residual(
     reference: np.ndarray,
     degraded: np.ndarray,
     active: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    ref_spectrum, centres = _auditory_spectrum(reference)
+    activity: dict,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
+    # Preserve the original 10 ms classifications for the time-domain H1;
+    # expanding the 8 ms spectral mask would shift activity boundaries.
+    activity_labels = np.asarray(activity["activity_classes"])
+    sample_active = np.zeros(len(reference), dtype=bool)
+    expanded = np.repeat(activity_labels != "S", SAMPLE_RATE // 100)
+    covered = min(len(expanded), len(sample_active))
+    sample_active[:covered] = expanded[:covered]
+    centres = _band_centres()
+    try:
+        calibrated, transfer, calibration = calibrate_reference(
+            reference, degraded, sample_active, centres, SAMPLE_RATE,
+        )
+    except ValueError as error:
+        raise ModelAError(f"initial reference calibration: {error}") from error
+    ref_spectrum, _ = _auditory_spectrum(calibrated)
     deg_spectrum, _ = _auditory_spectrum(degraded)
     frame_count = min(ref_spectrum.shape[1], deg_spectrum.shape[1], len(active))
     ref_spectrum = ref_spectrum[:, :frame_count]
@@ -454,33 +430,76 @@ def _transfer_and_residual(
     active = active[:frame_count]
     if not np.any(active):
         raise ModelAError("no active speech frames after spectral analysis")
-    cross = np.mean(ref_spectrum[:, active] * deg_spectrum[:, active], axis=1)
-    power = np.mean(ref_spectrum[:, active] ** 2, axis=1)
-    gain = np.divide(
-        cross,
-        power,
-        out=np.ones_like(cross),
-        where=power > 1e-30,
+    mask, spectral_activity = ltass_activity_mask(
+        ref_spectrum, centres, calibration["scaled_reference_asl_db"],
     )
-    # H1 magnitude gain, clipped to avoid sign inversion dominating noise.
-    gain = np.clip(gain, 0.0, None)
-    speech = gain[:, None] * ref_spectrum
-    residual = np.maximum(deg_spectrum - speech, 0.0)
-    # The activity spectrum masks unreliable speech-dominated bins before the
-    # iterative deconvolution described by Model A.
-    residual[:, active] *= _ACTIVE_NOISE_MASK
-    return ref_spectrum, deg_spectrum, speech, residual
+    speech, noise, separation = _separate_spectra(
+        ref_spectrum, deg_spectrum, transfer, mask,
+    )
+    try:
+        corrected_reference, gain_correction = correct_reference_gain(
+            ref_spectrum, speech, active,
+        )
+    except ValueError as error:
+        raise ModelAError(f"final reference calibration: {error}") from error
+    return corrected_reference, deg_spectrum, speech, noise, dict(
+        calibration=calibration, spectral_activity=spectral_activity,
+        separation=separation, reference_gain=gain_correction,
+    )
 
 
-def _active_rms_level(x: np.ndarray, active: np.ndarray) -> float:
-    rms = _frame_rms(x)
-    count = min(len(rms), len(active))
-    selected = rms[:count][active[:count]]
-    if not len(selected):
-        return float("nan")
-    # Model A's compensated ASL feature is expressed on the digital level
-    # scale used by the training data, not as dB SPL re 20 uPa.
-    return float(20 * np.log10(max(float(np.sqrt(np.mean(selected**2))), 1e-30)))
+def _separate_spectra(
+    reference: np.ndarray,
+    degraded: np.ndarray,
+    transfer: np.ndarray,
+    reliability: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, dict]:
+    """Equations (8)--(10), then the amplitude split in (5)--(6).
+
+    The noise reconstruction remains an independently implemented spectral
+    deconvolution, with its numerical assumptions retained in diagnostics.
+    A relative machine-precision floor makes log(0) finite for reconstruction;
+    entirely zero residual bands retain zero noise estimates exactly.
+    """
+    filtered_reference = np.asarray(transfer)[:, None] * reference
+    preliminary = np.maximum(degraded - filtered_reference, 0.0)
+    nonzero_bands = np.any(preliminary > 0.0, axis=1)
+    reconstructed_noise = np.zeros_like(preliminary)
+    reconstruction: dict = {"method": "exact_zero_residual", "bands": []}
+    floor = max(float(np.max(preliminary)) * np.finfo(float).eps, np.finfo(float).tiny)
+    if np.any(nonzero_bands):
+        noise_db = 20 * np.log10(np.maximum(preliminary[nonzero_bands], floor))
+        try:
+            reconstructed_db, reconstruction = reconstruct_noise_log_envelope(
+                noise_db, reliability[nonzero_bands],
+            )
+        except NoiseReconstructionError as error:
+            raise ModelAError(f"noise reconstruction: {error}") from error
+        with np.errstate(over="raise", invalid="raise"):
+            try:
+                reconstructed_noise[nonzero_bands] = 10 ** (reconstructed_db / 20)
+            except FloatingPointError as error:
+                raise ModelAError("noise reconstruction amplitude overflow") from error
+    denominator = filtered_reference**2 + reconstructed_noise**2
+    wiener = np.divide(
+        filtered_reference**2, denominator, out=np.zeros_like(denominator),
+        where=denominator > 0,
+    )
+    speech = wiener * degraded
+    noise = degraded - speech
+    bands = reconstruction.get("bands", [])
+    return speech, noise, {
+        "method": "H1/LTASS mask/spectral deconvolution/Wiener amplitude split",
+        "noise_reconstruction": reconstruction,
+        "nonzero_residual_bands": int(np.count_nonzero(nonzero_bands)),
+        "zero_residual_bands": int(np.count_nonzero(~nonzero_bands)),
+        "reconstruction_converged_bands": sum(bool(b.get("converged")) for b in bands),
+        "log_zero_floor_pa": floor,
+        "log_zero_floor_rule": "max residual times float64 epsilon; tiny lower bound",
+        "wiener_gain_min": float(np.min(wiener)),
+        "wiener_gain_max": float(np.max(wiener)),
+        "amplitude_identity_max_error": float(np.max(np.abs(speech + noise - degraded))),
+    }
 
 
 def _spectral_difference(
@@ -488,9 +507,18 @@ def _spectral_difference(
     degraded: np.ndarray,
     centres: np.ndarray,
     active: np.ndarray,
+    optimization_diagnostics: dict | None = None,
 ) -> dict[str, float]:
-    ref = 20 * np.log10(np.maximum(_nonlinear(reference), 1e-30))
-    deg = 20 * np.log10(np.maximum(_nonlinear(degraded), 1e-30))
+    optimized_reference, _, details = optimize_reference(reference, degraded)
+    if optimization_diagnostics is not None:
+        optimization_diagnostics.update({
+            "status": details["status"],
+            "complete_reference_model": details["complete_reference_model"],
+            "unimplemented_steps": details["unimplemented_steps"],
+            "interpolation": details["interpolation"],
+        })
+    ref = _nonlinear(optimized_reference)
+    deg = _nonlinear(degraded)
     count = min(ref.shape[1], deg.shape[1], len(active))
     ref, deg, active = ref[:, :count], deg[:, :count], active[:count]
     difference = deg - ref
@@ -514,7 +542,9 @@ def _spectral_difference(
         result[name] = float(
             np.sqrt(np.mean(active_curve**2)) if len(active_curve) else np.nan
         )
-    overall = np.where(difference > 0, difference, 0.5 * difference)
+    # The unpartitioned path in Figure 6.11 bypasses the band-specific
+    # asymmetry factors. Only the low/mid/high paths apply Table 6.3.
+    overall = difference
     curve = np.sqrt(np.mean(overall**2, axis=0))
     if len(curve) >= 5:
         curve = signal.medfilt(curve, kernel_size=5)
@@ -530,40 +560,15 @@ def _modulation_features(
     centres: np.ndarray,
     active: np.ndarray,
 ) -> dict[str, float]:
-    # Approximate the 4-128 Hz modulation bank by taking the largest
-    # FFT component in that band for each auditory channel.
+    # Clause 6.3.7.2 uses P90 over the continuous timeline, rather than
+    # concatenating the selected activity frames before an FFT.
     count = min(reference.shape[1], speech.shape[1], len(active))
-    ref = reference[:, :count]
-    out = speech[:, :count]
-    active = active[:count]
-    if np.count_nonzero(active) < 8:
-        return dict(mmer=float("nan"), weighted_difference=float("nan"))
-    # Interpolate over inactive frames only for the modulation transform.
-    ref_active = ref[:, active]
-    out_active = out[:, active]
-    n_fft = 1 << int(np.ceil(np.log2(max(8, ref_active.shape[1]))))
-    mod_freq = np.fft.rfftfreq(n_fft, d=FRAME_SECONDS)
-    mod_mask = (mod_freq >= 4.0) & (mod_freq <= 128.0)
-    if not np.any(mod_mask):
-        return dict(mmer=float("nan"), weighted_difference=float("nan"))
-    ref_mod = np.abs(np.fft.rfft(ref_active, n=n_fft, axis=1))[:, mod_mask]
-    out_mod = np.abs(np.fft.rfft(out_active, n=n_fft, axis=1))[:, mod_mask]
-    selected = np.argmax(ref_mod, axis=1)
-    rows = np.arange(len(centres))
-    ref_peak = ref_mod[rows, selected]
-    out_peak = out_mod[rows, selected]
-    ratio_db = 20 * np.log10(
-        np.maximum(out_peak, 1e-30) / np.maximum(ref_peak, 1e-30)
-    )
-    difference = out_mod - ref_mod
-    weights = np.maximum(10 ** (_a_weight(centres) / 20), 1.0)
-    weighted = np.sqrt(np.mean((difference * weights[:, None]) ** 2, axis=1))
-    return dict(
-        mmer=float(np.mean(ratio_db)),
-        weighted_difference=float(
-            20 * np.log10(max(float(np.sqrt(np.mean(weighted**2))), 1e-30))
-        ),
-    )
+    try:
+        return modulation_features(
+            reference[:, :count], speech[:, :count], centres, FRAME_SECONDS
+        )
+    except ValueError as error:
+        raise ModelAError(f"modulation features: {error}") from error
 
 
 def extract_model_a_features(
@@ -588,8 +593,8 @@ def extract_model_a_features(
     reference, degraded = reference[:length], degraded[:length]
     reference, alignment = _align(reference, degraded)
     active, activity = _activity(reference)
-    ref_spectrum, deg_spectrum, speech, noise = _transfer_and_residual(
-        reference, degraded, active
+    ref_spectrum, deg_spectrum, speech, noise, preprocessing = _transfer_and_residual(
+        reference, degraded, active, activity
     )
     centres_99 = _band_centres()
     ref_spectrum, centres = _aggregate_basic_bands(
@@ -606,18 +611,14 @@ def extract_model_a_features(
     active = active[:count]
 
     a_weight = _a_weight(centres)[:, None]
-    speech_a = speech * a_weight
     noise_a = noise * a_weight
-    noise_l2_frequency = np.sqrt(np.mean(_nonlinear(noise_a) ** 2, axis=0))
+    noise_l2_frequency = np.sqrt(np.sum(_nonlinear(noise_a) ** 2, axis=0))
     noise_sum_frequency = np.sum(_nonlinear(noise_a), axis=0)
-    loudness_time = np.sum(_nonlinear(noise), axis=0)
-    sharpness_time = np.divide(
-        np.sum(_nonlinear(noise) * _sharpness_weight(centres)[:, None], axis=0),
-        np.maximum(np.sum(_nonlinear(noise), axis=0), 1e-30),
-    )
+    sharpness_time = _sharpness(_nonlinear(noise), centres)
 
+    reference_optimization: dict = {}
     differences = _spectral_difference(
-        ref_spectrum, speech, centres, active
+        ref_spectrum, speech, centres, active, reference_optimization,
     )
     processed_differences = _spectral_difference(
         ref_spectrum, deg_spectrum, centres, active
@@ -625,15 +626,23 @@ def extract_model_a_features(
     modulation = _modulation_features(
         ref_spectrum, speech, centres, active
     )
-    speech_power = float(np.mean(speech_a[:, active] ** 2))
-    noise_power = float(np.mean(noise_a[:, active] ** 2))
-    snr_a = 10 * np.log10(max(speech_power, 1e-30) / max(noise_power, 1e-30))
-    asl = _active_rms_level(reference, active)
-    transfer_power = np.divide(
-        np.mean(deg_spectrum[:, active] ** 2, axis=1),
-        np.maximum(np.mean(ref_spectrum[:, active] ** 2, axis=1), 1e-30),
+    # The control features use U/L/M/H, whereas ordinary speech regions
+    # retain short pauses P. Noise averages include the whole timeline.
+    ulmh = np.isin(activity["spectral_classes"][:count], ["U", "L", "M", "H"])
+    if not np.any(ulmh):
+        raise ModelAError("no U/L/M/H speech frames for control parameters")
+    mean_speech = np.mean(speech[:, ulmh], axis=1)
+    mean_active_speech = np.mean(speech[:, active], axis=1)
+    mean_noise_a = np.mean(noise_a, axis=1)
+    snr_a = 20 * np.log10(max(float(np.sum(
+        mean_active_speech / np.maximum(mean_noise_a, 1e-30)
+    )), 1e-30))
+    asl = 20 * np.log10(max(float(np.mean(np.sum(speech[:, ulmh], axis=0))), 1e-30))
+    transfer_amplitude = np.divide(
+        mean_speech,
+        np.maximum(np.mean(ref_spectrum[:, ulmh], axis=1), 1e-30),
     )
-    erb = _effective_bandwidth(np.sqrt(transfer_power), centres)
+    erb = _effective_bandwidth(transfer_amplitude, centres)
 
     smos_features = {
         "Speech.HMNonLinModulation_Sp_MMER_AggBlockP90_WeightA_AggFreqSum": modulation[
@@ -666,10 +675,12 @@ def extract_model_a_features(
             np.sqrt(np.mean(noise_sum_frequency**2))
         ),
         "BGN.HearingModelNonLinNoise_A_L2F_KurtT_FR": float(
-            kurtosis(noise_l2_frequency, fisher=False, bias=False)
+            kurtosis(noise_l2_frequency, fisher=True, bias=False)
         ),
         "BGN.HearingModelSharpness_P95T_FR": float(
-            np.percentile(sharpness_time, 95)
+            # Preserve the published forest's feature key; Figure 6.6 and
+            # clause 6.3.5.3 explicitly define its value as time P90.
+            np.percentile(sharpness_time, 90)
         ),
     }
     diagnostics = dict(
@@ -680,7 +691,11 @@ def extract_model_a_features(
         overall_difference=processed_differences["overall"],
         erb_hz=erb,
         snr_a_db=snr_a,
-        asl_dbfs_pa=asl,
+        asl_db_model_scale=asl,
+        preprocessing=preprocessing,
+        input_scale_assumption="PCM amplitudes used as model pressure; no physical calibration inferred",
+        sharpness_definition="Eq.12 weighted first Bark moment; time P90; no unstated acum scaling",
+        reference_optimization=reference_optimization,
     )
     return dict(smos=smos_features, nmos=nmos_features, gmos=processed_differences), diagnostics
 
@@ -693,18 +708,35 @@ def _sharpness_weight(frequencies: np.ndarray) -> np.ndarray:
     return np.maximum(1.0, 0.066 * np.exp(0.171 * bark))
 
 
+def _sharpness(compressed_noise: np.ndarray, centres: np.ndarray) -> np.ndarray:
+    """Equation (12): first moment, including its fractional Bark coordinate.
+
+    The frequency-to-Bark mapping is Zwicker's usual analytic approximation.
+    The TS equation does not supply the separate 0.11 acum normalization used
+    by some other sharpness standards; no such fitted scale is introduced.
+    """
+    bark = 13 * np.arctan(0.00076 * centres) + 3.5 * np.arctan(
+        (centres / 7500.0) ** 2
+    )
+    numerator = np.sum(
+        compressed_noise * (_sharpness_weight(centres) * bark)[:, None], axis=0,
+    )
+    denominator = np.sum(compressed_noise, axis=0)
+    return np.divide(
+        numerator, denominator, out=np.zeros_like(denominator), where=denominator > 0,
+    )
+
+
 def _effective_bandwidth(transfer: np.ndarray, centres: np.ndarray) -> float:
     levels = 20 * np.log10(np.maximum(np.asarray(transfer, dtype=np.float64), 1e-30))
     if not len(levels):
         return float("nan")
-    ceiling = float(np.max(levels))
-    # ETSI TS 103 281 equations (18)-(19): clip 45 dB below the maximum, then
-    # divide the response area by its maximum.  The overlapping channels are
-    # integrated on the physical frequency axis.
-    response = np.maximum(levels - (ceiling - 45.0), 0.0)
+    # Equations (18)-(19) add 45 dB to H and integrate using the physical
+    # auditory bandwidth Delta f(j), not the distance between band centres.
+    response = np.maximum(levels + 45.0, 0.0)
     if np.max(response) <= 0:
         return float("nan")
-    width = np.trapezoid(response, centres) / np.max(response)
+    width = np.sum(response * (50.0 + 0.14 * centres)) / np.max(response)
     return float(width)
 
 
@@ -753,42 +785,74 @@ def load_official_validation(
             "conformant": False,
             "failed_reason": f"Annex C validation evidence is unreadable: {error}",
         }
+    project = Path(__file__).resolve().parents[2]
+    # All Model A modules and package initializers are identity-bound. This
+    # conservative set also invalidates evidence when a new evaluator module
+    # is added; the verifier captures the transitive import closure itself.
+    dependencies = [*Path(__file__).parent.glob("ts103281*.py"),
+                    project / "server/__init__.py", Path(__file__).with_name("__init__.py")]
+    dependency_sha256 = {
+        source.relative_to(project).as_posix(): hashlib.sha256(source.read_bytes()).hexdigest()
+        for source in dependencies
+    }
+    model_sha256 = {
+        source.relative_to(project).as_posix(): hashlib.sha256(source.read_bytes()).hexdigest()
+        for source in (MODEL_DIR / name for name in ("S-MOS.model", "N-MOS.model", "G-MOS.model"))
+    }
     implementation_sha256 = _implementation_sha256()
-    evidence_sha256 = evidence.get("implementation_sha256")
-    stale = evidence_sha256 != implementation_sha256
-    passed = int(evidence.get("passed_conditions", 0))
-    count = int(evidence.get("condition_count", 0))
-    conformant = bool(evidence.get("conformant")) and not stale
-    if stale:
-        status = "stale"
-        failed_reason = (
-            "The checked-in Annex C evidence was produced by a different "
-            "implementation revision and must be regenerated."
-        )
-    elif conformant:
-        status = "passed"
-        failed_reason = None
-    else:
-        status = "failed_tolerance_gate"
-        failed_reason = (
-            f"{passed}/{count} official conditions reproduced every score "
-            f"within +/-{EXPECTED_TOLERANCE_MOS} MOS."
-        )
+    verifier_sha256 = hashlib.sha256(
+        (project / "scripts/verify-ts103281-model-a.py").read_bytes()
+    ).hexdigest()
+    checked = validate_annex_c_evidence(
+        evidence, implementation_sha256=implementation_sha256,
+        dependency_sha256=dependency_sha256, model_sha256=model_sha256,
+        verifier_sha256=verifier_sha256,
+    )
+    # Bind the embedded target rows to the actual Annex C table, rather than
+    # trusting a self-consistent JSON whose "expected" values were changed.
+    if checked["evidence_valid"]:
+        with (MODEL_DIR / "annex-c-model-a.csv").open(newline="") as handle:
+            official = {row["condition"]: {metric: float(row[column]) for metric, column in
+                        (("S-MOS", "s_mos"), ("N-MOS", "n_mos"), ("G-MOS", "g_mos"))}
+                        for row in csv.DictReader(handle)}
+        with (MODEL_DIR / "annex-c-rms.csv").open(newline="") as handle:
+            official_rms = {
+                row["condition"]: float(row["rms_dbpa"])
+                for row in csv.DictReader(handle)
+            }
+        references = {
+            source.relative_to(project).as_posix(): hashlib.sha256(source.read_bytes()).hexdigest()
+            for source in (MODEL_DIR / "annex-c-model-a.csv", MODEL_DIR / "annex-c-rms.csv")
+        }
+        if evidence.get("reference_assets_sha256") != references:
+            checked.update(status="stale", conformant=False, evidence_valid=False, failed_reason="Annex C reference asset identity mismatch")
+        elif any(row["expected"] != official.get(row["condition"]) for row in evidence["rows"]):
+            checked.update(status="invalid_evidence", conformant=False, evidence_valid=False, failed_reason="Expected scores disagree with Annex C table")
+        elif any(
+            row["input_calibration"].get("target_degraded_rms_dbpa")
+            != official_rms.get(row["condition"])
+            for row in evidence["rows"]
+        ):
+            checked.update(status="invalid_evidence", conformant=False, evidence_valid=False, failed_reason="Calibration targets disagree with Annex C RMS table")
+    status = checked["status"]
+    stale = status == "stale"
+    historical = checked["historical"]
+    count = checked["recomputed"].get("condition_count", historical.get("condition_count"))
+    passed = checked["recomputed"].get("passed_conditions", historical.get("passed_conditions"))
     return {
         "status": status,
         "standard": evidence.get("standard", "ETSI TS 103 281 V1.3.2 Annex C"),
         "condition_count": count,
         "passed_conditions": passed,
-        "tolerance_mos": float(
-            evidence.get("tolerance_mos", EXPECTED_TOLERANCE_MOS)
-        ),
-        "conformant": conformant,
+        "tolerance_mos": EXPECTED_TOLERANCE_MOS,
+        "conformant": checked["conformant"],
         "implementation_sha256": implementation_sha256,
-        "evidence_implementation_sha256": evidence_sha256,
+        "evidence_implementation_sha256": evidence.get("implementation_sha256"),
         "stale": stale,
         "summary": evidence.get("summary", {}),
         "diagnostic_summary": evidence.get("diagnostic_summary", {}),
-        "failed_reason": failed_reason,
+        "failed_reason": checked["failed_reason"],
+        "evidence_validation": checked,
     }
 
 

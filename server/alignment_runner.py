@@ -22,12 +22,21 @@ import soundfile as sf
 
 from server.synthesize import CHAIN_CATALOG, _chain_flags
 from server.acoustic.five_signal import evaluate_five_signal
+from server.aec_routes import (
+    admit_aec_route, aec_route_requires_capability, effective_aec_reference_channels,
+    read_aec_capabilities,
+    validate_aec_route_report,
+    validate_admitted_aec_identity,
+)
+from server.ns_routes import execute_ns_command, resolve_ns_cli, validate_ns_route_report
 
 router = APIRouter(prefix="/api/alignment", tags=["alignment-runner"])
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PYTHON_EXEC = "/home/zhangqingtian/.venv/bin/python"
 
 CLI_CANDIDATES = [
+    PROJECT_ROOT / "build/aec-routes-host-20261111-v2/cpp/itu_audio_cli",
+    PROJECT_ROOT / "build/aec-routes-host-20261111/cpp/itu_audio_cli",
     PROJECT_ROOT / "build/vcp-unified-final-20261027/cpp/itu_audio_cli",
     PROJECT_ROOT / "build/enhancement-chain-matrix-20261027-vcp-unified-final/artifacts/itu_audio_cli",
 ]
@@ -50,13 +59,49 @@ DATASET_ROLES = {
 
 
 def resolve_algorithm_cluster(identifier: str) -> tuple[dict, list[str], dict, str]:
-    catalog = json.loads(CHAIN_CATALOG.read_bytes())
+    from copy import deepcopy
+    from server.rate_paths import (
+        NB8_CLUSTER_CONFIGURATION,
+        NB8_CLUSTER_ID,
+        NB8_CLUSTER_PRESET,
+    )
+
+    catalog_bytes = CHAIN_CATALOG.read_bytes()
+    if identifier == NB8_CLUSTER_ID:
+        return (
+            deepcopy(NB8_CLUSTER_PRESET),
+            [],
+            deepcopy(NB8_CLUSTER_CONFIGURATION),
+            hashlib.sha256(catalog_bytes).hexdigest(),
+        )
+    catalog = json.loads(catalog_bytes)
     preset = next((row for row in catalog["presets"] if row["id"] == identifier), None)
     if preset is None:
         raise ValueError(f"未知算法簇: {identifier}")
     configuration = {key: preset[key] for key in ("profile", "selection", "extra_flags") if key in preset}
     flags, canonical, digest = _chain_flags(preset["profile"], configuration)
     return preset, flags, canonical, digest
+
+
+def _admit_alignment_aec(cli: Path, configuration: dict) -> dict | None:
+    """Check the actual fixed replay inputs before admitting a capability route."""
+    if not aec_route_requires_capability(configuration):
+        return admit_aec_route(cli, configuration)
+    try:
+        microphone = sf.info(DEFAULT_MIC)
+        playback = sf.info(DEFAULT_REF)
+    except (OSError, RuntimeError) as error:
+        raise ValueError(f"AEC 路由输入音频信息读取失败：{error}") from error
+    if microphone.samplerate != playback.samplerate:
+        raise ValueError("AEC 路由的麦克风混合输入与远端播放信号 / 回声参考采样率必须一致")
+    return admit_aec_route(
+        cli, configuration,
+        sample_rate=microphone.samplerate,
+        reference_channels=effective_aec_reference_channels(configuration, playback.channels),
+        capture_channels=microphone.channels,
+        beamforming=configuration["selection"].get("bf") != "off",
+    )
+
 
 PIPELINE_SPECS: dict[str, dict[str, str]] = {
     "vcp_unified": {
@@ -378,7 +423,7 @@ def run_alignment_suite(request: AlignmentRunRequest) -> dict[str, Any]:
 
         # Stage 1: validate exactly what this scope claims to execute.
         stage_started = time.monotonic()
-        cli = resolve_cli()
+        cli = resolve_ns_cli(resolve_cli(), configuration)
         dataset_dir = DEFAULT_MIC.parent
         required_inputs = list(dict.fromkeys([
             DEFAULT_MIC, DEFAULT_REF, dataset_dir / "scene.json",
@@ -386,8 +431,14 @@ def run_alignment_suite(request: AlignmentRunRequest) -> dict[str, Any]:
         ])) if pipeline_required else []
         test_paths = [PROJECT_ROOT / file_path for file_path in selected_files]
         missing = [str(path) for path in [*required_inputs, *test_paths] if not path.is_file()]
+        admitted_aec = None
         if pipeline_required and cli is None:
             missing.append("itu_audio_cli")
+        if pipeline_required and cli is not None:
+            try:
+                admitted_aec = _admit_alignment_aec(cli, configuration)
+            except ValueError as error:
+                missing.append(str(error))
         stage1_ok = not missing
         audio_inputs = [path for path in required_inputs if path.suffix.lower() == ".wav"]
         stage1_detail = (
@@ -477,8 +528,9 @@ def run_alignment_suite(request: AlignmentRunRequest) -> dict[str, Any]:
             )
             cli_returncode: int | None = None
             try:
-                cli_proc = subprocess.run(
+                cli_proc = execute_ns_command(
                     cli_cmd,
+                    configuration=configuration,
                     capture_output=True,
                     text=True,
                     timeout=300,
@@ -493,6 +545,9 @@ def run_alignment_suite(request: AlignmentRunRequest) -> dict[str, Any]:
                     Path(f"{output_prefix}.after.wav"),
                     spec["cli_profile"],
                 )
+                pipeline_errors += validate_aec_route_report(pipeline_data, configuration)
+                pipeline_errors += validate_admitted_aec_identity(pipeline_data, admitted_aec)
+                pipeline_errors += validate_ns_route_report(pipeline_data, configuration)
                 if cli_proc.returncode != 0:
                     pipeline_errors.insert(0, f"CLI 退出码 {cli_proc.returncode}")
                 pipeline_ok = not pipeline_errors
@@ -512,7 +567,7 @@ def run_alignment_suite(request: AlignmentRunRequest) -> dict[str, Any]:
                     data=pipeline_data,
                     returncode=cli_returncode,
                 )
-            except (OSError, subprocess.TimeoutExpired) as error:
+            except (OSError, subprocess.TimeoutExpired, ValueError) as error:
                 failure_reasons.append(f"CLI 执行异常: {error}")
                 pipeline_ok = False
                 stage2_detail = str(error)
@@ -802,10 +857,48 @@ def get_runner_status() -> dict[str, Any]:
     }
 
 
+@router.get("/aec-backends")
+def get_aec_backends() -> dict[str, Any]:
+    """Expose route capabilities without executing audio or creating a batch."""
+    cli = resolve_cli()
+    optimized = PROJECT_ROOT / "build/cofilite-opt-20261116/host-v3/cpp/itu_audio_cli"
+    if optimized.is_file() and os.access(optimized, os.X_OK):
+        cli = optimized
+    if cli is None:
+        raise HTTPException(status_code=503, detail="未找到可执行的 VCP CLI")
+    try:
+        result = read_aec_capabilities(cli)
+    except ValueError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    return {**result, "cli_sha256": sha256_file(cli)}
+
+
 @router.post("/run")
 async def execute_alignment_run(
     request: AlignmentRunRequest = Body(default=AlignmentRunRequest()),
 ) -> dict[str, Any]:
+    if request.scope == "full":
+        from server.rate_paths import validate_cluster_rate_compatibility
+
+        _, _, configuration, _ = resolve_algorithm_cluster(request.cluster_id)
+        try:
+            fixture_rate = sf.info(DEFAULT_MIC).samplerate if DEFAULT_MIC.is_file() else 16_000
+            validate_cluster_rate_compatibility(
+                request.cluster_id,
+                fixture_rate,
+                configuration=configuration,
+                allow_nb8_fallback=False,
+            )
+        except ValueError as error:
+            raise HTTPException(422, detail=str(error)) from error
+        if aec_route_requires_capability(configuration):
+            cli = resolve_ns_cli(resolve_cli(), configuration)
+            if cli is None:
+                raise HTTPException(503, "未找到可执行的 VCP CLI")
+            try:
+                _admit_alignment_aec(cli, configuration)
+            except ValueError as error:
+                raise HTTPException(422, detail=str(error)) from error
     from server.acoustic import acceptance_batch
     with acceptance_batch._LOCK:
         if acceptance_batch._ACTIVE or acceptance_batch._LEGACY_ACTIVE:
@@ -816,3 +909,19 @@ async def execute_alignment_run(
     finally:
         with acceptance_batch._LOCK:
             acceptance_batch._LEGACY_ACTIVE = False
+
+
+# Native16 registration: additive dispatch; original source prefix remains frozen.
+
+CHAIN_CATALOG = PROJECT_ROOT / "src/features/enhancement-chain-configs-native16.json"
+
+@router.get("/aec-backends-native16")
+def get_aec_backends_native16():
+    cli = PROJECT_ROOT / "build/native16-20261117/host-v2/cpp/itu_audio_cli"
+    if not cli.is_file() or not os.access(cli, os.X_OK):
+        raise HTTPException(503, "原生16 ms VCP CLI 尚未构建")
+    try:
+        result = read_aec_capabilities(cli)
+    except ValueError as error:
+        raise HTTPException(503, str(error)) from error
+    return {**result, "cli_sha256": sha256_file(cli), "frame_samples": 256, "callback_ms": 16}

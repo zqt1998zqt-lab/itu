@@ -44,6 +44,7 @@ const MetricLibrary = lazy(() => import("./features/MetricLibrary"));
 const AudioFlow = lazy(() => import("./features/AudioFlow"));
 const NsPipeline = lazy(() => import("./features/NsPipeline"));
 const AecPipeline = lazy(() => import("./features/AecPipeline"));
+const LocalVQETest = lazy(() => import("./features/LocalVQETest"));
 const BfPipeline = lazy(() => import("./features/BfPipeline"));
 const DrcPipeline = lazy(() => import("./features/DrcPipeline"));
 const AgcPipeline = lazy(() => import("./features/AgcPipeline"));
@@ -83,6 +84,7 @@ const COPY = {
   enhancement: ["综合语音增强链路", "按流程图串联 BF、AEC、降噪、EQ、AGC 与 DRC，查看同一配置的整链评测与案例。"],
   denoise: ["降噪算法与处理链路", "查看项目内的传统、神经、混合和离线对照算法，以及每个算法从 PCM 输入到增强输出的实际工作流。"],
   aec: ["回声消除链路", "查看 AEC3、Speex MDF、前置波束和多参考保护从麦克风混合输入与远端播放信号 / 回声参考到处理后发送输出的实际路径。"],
+  localvqe: ["LocalVQE CPU 独立测试", "使用公开权重在本机执行 LocalVQE 自身的线性自适应滤波与神经残差处理，查看输出和实际耗时。"],
   bf: ["多麦波束形成链路", "对比延迟求和、MVDR、连续 MPDR 与低频风压控制的配对结果和空间场边界。"],
   drc: ["动态范围控制链路", "对比 TX DRC 曲线、软饱和、终级限幅器与未接入的多段、前瞻和 true-peak 技术。"],
   agc: ["自动增益控制链路", "查看默认语句增益、AGC2 执行、协调上限、动态范围保护与未接入的响度技术，以及各自的评测边界。"],
@@ -783,6 +785,8 @@ export default function App() {
             <NsPipeline />
           ) : view === "aec" ? (
             <AecPipeline />
+          ) : view === "localvqe" ? (
+            <LocalVQETest />
           ) : view === "bf" ? (
             <BfPipeline />
           ) : view === "drc" ? (

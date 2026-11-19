@@ -127,7 +127,7 @@ def test_model_a_evaluate_is_finite_and_keeps_formal_boundary():
         for score in result["scores"].values()
     )
     assert "diagnostic_scores" not in result
-    assert result["verification"]["status"] == "failed_tolerance_gate"
+    assert result["verification"]["status"] == "stale"
     assert result["verification"]["condition_count"] == 48
     assert result["verification"]["passed_conditions"] == 0
     assert result["diagnostics"]["activity"]["activity_frame_ms"] == 10.0
@@ -171,8 +171,9 @@ def test_asset_manifest_is_present():
     assert (MODEL_DIR / "annex-c-model-a.csv").is_file()
     assert (MODEL_DIR / "annex-c-validation.json").is_file()
     validation = load_official_validation()
-    assert validation["stale"] is False
-    assert validation["status"] == "failed_tolerance_gate"
+    assert validation["stale"] is True
+    assert validation["status"] == "stale"
+    assert validation["evidence_validation"]["historical"]["passed_conditions"] == 0
 
 
 def test_http_endpoint_returns_raw_and_diagnostic_scores(tmp_path, monkeypatch):
@@ -260,6 +261,7 @@ def test_five_signal_report_embeds_model_a_result(tmp_path, monkeypatch):
     report = five_signal.evaluate_five_signal(
         mode="WB-wired",
         uploads=uploads,
+        include_model_a=True,
     )
     assert calls == [(rate * 4, rate * 4, rate)]
     assert (

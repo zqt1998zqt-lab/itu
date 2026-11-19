@@ -1,6 +1,15 @@
 import { FIVE_SIGNAL_MODES, type FiveSignalMode } from "./five-signal-flow-model.ts";
+import {
+  CONVERSATION_MODES,
+  SCENE_CONDITION_ITEM_IDS,
+  conversationModeOf,
+  sceneConditionCounts,
+  sceneConditionProfileForDatasetId,
+  type ConversationMode,
+} from "./scene-condition-profiles.ts";
 
 export type AcousticTestScope = "basic_downlink" | "echo" | "double_talk" | "background_noise";
+export type ScopedSnapshotScope = AcousticTestScope | "basic_uplink";
 export const BACKGROUND_NOISE_SCENES = ["sce1", "sce2", "sce3", "sce4"] as const;
 export type BackgroundNoiseScene = (typeof BACKGROUND_NOISE_SCENES)[number];
 export const SCOPED_INPUT_SIGNAL_ROLES = [
@@ -14,15 +23,25 @@ export const SCOPED_PREVIEW_VISUAL_SCHEMA =
 export const SCENE_CONDITION_PREVIEW_COUNT = 20 as const;
 export const SCENE_CONDITION_SCHEMA_VERSION =
   "scene-condition-preview-v1" as const;
+export const SCENE_CONDITION_CONVERSATION_SCHEMA_VERSION =
+  "scene-condition-preview-v2" as const;
+export const SCENE_CONDITION_SCHEMA_VERSIONS = [
+  SCENE_CONDITION_SCHEMA_VERSION,
+  SCENE_CONDITION_CONVERSATION_SCHEMA_VERSION,
+] as const;
+export type SceneConditionPreviewSchemaVersion =
+  (typeof SCENE_CONDITION_SCHEMA_VERSIONS)[number];
 export const SCENE_CONDITION_DATASET_KIND =
   "background_noise_idle_preview" as const;
-export const SCENE_CONDITION_CONTRACT_ITEM_IDS = [
-  "WB-wired:B24",
-  "WB-wired:B25",
-  "WB-wired:B26",
-  "WB-wired:B27",
-  "WB-wired:B28",
+export const SCENE_CONDITION_DATASET_KINDS = [
+  "background_noise_idle_preview",
+  "background_noise_scene_preview",
+  "background_noise_conversation_preview",
 ] as const;
+export type SceneConditionDatasetKind =
+  (typeof SCENE_CONDITION_DATASET_KINDS)[number];
+export const SCENE_CONDITION_CONTRACT_ITEM_IDS =
+  SCENE_CONDITION_ITEM_IDS;
 export type ScopedInputSignalRole =
   (typeof SCOPED_INPUT_SIGNAL_ROLES)[number];
 export const BACKGROUND_NOISE_SCENE_LABELS: Record<BackgroundNoiseScene, string> = {
@@ -45,7 +64,7 @@ export const SCENE_SUBPAGES: readonly {
 }[] = [
   { id: "execute", label: "执行", hint: "测试集、VCP 与批次" },
   { id: "results", label: "结果", hint: "历史、状态与逐项证据" },
-  { id: "waveforms", label: "波形", hint: "四路输入、TX 波形与梅尔频谱" },
+  { id: "waveforms", label: "波形", hint: "四路输入、RX 前后参考、TX 波形与梅尔频谱" },
   { id: "description", label: "说明", hint: "流程树、边界与合同目录" },
 ];
 export const SCENE_SUBPAGE_LABELS: Record<SceneSubpageId, string> = {
@@ -110,7 +129,7 @@ export type ScopedTestDefinition = {
     | "background-noise-highway"
     | "background-noise-hvac";
   apiRoute?: string;
-  previewMode?: "idle-20-condition";
+  previewMode?: "scene-condition-20";
   scene?: BackgroundNoiseScene;
   title: string;
   eyebrow: string;
@@ -186,6 +205,10 @@ export type ScopedBatchSummary = {
   test_scope: AcousticTestScope; selected_mode: FiveSignalMode;
   selected_scene?: BackgroundNoiseScene | null; created_at: string;
   status: keyof typeof SCOPED_BATCH_LABELS; progress: ScopedProgress; summary: ScopedSummary;
+  case_count?: number; observation_count?: number;
+  preview_condition_group_count?: number;
+  execution_scope?: "single_case"; selected_case_id?: string;
+  dataset_case_count?: number; dataset_observation_count?: number;
 };
 export type ScopedSnapshot = ScopedBatchSummary & {
   standard_compliance: false; items: ScopedResultItem[];
@@ -194,6 +217,7 @@ export type ScopedSnapshot = ScopedBatchSummary & {
 };
 export type ScopedInputPreviewCase = {
   case_id: string;
+  provenance?: Record<string, unknown>;
   conditions: {
     mode: FiveSignalMode;
     direction: string;
@@ -218,6 +242,10 @@ export type ScopedPreviewVisualTrack = {
   mel_i16: string;
   mel_ceiling_db: number;
 };
+export type ScopedPreviewWaveformTrack = Omit<
+  ScopedPreviewVisualTrack,
+  "mel_i16" | "mel_ceiling_db"
+>;
 export type ScopedPreviewVisuals = {
   schema: typeof SCOPED_PREVIEW_VISUAL_SCHEMA;
   waveform_bins: 720;
@@ -238,6 +266,14 @@ export type CompleteScopedPreviewVisuals =
     cases: Record<
       string,
       Record<ScopedInputSignalRole, ScopedPreviewVisualTrack>
+    >;
+  };
+export type CompleteScopedPreviewWaveformVisuals =
+  Omit<ScopedPreviewVisuals, "cases"> & {
+    detail: "waveform";
+    cases: Record<
+      string,
+      Record<ScopedInputSignalRole, ScopedPreviewWaveformTrack>
     >;
   };
 export const SCENE_CONDITION_DURATION_S = 12 as const;
@@ -262,6 +298,10 @@ export type ScopedBackgroundNoisePreview = {
   cases: ScopedInputPreviewCase[];
   visuals?: ScopedPreviewVisuals;
 };
+type ScopedBackgroundNoisePreviewIdentity = Omit<
+  ScopedBackgroundNoisePreview,
+  "visuals"
+> & { visuals?: unknown };
 export type ScopedSceneConditionDatasetView = {
   test_scope: "background_noise";
   mode: FiveSignalMode;
@@ -273,12 +313,16 @@ export type ScopedSceneConditionDatasetView = {
     mode: FiveSignalMode;
     scene: BackgroundNoiseScene;
     contract_item_count: 5;
-    preview_condition_group_count: typeof SCENE_CONDITION_PREVIEW_COUNT;
+    preview_condition_group_count: number;
+    observation_count?: number;
+    conversation_counts?: Record<ConversationMode, number>;
     standard_compliance: false;
     formal_test_status: "not_measured";
   }[];
-  preview_condition_group_count: typeof SCENE_CONDITION_PREVIEW_COUNT;
+  preview_condition_group_count: number;
   contract_item_count: 5;
+  observation_count?: number;
+  conversation_counts?: Record<ConversationMode, number>;
   standard_compliance: false;
   formal_test_status: "not_measured";
 };
@@ -291,16 +335,25 @@ export type ScopedSceneConditionPreview = Omit<
     provenance: Record<string, unknown>;
   })[];
   visuals: CompleteScopedPreviewVisuals;
-  preview_condition_group_count: typeof SCENE_CONDITION_PREVIEW_COUNT;
+  preview_condition_group_count: number;
   contract_item_count: 5;
+  observation_count?: number;
+  conversation_counts?: Record<ConversationMode, number>;
   standard_compliance: false;
   formal_test_status: "not_measured";
-  schema_version: typeof SCENE_CONDITION_SCHEMA_VERSION;
-  dataset_kind: typeof SCENE_CONDITION_DATASET_KIND;
+  schema_version: SceneConditionPreviewSchemaVersion;
+  dataset_kind: SceneConditionDatasetKind;
+};
+export type ScopedSceneConditionWaveformPreview = Omit<
+  ScopedSceneConditionPreview,
+  "visuals" | "visual_detail"
+> & {
+  visual_detail: "waveform";
+  visuals: CompleteScopedPreviewWaveformVisuals;
 };
 
 const MODES = new Set<string>(FIVE_SIGNAL_MODES);
-const SCOPES = new Set<string>(["basic_downlink", "echo", "double_talk", "background_noise"]);
+const SCOPES = new Set<string>(["basic_uplink", "basic_downlink", "echo", "double_talk", "background_noise"]);
 const INPUT_SIGNAL_ROLES = new Set<string>(SCOPED_INPUT_SIGNAL_ROLES);
 const ID = /^[a-f0-9]{32}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
@@ -322,50 +375,137 @@ function base64Length(byteLength: number): number {
   return Math.ceil(byteLength / 3) * 4;
 }
 
+function sameStringSet(
+  actual: readonly unknown[],
+  expected: readonly string[],
+): boolean {
+  return (
+    actual.length === expected.length
+    && new Set(actual).size === expected.length
+    && actual.every(
+      (value) => typeof value === "string" && expected.includes(value),
+    )
+  );
+}
+
+function readOptionalConversationCounts(
+  value: unknown,
+  profile: ReturnType<typeof sceneConditionProfileForDatasetId>,
+  message: string,
+): Record<ConversationMode, number> | undefined {
+  if (profile?.conversationCounts === undefined) {
+    if (value === undefined) return undefined;
+    if (!record(value) || Object.keys(value).length !== 0) {
+      throw Error(message);
+    }
+    return undefined;
+  }
+  if (!record(value)) throw Error(message);
+  const keys = Object.keys(value).sort();
+  const expectedKeys = [...CONVERSATION_MODES].sort();
+  if (
+    keys.length !== expectedKeys.length
+    || keys.some((key, index) => key !== expectedKeys[index])
+  ) {
+    throw Error(message);
+  }
+  const counts = {} as Record<ConversationMode, number>;
+  for (const mode of CONVERSATION_MODES) {
+    if (
+      !count(value[mode])
+      || value[mode] !== profile.conversationCounts[mode]
+    ) {
+      throw Error(message);
+    }
+    counts[mode] = value[mode] as number;
+  }
+  return counts;
+}
+
+function isWaveformTrack(
+  value: unknown,
+  expectedSha256: string,
+): value is ScopedPreviewWaveformTrack {
+  return record(value)
+    && value.source_sha256 === expectedSha256
+    && typeof value.duration_s === "number"
+    && Number.isFinite(value.duration_s)
+    && value.duration_s > 0
+    && count(value.sample_rate)
+    && value.sample_rate >= 8_000
+    && value.sample_rate <= 384_000
+    && count(value.channels)
+    && value.channels > 0
+    && typeof value.peak === "number"
+    && Number.isFinite(value.peak)
+    && value.peak >= 0
+    && typeof value.wave_scale === "number"
+    && Number.isFinite(value.wave_scale)
+    && value.wave_scale >= 1
+    && typeof value.wave_min_i16 === "string"
+    && typeof value.wave_max_i16 === "string"
+    && BASE64.test(value.wave_min_i16)
+    && BASE64.test(value.wave_max_i16)
+    && value.wave_min_i16.length === base64Length(PREVIEW_WAVEFORM_BINS * 2)
+    && value.wave_max_i16.length === base64Length(PREVIEW_WAVEFORM_BINS * 2);
+}
+
+function readWaveformTrack(
+  value: unknown,
+  expectedSha256: string,
+): ScopedPreviewWaveformTrack {
+  if (
+    !isWaveformTrack(value, expectedSha256)
+    || Object.hasOwn(value, "mel_i16")
+    || Object.hasOwn(value, "mel_ceiling_db")
+  ) {
+    throw Error("背景噪声预计算轻量波形格式无效");
+  }
+  return value;
+}
+
 function readVisualTrack(
   value: unknown,
   expectedSha256: string,
 ): ScopedPreviewVisualTrack {
+  if (!isWaveformTrack(value, expectedSha256)) {
+    throw Error("背景噪声预计算波形或梅尔频谱格式无效");
+  }
+  const full = value as ScopedPreviewWaveformTrack & {
+    mel_i16?: unknown;
+    mel_ceiling_db?: unknown;
+  };
   if (
-    !record(value)
-    || value.source_sha256 !== expectedSha256
-    || typeof value.duration_s !== "number"
-    || !Number.isFinite(value.duration_s)
-    || value.duration_s <= 0
-    || !count(value.sample_rate)
-    || value.sample_rate < 8_000
-    || value.sample_rate > 384_000
-    || !count(value.channels)
-    || value.channels === 0
-    || typeof value.peak !== "number"
-    || !Number.isFinite(value.peak)
-    || value.peak < 0
-    || typeof value.wave_scale !== "number"
-    || !Number.isFinite(value.wave_scale)
-    || value.wave_scale < 1
-    || typeof value.mel_ceiling_db !== "number"
-    || !Number.isFinite(value.mel_ceiling_db)
-    || typeof value.wave_min_i16 !== "string"
-    || typeof value.wave_max_i16 !== "string"
-    || typeof value.mel_i16 !== "string"
-    || !BASE64.test(value.wave_min_i16)
-    || !BASE64.test(value.wave_max_i16)
-    || !BASE64.test(value.mel_i16)
-    || value.wave_min_i16.length !== base64Length(PREVIEW_WAVEFORM_BINS * 2)
-    || value.wave_max_i16.length !== base64Length(PREVIEW_WAVEFORM_BINS * 2)
-    || value.mel_i16.length !== base64Length(
+    typeof full.mel_ceiling_db !== "number"
+    || !Number.isFinite(full.mel_ceiling_db)
+    || typeof full.mel_i16 !== "string"
+    || !BASE64.test(full.mel_i16)
+    || full.mel_i16.length !== base64Length(
       PREVIEW_MEL_BANDS * PREVIEW_MEL_FRAMES * 2,
     )
   ) {
     throw Error("背景噪声预计算波形或梅尔频谱格式无效");
   }
-  return value as ScopedPreviewVisualTrack;
+  return full as ScopedPreviewVisualTrack;
 }
+
+type PreviewVisualDetail = "full" | "waveform";
 
 function readPreviewVisuals(
   value: unknown,
   cases: ScopedInputPreviewCase[],
-): ScopedPreviewVisuals {
+  detail: "full",
+): ScopedPreviewVisuals;
+function readPreviewVisuals(
+  value: unknown,
+  cases: ScopedInputPreviewCase[],
+  detail: "waveform",
+): CompleteScopedPreviewWaveformVisuals;
+function readPreviewVisuals(
+  value: unknown,
+  cases: ScopedInputPreviewCase[],
+  detail: PreviewVisualDetail,
+): ScopedPreviewVisuals | CompleteScopedPreviewWaveformVisuals {
   if (
     !record(value)
     || value.schema !== PREVIEW_VISUAL_SCHEMA
@@ -377,6 +517,7 @@ function readPreviewVisuals(
     || value.mel_dynamic_range_db !== PREVIEW_MEL_DYNAMIC_RANGE_DB
     || value.mel_db_offset_db !== PREVIEW_MEL_DB_OFFSET_DB
     || value.mel_db_step_db !== PREVIEW_MEL_DB_STEP_DB
+    || detail === "waveform" && value.detail !== "waveform"
     || !record(value.cases)
   ) {
     throw Error("背景噪声预计算可视化参数无效");
@@ -401,14 +542,17 @@ function readPreviewVisuals(
       throw Error("背景噪声预计算可视化输入角色不完整");
     }
     for (const role of previewCase.signals as ScopedInputSignalRole[]) {
-      readVisualTrack(tracks[role], previewCase.signals_sha256[role]);
+      const readTrack = detail === "waveform"
+        ? readWaveformTrack
+        : readVisualTrack;
+      readTrack(tracks[role], previewCase.signals_sha256[role]);
     }
   }
-  return value as ScopedPreviewVisuals;
+  return value as ScopedPreviewVisuals | CompleteScopedPreviewWaveformVisuals;
 }
 
 export function scopedItemCount(
-  scope: AcousticTestScope,
+  scope: ScopedSnapshotScope,
   mode: FiveSignalMode,
   scene?: BackgroundNoiseScene,
 ): number {
@@ -418,14 +562,72 @@ export function scopedItemCount(
       throw Error("只有背景噪声测试可以指定有效场景");
     }
   }
+  if (scope === "basic_uplink") return 8;
   if (scope === "basic_downlink") return mode.startsWith("SWB-") ? 8 : 9;
   if (scope === "echo") return mode.startsWith("SWB-") ? 3 : 2;
   if (scope === "double_talk") return 2;
   return scene === undefined ? 20 : 5;
 }
 
-export function scopedFamilyMatches(scope: AcousticTestScope, item: Pick<ScopedItem, "family" | "direction">): boolean {
+const SINGLE_CASE_SELECTION_FIELDS = [
+  "execution_scope",
+  "selected_case_id",
+  "dataset_case_count",
+  "dataset_observation_count",
+] as const;
+
+export type SingleCaseSelection = {
+  execution_scope: "single_case";
+  selected_case_id: string;
+  dataset_case_count: number;
+  dataset_observation_count: number;
+};
+
+export function readSingleCaseSelection(
+  value: Record<string, unknown>,
+  expected: { caseId?: string; label: string },
+): SingleCaseSelection | null {
+  const present = SINGLE_CASE_SELECTION_FIELDS.filter((field) =>
+    Object.hasOwn(value, field)
+  );
+  if (present.length === 0) {
+    if (expected.caseId !== undefined) {
+      throw Error(`${expected.label}请求单案快照但响应缺少单案选择字段`);
+    }
+    return null;
+  }
+  if (present.length !== SINGLE_CASE_SELECTION_FIELDS.length) {
+    throw Error(`${expected.label}单案选择字段必须四项同时存在`);
+  }
+  if (
+    value.execution_scope !== "single_case"
+    || typeof value.selected_case_id !== "string"
+    || !/^[A-Za-z0-9_-]{1,128}$/.test(value.selected_case_id)
+    || !count(value.dataset_case_count)
+    || Number(value.dataset_case_count) <= 0
+    || !count(value.dataset_observation_count)
+    || Number(value.dataset_observation_count) <= 0
+  ) {
+    throw Error(`${expected.label}单案选择字段无效`);
+  }
+  if (
+    expected.caseId !== undefined
+    && value.selected_case_id !== expected.caseId
+  ) {
+    throw Error(`${expected.label}单案选择与请求 case_id 不一致`);
+  }
+  return {
+    execution_scope: "single_case",
+    selected_case_id: value.selected_case_id,
+    dataset_case_count: Number(value.dataset_case_count),
+    dataset_observation_count: Number(value.dataset_observation_count),
+  };
+}
+
+export function scopedFamilyMatches(scope: ScopedSnapshotScope, item: Pick<ScopedItem, "family" | "direction">): boolean {
   if (!SCOPES.has(scope)) return false;
+  if (scope === "basic_uplink") return item.direction === "send"
+    && ["slr", "frequency_response", "listening_quality", "idle_noise_level", "idle_noise_peaks", "out_of_band", "hats_snr"].includes(item.family);
   if (scope === "basic_downlink") return item.direction === "receive"
     && ["rlr", "rlr_linearity", "frequency_response", "listening_quality", "idle_noise_level", "idle_noise_peaks", "out_of_band"].includes(item.family);
   if (item.direction !== "send") return false;
@@ -462,8 +664,9 @@ export function readScopedCatalog(
 
 function readSummary(
   value: unknown,
-  scope: AcousticTestScope,
+  scope: ScopedSnapshotScope,
   scene?: BackgroundNoiseScene,
+  expected: { caseId?: string; datasetCaseCount?: number } = {},
 ): ScopedBatchSummary {
   if (!record(value) || value.test_scope !== scope || !MODES.has(String(value.selected_mode))
     || !ID.test(String(value.batch_id)) || !ID.test(String(value.dataset_id))
@@ -474,40 +677,114 @@ function readSummary(
     || !Object.hasOwn(SCOPED_BATCH_LABELS, String(value.status)) || !record(value.progress) || !record(value.summary)) {
     throw Error("批次身份或历史记录格式无效");
   }
-  const expected = scopedItemCount(
+  const mode = value.selected_mode as FiveSignalMode;
+  const fullItemCount = scopedItemCount(
     scope,
-    value.selected_mode as FiveSignalMode,
+    mode,
     scene,
   );
+  const selection = readSingleCaseSelection(value, {
+    caseId: expected.caseId,
+    label: "测试批次",
+  });
   const progress = value.progress;
   const summary = value.summary;
+  if (
+    expected.datasetCaseCount !== undefined
+    && (
+      !count(expected.datasetCaseCount)
+      || expected.datasetCaseCount <= 0
+      || expected.datasetCaseCount > fullItemCount
+    )
+  ) {
+    throw Error("请求的数据集条件组数量无效");
+  }
+  let expectedCaseCount: number;
+  let expectedItemCount = fullItemCount;
+  if (selection) {
+    if (
+      selection.dataset_case_count > fullItemCount
+      || selection.dataset_observation_count !== fullItemCount
+      || expected.datasetCaseCount !== undefined
+        && selection.dataset_case_count !== expected.datasetCaseCount
+      || value.case_count !== 1
+      || !count(value.observation_count)
+      || Number(value.observation_count) <= 0
+      || Number(value.observation_count) > fullItemCount
+      || value.preview_condition_group_count !== selection.dataset_case_count
+    ) {
+      throw Error("单案批次的数量字段与当前测试范围不一致");
+    }
+    expectedCaseCount = 1;
+    expectedItemCount = Number(value.observation_count);
+  } else {
+    if (
+      !count(progress.total_cases)
+      || Number(progress.total_cases) <= 0
+      || Number(progress.total_cases) > fullItemCount
+      || expected.datasetCaseCount !== undefined
+        && progress.total_cases !== expected.datasetCaseCount
+      || value.case_count !== undefined
+        && value.case_count !== progress.total_cases
+      || value.observation_count !== undefined
+        && value.observation_count !== fullItemCount
+      || value.preview_condition_group_count !== undefined
+        && value.preview_condition_group_count !== progress.total_cases
+    ) {
+      throw Error("完整批次的数量字段与当前测试范围不一致");
+    }
+    expectedCaseCount = Number(progress.total_cases);
+  }
   if (!["completed_cases", "total_cases", "completed_items", "total_items"].every(key => count(progress[key]))
     || !["total", "computed", "pass", "fail", "review_required", "not_measured", "invalid"].every(key => count(summary[key]))
-    || progress.total_items !== expected || summary.total !== expected
-    || Number(progress.completed_items) > expected || Number(progress.completed_cases) > Number(progress.total_cases)
-    || Number(summary.computed) > expected
-    || ["pass", "fail", "review_required", "not_measured", "invalid"].some(key => Number(summary[key]) > expected)
-    || ["pass", "fail", "review_required", "not_measured", "invalid"].reduce((sum, key) => sum + Number(summary[key]), 0) > expected) {
+    || progress.total_cases !== expectedCaseCount || progress.total_items !== expectedItemCount
+    || summary.total !== expectedItemCount
+    || Number(progress.completed_items) > expectedItemCount
+    || Number(progress.completed_cases) > expectedCaseCount
+    || Number(summary.computed) > expectedItemCount
+    || ["pass", "fail", "review_required", "not_measured", "invalid"].some(key => Number(summary[key]) > expectedItemCount)
+    || ["pass", "fail", "review_required", "not_measured", "invalid"].reduce((sum, key) => sum + Number(summary[key]), 0) > expectedItemCount
+    || selection !== null && value.observation_count !== progress.total_items) {
     throw Error("批次进度或统计与所选范围不一致");
+  }
+  if (
+    value.status === "completed"
+    && (
+      progress.completed_cases !== expectedCaseCount
+      || progress.completed_items !== expectedItemCount
+      || summary.total
+        !== ["pass", "fail", "review_required", "not_measured", "invalid"]
+          .reduce((sum, key) => sum + Number(summary[key]), 0)
+    )
+  ) {
+    throw Error("未完成全部条件组，不能标记计算完成");
   }
   return value as ScopedBatchSummary;
 }
 
 export function readScopedHistory(
   value: unknown,
-  scope: AcousticTestScope,
+  scope: ScopedSnapshotScope,
   scene?: BackgroundNoiseScene,
 ): ScopedBatchSummary[] {
   if (!Array.isArray(value)) throw Error("历史记录必须为列表");
   return value.map(item => readSummary(item, scope, scene));
 }
 
-export function readScopedSnapshot(value: unknown, scope: AcousticTestScope, expected: {
+export function readScopedSnapshot(value: unknown, scope: ScopedSnapshotScope, expected: {
   batchId?: string; datasetId?: string; algorithmClusterId?: string;
-  mode?: FiveSignalMode; scene?: BackgroundNoiseScene;
+  mode?: FiveSignalMode; scene?: BackgroundNoiseScene; caseId?: string;
+  datasetCaseCount?: number;
 } = {}): ScopedSnapshot {
-  const summary = readSummary(value, scope, expected.scene);
+  const summary = readSummary(value, scope, expected.scene, {
+    caseId: expected.caseId,
+    datasetCaseCount: expected.datasetCaseCount,
+  });
   const row = value as Record<string, unknown>;
+  const selection = readSingleCaseSelection(row, {
+    caseId: expected.caseId,
+    label: "测试快照",
+  });
   if (row.standard_compliance !== false || !Array.isArray(row.items) || row.items.length !== summary.summary.total
     || !Array.isArray(row.cases) || expected.batchId && summary.batch_id !== expected.batchId
     || expected.datasetId && summary.dataset_id !== expected.datasetId
@@ -526,6 +803,7 @@ export function readScopedSnapshot(value: unknown, scope: AcousticTestScope, exp
     const binding = item.evidence_binding;
     if (!record(binding) || binding.mode !== summary.selected_mode || binding.batch_id !== summary.batch_id
       || binding.dataset_id !== summary.dataset_id || typeof binding.case_id !== "string"
+      || selection !== null && binding.case_id !== selection.selected_case_id
       || typeof binding.scene !== "string" || !["baseline", "sce1", "sce2", "sce3", "sce4"].includes(binding.scene)
       || expected.scene && binding.scene !== expected.scene
       || binding.direction !== item.direction || !["nominal", "recommended", "maximum"].includes(String(binding.volume))
@@ -555,6 +833,21 @@ export function readScopedSnapshot(value: unknown, scope: AcousticTestScope, exp
     || typeof item.status !== "string")) throw Error("条件组记录无效");
   if (new Set(row.cases.map(item => (item as Record<string, unknown>).case_id)).size !== row.cases.length
     || row.cases.length !== summary.progress.completed_cases) throw Error("条件组数量或身份不一致");
+  if (
+    selection !== null
+    && (
+      row.cases.length > 1
+      || row.cases.some(
+        item => (item as Record<string, unknown>).case_id
+          !== selection.selected_case_id,
+      )
+      || summary.status === "completed"
+        && (
+          row.cases.length !== 1
+          || (row.cases[0] as Record<string, unknown>).status !== "completed"
+        )
+    )
+  ) throw Error("单案快照条件组身份或终态无效");
   return value as ScopedSnapshot;
 }
 
@@ -607,14 +900,13 @@ export function readSceneConditionDatasetView(
     || value.mode !== expected.mode
     || value.scene !== expected.scene
     || !count(value.preview_condition_group_count)
-    || value.preview_condition_group_count !== SCENE_CONDITION_PREVIEW_COUNT
     || value.contract_item_count !== 5
     || value.standard_compliance !== false
     || value.formal_test_status !== "not_measured"
     || !Array.isArray(value.datasets)
     || value.datasets.length !== 1
   ) {
-    throw Error("20 组工程预览数据集视图格式无效");
+    throw Error("场景工程预览数据集视图格式无效");
   }
   const dataset = value.datasets[0];
   if (
@@ -627,11 +919,55 @@ export function readSceneConditionDatasetView(
     || dataset.mode !== expected.mode
     || dataset.scene !== expected.scene
     || dataset.contract_item_count !== 5
-    || dataset.preview_condition_group_count !== SCENE_CONDITION_PREVIEW_COUNT
     || dataset.standard_compliance !== false
     || dataset.formal_test_status !== "not_measured"
   ) {
-    throw Error("20 组工程预览数据集身份无效");
+    throw Error("场景工程预览数据集身份无效");
+  }
+  const profile = sceneConditionProfileForDatasetId(dataset.dataset_id);
+  if (
+    profile === null
+    || profile.scene !== expected.scene
+    || (profile.mode ?? "WB-wired") !== expected.mode
+    || dataset.dataset_name !== profile.datasetName
+  ) {
+    throw Error("场景工程预览数据集未绑定当前场景画像");
+  }
+  const expectedCounts = sceneConditionCounts(profile);
+  if (
+    value.preview_condition_group_count !== expectedCounts.cases
+    || dataset.preview_condition_group_count !== expectedCounts.cases
+  ) {
+    throw Error("场景工程预览数据集条件组数量与画像不一致");
+  }
+  const observationCount = value.observation_count;
+  const datasetObservationCount = dataset.observation_count;
+  if (
+    observationCount !== undefined
+    && observationCount !== expectedCounts.observations
+    || datasetObservationCount !== undefined
+    && datasetObservationCount !== expectedCounts.observations
+  ) {
+    throw Error("场景工程预览数据集观测数量与画像不一致");
+  }
+  const conversationCounts = readOptionalConversationCounts(
+    value.conversation_counts,
+    profile,
+    "场景工程预览数据集通话模式数量无效",
+  );
+  const datasetConversationCounts = readOptionalConversationCounts(
+    dataset.conversation_counts,
+    profile,
+    "场景工程预览数据集条目通话模式数量无效",
+  );
+  if (
+    conversationCounts !== undefined
+    && datasetConversationCounts !== undefined
+    && CONVERSATION_MODES.some(
+      (mode) => conversationCounts[mode] !== datasetConversationCounts[mode],
+    )
+  ) {
+    throw Error("场景工程预览数据集两层通话模式数量不一致");
   }
   return {
     test_scope: "background_noise",
@@ -644,23 +980,35 @@ export function readSceneConditionDatasetView(
       mode: expected.mode,
       scene: expected.scene,
       contract_item_count: 5,
-      preview_condition_group_count: SCENE_CONDITION_PREVIEW_COUNT,
+      preview_condition_group_count: expectedCounts.cases,
+      ...(datasetObservationCount !== undefined
+        ? { observation_count: datasetObservationCount as number }
+        : {}),
+      ...(datasetConversationCounts !== undefined
+        ? { conversation_counts: datasetConversationCounts }
+        : {}),
       standard_compliance: false,
       formal_test_status: "not_measured",
     }],
-    preview_condition_group_count: SCENE_CONDITION_PREVIEW_COUNT,
+    preview_condition_group_count: expectedCounts.cases,
     contract_item_count: 5,
+    ...(observationCount !== undefined
+      ? { observation_count: observationCount as number }
+      : {}),
+    ...(conversationCounts !== undefined
+      ? { conversation_counts: conversationCounts }
+      : {}),
     standard_compliance: false,
     formal_test_status: "not_measured",
   };
 }
 
-export function readScopedBackgroundNoisePreview(
+function readScopedBackgroundNoisePreviewIdentity(
   value: unknown,
   datasetId: string,
   mode: FiveSignalMode,
   scene: BackgroundNoiseScene,
-): ScopedBackgroundNoisePreview {
+): ScopedBackgroundNoisePreviewIdentity {
   if (
     !record(value)
     || value.dataset_id !== datasetId
@@ -706,22 +1054,60 @@ export function readScopedBackgroundNoisePreview(
     }
     seen.add(item.case_id);
   }
-  if (value.visuals !== undefined) {
-    readPreviewVisuals(
-      value.visuals,
-      value.cases as ScopedInputPreviewCase[],
-    );
-  }
-  return value as ScopedBackgroundNoisePreview;
+  return value as ScopedBackgroundNoisePreviewIdentity;
 }
 
-export function readSceneConditionPreview(
+export function readScopedBackgroundNoisePreview(
   value: unknown,
   datasetId: string,
   mode: FiveSignalMode,
   scene: BackgroundNoiseScene,
-): ScopedSceneConditionPreview {
-  const preview = readScopedBackgroundNoisePreview(
+): ScopedBackgroundNoisePreview {
+  const preview = readScopedBackgroundNoisePreviewIdentity(
+    value,
+    datasetId,
+    mode,
+    scene,
+  );
+  if (preview.visuals !== undefined) {
+    readPreviewVisuals(preview.visuals, preview.cases, "full");
+  }
+  return preview as ScopedBackgroundNoisePreview;
+}
+
+function readSceneConditionPreviewCore(
+  value: unknown,
+  datasetId: string,
+  mode: FiveSignalMode,
+  scene: BackgroundNoiseScene,
+  visualDetail: "full",
+): ScopedSceneConditionPreview;
+function readSceneConditionPreviewCore(
+  value: unknown,
+  datasetId: string,
+  mode: FiveSignalMode,
+  scene: BackgroundNoiseScene,
+  visualDetail: "waveform",
+): ScopedSceneConditionWaveformPreview;
+function readSceneConditionPreviewCore(
+  value: unknown,
+  datasetId: string,
+  mode: FiveSignalMode,
+  scene: BackgroundNoiseScene,
+  visualDetail: PreviewVisualDetail,
+): ScopedSceneConditionPreview | ScopedSceneConditionWaveformPreview {
+  const profile = sceneConditionProfileForDatasetId(datasetId);
+  if (
+    profile === null
+    || profile.scene !== scene
+    || (profile.mode ?? "WB-wired") !== mode
+  ) {
+    throw Error("场景工程预览未绑定当前数据集画像");
+  }
+  const expectedCounts = sceneConditionCounts(profile);
+  const expectedSchemaVersion =
+    profile.schemaVersion ?? SCENE_CONDITION_SCHEMA_VERSION;
+  const preview = readScopedBackgroundNoisePreviewIdentity(
     value,
     datasetId,
     mode,
@@ -729,53 +1115,73 @@ export function readSceneConditionPreview(
   );
   const row = value as Record<string, unknown>;
   if (
-    !count(row.preview_condition_group_count)
-    || row.preview_condition_group_count !== SCENE_CONDITION_PREVIEW_COUNT
-    || preview.cases.length !== SCENE_CONDITION_PREVIEW_COUNT
+    preview.dataset_name !== profile.datasetName
+    || !count(row.preview_condition_group_count)
+    || row.preview_condition_group_count !== expectedCounts.cases
+    || preview.cases.length !== expectedCounts.cases
     || row.contract_item_count !== 5
     || row.standard_compliance !== false
     || row.formal_test_status !== "not_measured"
-    || row.schema_version !== SCENE_CONDITION_SCHEMA_VERSION
-    || row.dataset_kind !== SCENE_CONDITION_DATASET_KIND
+    || row.schema_version !== expectedSchemaVersion
+    || row.dataset_kind !== profile.datasetKind
+    || row.observation_count !== undefined
+      && row.observation_count !== expectedCounts.observations
     || !record(row.visuals)
+    || visualDetail === "waveform" && row.visual_detail !== "waveform"
   ) {
-    throw Error("20 组工程预览合同边界或格式无效");
+    throw Error("场景工程预览合同边界或格式无效");
   }
-  const visuals = readPreviewVisuals(
-    row.visuals,
-    preview.cases as ScopedInputPreviewCase[],
-  ) as CompleteScopedPreviewVisuals;
+  const declaredConversationCounts = readOptionalConversationCounts(
+    row.conversation_counts,
+    profile,
+    "场景工程预览通话模式数量无效",
+  );
+  const visuals: CompleteScopedPreviewVisuals
+    | CompleteScopedPreviewWaveformVisuals = visualDetail === "waveform"
+    ? readPreviewVisuals(
+      row.visuals,
+      preview.cases as ScopedInputPreviewCase[],
+      "waveform",
+    ) as CompleteScopedPreviewWaveformVisuals
+    : readPreviewVisuals(
+      row.visuals,
+      preview.cases as ScopedInputPreviewCase[],
+      "full",
+    ) as CompleteScopedPreviewVisuals;
   for (const previewCase of preview.cases) {
     const tracks = visuals.cases[previewCase.case_id];
     for (const role of previewCase.signals as ScopedInputSignalRole[]) {
       const track = tracks[role];
       if (
         track.duration_s !== SCENE_CONDITION_DURATION_S
-        || track.sample_rate !== SCENE_CONDITION_SAMPLE_RATE
+        || track.sample_rate !== (profile.sampleRateHz ?? SCENE_CONDITION_SAMPLE_RATE)
         || track.channels !== SCENE_CONDITION_CHANNELS[role]
       ) {
-        throw Error("20 组工程预览波形时长、采样率或通道数无效");
+        throw Error("场景工程预览波形时长、采样率或通道数无效");
       }
     }
   }
   const coveredItems = new Set<string>();
+  const actualConversationCounts = Object.fromEntries(
+    CONVERSATION_MODES.map((conversationMode) => [conversationMode, 0]),
+  ) as Record<ConversationMode, number>;
   for (const item of preview.cases as Array<ScopedInputPreviewCase & {
     contract_item_ids?: unknown;
-    provenance?: unknown;
   }>) {
+    const provenance = item.provenance;
     if (
       !item.case_id
       || !Array.isArray(item.contract_item_ids)
       || item.contract_item_ids.length === 0
       || item.contract_item_ids.some(
         (entry) => typeof entry !== "string"
-          || !SCENE_CONDITION_CONTRACT_ITEM_IDS.includes(
-            entry as (typeof SCENE_CONDITION_CONTRACT_ITEM_IDS)[number],
+          || !profile.contractItemIds.includes(
+            entry as (typeof profile.contractItemIds)[number],
           ),
       )
-      || !record(item.provenance)
-      || item.provenance.engineering_preview !== true
-      || item.provenance.actual_vehicle_recording !== false
+      || !record(provenance)
+      || provenance.engineering_preview !== true
+      || provenance.actual_vehicle_recording !== false
       || !Array.isArray(item.families)
       || item.families.length === 0
       || item.families.some((family) => typeof family !== "string")
@@ -784,39 +1190,127 @@ export function readSceneConditionPreview(
       || item.conditions.window_ms !== null
       || item.conditions.input_level_db !== 0
     ) {
-      throw Error("20 组工程预览条件组合同或来源无效");
+      throw Error("场景工程预览条件组合同或来源无效");
+    }
+    const conversationMode = conversationModeOf({
+      provenance: provenance as Record<string, unknown>,
+    });
+    if (expectedSchemaVersion === SCENE_CONDITION_CONVERSATION_SCHEMA_VERSION) {
+      if (
+        conversationMode === null
+        || profile.conversationCounts === undefined
+      ) {
+        throw Error("100 组工程预览条件组缺少有效通话模式");
+      }
+      const expectedFamilies = conversationMode === "noise_only"
+        ? ["cng_level", "cng_spectrum"]
+        : ["g_mos", "n_mos", "s_mos"];
+      const expectedItems = conversationMode === "noise_only"
+        ? profile.contractItemIds.slice(3)
+        : profile.contractItemIds.slice(0, 3);
+      if (
+        !sameStringSet(item.families, expectedFamilies)
+        || !sameStringSet(item.contract_item_ids, expectedItems)
+      ) {
+        throw Error("100 组工程预览通话模式与合同族分组不一致");
+      }
+      actualConversationCounts[conversationMode] += 1;
+    } else if (
+      provenance.conversation_mode !== undefined
+      && conversationMode === null
+    ) {
+      throw Error("20 组工程预览通话模式无效");
     }
     for (const itemId of item.contract_item_ids as string[]) {
       coveredItems.add(itemId);
     }
   }
   if (
-    coveredItems.size !== SCENE_CONDITION_CONTRACT_ITEM_IDS.length
-    || SCENE_CONDITION_CONTRACT_ITEM_IDS.some(
+    coveredItems.size !== profile.contractItemIds.length
+    || profile.contractItemIds.some(
       (itemId) => !coveredItems.has(itemId),
     )
   ) {
-    throw Error("20 组工程预览未覆盖 5 个合同测项");
+    throw Error("场景工程预览未覆盖 5 个合同测项");
+  }
+  if (
+    expectedSchemaVersion === SCENE_CONDITION_CONVERSATION_SCHEMA_VERSION
+    && profile.conversationCounts !== undefined
+  ) {
+    for (const conversationMode of CONVERSATION_MODES) {
+      if (
+        actualConversationCounts[conversationMode]
+          !== profile.conversationCounts[conversationMode]
+      ) {
+        throw Error("100 组工程预览五类通话模式数量不一致");
+      }
+      if (
+        declaredConversationCounts !== undefined
+        && declaredConversationCounts[conversationMode]
+          !== actualConversationCounts[conversationMode]
+      ) {
+        throw Error("100 组工程预览声明通话模式数量与实际条件组不一致");
+      }
+    }
   }
   return {
     ...(value as ScopedBackgroundNoisePreview),
     cases: preview.cases as ScopedSceneConditionPreview["cases"],
     visuals,
-    preview_condition_group_count: SCENE_CONDITION_PREVIEW_COUNT,
+    preview_condition_group_count: expectedCounts.cases,
     contract_item_count: 5,
+    ...(row.observation_count !== undefined
+      ? { observation_count: row.observation_count as number }
+      : {}),
+    ...(declaredConversationCounts !== undefined
+      ? { conversation_counts: declaredConversationCounts }
+      : {}),
     standard_compliance: false,
     formal_test_status: "not_measured",
-    schema_version: SCENE_CONDITION_SCHEMA_VERSION,
-    dataset_kind: SCENE_CONDITION_DATASET_KIND,
-  };
+    schema_version: expectedSchemaVersion,
+    dataset_kind: profile.datasetKind,
+    ...(visualDetail === "waveform"
+      ? { visual_detail: "waveform" as const }
+      : {}),
+  } as ScopedSceneConditionPreview | ScopedSceneConditionWaveformPreview;
 }
 
-export function isIdle20ConditionPreview(
+export function readSceneConditionPreview(
+  value: unknown,
+  datasetId: string,
+  mode: FiveSignalMode,
+  scene: BackgroundNoiseScene,
+): ScopedSceneConditionPreview {
+  return readSceneConditionPreviewCore(
+    value,
+    datasetId,
+    mode,
+    scene,
+    "full",
+  );
+}
+
+export function readSceneConditionWaveformPreview(
+  value: unknown,
+  datasetId: string,
+  mode: FiveSignalMode,
+  scene: BackgroundNoiseScene,
+): ScopedSceneConditionWaveformPreview {
+  return readSceneConditionPreviewCore(
+    value,
+    datasetId,
+    mode,
+    scene,
+    "waveform",
+  );
+}
+
+export function isSceneCondition20Preview(
   definition: Pick<ScopedTestDefinition, "previewMode" | "scene">,
   mode: FiveSignalMode,
 ): boolean {
-  return definition.previewMode === "idle-20-condition"
-    && definition.scene === "sce1"
+  return definition.previewMode === "scene-condition-20"
+    && Boolean(definition.scene)
     && mode === "WB-wired";
 }
 

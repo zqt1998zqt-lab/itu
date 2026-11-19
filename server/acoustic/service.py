@@ -222,8 +222,9 @@ def save_evidence(filename: str, content_type: str, data: bytes) -> EvidenceReco
                 os.fsync(stream.fileno())
             os.replace(temporary, destination)
             destination.chmod(0o440)
-        finally:
-            Path(temporary).unlink(missing_ok=True)
+        except Exception:
+            # Keep interrupted uploads for inspection; never delete evidence.
+            raise
         record = EvidenceRecord(
             artifact=Artifact(path=relative, sha256=sha256_file(destination),
                               kind="unclassified"),
@@ -251,7 +252,8 @@ def evidence_with_namespace(record: EvidenceRecord, namespace: str) -> EvidenceR
     target = namespace_root / original.name
     os.replace(original, target)
     metadata = original.with_suffix(original.suffix + ".json")
-    metadata.unlink(missing_ok=True)
+    if metadata.exists():
+        metadata.rename(target.with_suffix(target.suffix + ".upload-metadata.json"))
     artifact = record.artifact.model_copy(update={
         "path": str(target.relative_to(EVIDENCE))
     })

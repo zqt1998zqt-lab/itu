@@ -9,36 +9,36 @@ import {
   ShieldAlert,
   Square,
 } from "lucide-react";
+import {
+  FIVE_SIGNAL_MODES,
+  FIVE_SIGNAL_ROLE_LABELS,
+  type FiveSignalMode,
+  type FiveSignalStatus,
+  type FiveSignalSummary,
+} from "./five-signal-flow-model";
 
-const MODES = [
-  "NB-wired",
-  "NB-wireless",
-  "NB-bt",
-  "WB-wired",
-  "WB-wireless",
-  "WB-bt",
-  "SWB-wired",
-  "SWB-wireless",
-] as const;
-type Mode = (typeof MODES)[number];
+const MODES = FIVE_SIGNAL_MODES;
+type Mode = FiveSignalMode;
 
 const SIGNALS = ["near_end", "noise", "microphone", "far_end", "reference"] as const;
 type SignalRole = (typeof SIGNALS)[number];
-type Status = "pass" | "fail" | "review_required" | "not_measured" | "invalid";
+type Status = FiveSignalStatus;
 
 const SIGNAL_LABEL: Record<SignalRole, string> = {
-  near_end: "近端音频",
-  noise: "噪音",
-  microphone: "麦克音",
-  far_end: "远端音频",
-  reference: "参考音",
+  near_end: FIVE_SIGNAL_ROLE_LABELS.near_end,
+  noise: FIVE_SIGNAL_ROLE_LABELS.noise,
+  microphone: FIVE_SIGNAL_ROLE_LABELS.microphone,
+  far_end: FIVE_SIGNAL_ROLE_LABELS.far_end,
+  reference: FIVE_SIGNAL_ROLE_LABELS.reference,
 };
 const SIGNAL_HELP: Record<SignalRole, string> = {
-  near_end: "待测的近端输出，与参考音包含同一近端语音",
-  noise: "隔离噪声或对应场景的噪声录音",
-  microphone: "处理前麦克风混合信号，含近端、回声与噪声",
-  far_end: "远端语音源或扬声器播放源",
-  reference: "与近端输出对应的干净近端参考；用于对齐和保真分析",
+  near_end: "VCP 处理后的近端输出，与干净近端参考包含同一近端语音",
+  noise: "独立噪声输入，来自隔离噪声或对应场景",
+  microphone: "麦克风混合输入，含近端语音、回声与背景噪声",
+  far_end:
+    "远端播放信号 / 回声参考（far_end），同步送往扬声器；与干净近端参考是两路不同信号",
+  reference:
+    "干净近端参考（reference），是近端输入的真值；不是远端播放或回声参考",
 };
 
 type ModelFileMap = Partial<Record<SignalRole, File | null>>;
@@ -60,7 +60,7 @@ type FiveSignalItem = {
   evidence_grade: "engineering_proxy" | "not_measured";
   standard_compliance: false;
 };
-type Summary = Record<Status | "total" | "measured", number>;
+type Summary = FiveSignalSummary;
 type FiveSignalReport = {
   schema_version: 1;
   evaluation_id: string;
@@ -77,6 +77,8 @@ type FiveSignalReport = {
     segments: Record<string, number>;
     alignments: Record<string, { delay_ms: number | null; correlation: number | null; available: boolean; note: string }>;
     model_a?: {
+      status?: string;
+      reason?: string;
       compliance_status: string;
       score_use?: string;
       formal_compliance_claim_allowed?: boolean;
@@ -466,6 +468,21 @@ export default function FiveSignalQualification() {
                   </div>
                 ))}
               </dl>
+              {report.analysis.model_a?.status === "disabled" && (
+                <section className="five-signal-model-a">
+                  <header>
+                    <div>
+                      <strong>ETSI TS 103 281 Model A · 已关闭</strong>
+                      <span>默认不执行高成本的 99 频带 Model A 特征计算</span>
+                    </div>
+                    <span className="acoustic-status review_required">默认关闭</span>
+                  </header>
+                  <p>
+                    {report.analysis.model_a.reason ??
+                      "需要时设置 ITU_MODEL_A_ENABLED=1 后再执行。"}
+                  </p>
+                </section>
+              )}
               {report.analysis.model_a?.scores && (
                 <section className="five-signal-model-a">
                   <header>

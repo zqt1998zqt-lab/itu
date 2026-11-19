@@ -37,7 +37,7 @@ struct Result {
 Result run(unsigned rate,bool fused,Scene scene,unsigned seed=71) {
   auto c=itu::barrot_vcp_config();
   c.sample_rate=rate;c.frame_size=rate/100;
-  c.aec_backend=fused ? itu::AecBackend::speex_fused : itu::AecBackend::speex;
+  c.aec_backend=fused ? itu::AecBackend::speex_fused_cpu : itu::AecBackend::speex;
   c.speex_coherence_residual_suppression=false;
   c.noise_suppression=c.automatic_gain=c.limiter=c.tx_drc.enabled=false;
   c.rx_processing=c.rx_config.enabled=c.linear_phase_low_cut=false;

@@ -98,9 +98,9 @@ def test_real_api_joint_preserves_stereo_inputs_uses_host_cli_and_binds_graphics
                                  'microphone_mode': 'beamform', 'beam_delays_samples': [1.25, 0]})
     assert response.status_code == 200, response.text
     result = response.json()
-    assert result['binary'] == str(ROOT / 'build/host/cpp/itu_audio_cli')
+    assert result['binary'] == str(synth.cli_path())
     assert result['binary_sha256'] == hashlib.sha256(
-        (ROOT / 'build/host/cpp/itu_audio_cli').read_bytes()
+        Path(synth.cli_path()).read_bytes()
     ).hexdigest()
     assert result['engine_report']['reference_channels'] == 2
     assert result['engine_report']['microphones'] == 2

@@ -19,7 +19,7 @@ import {
   readScopedDatasetView,
   readScopedHistory,
   readScopedSnapshot,
-  isIdle20ConditionPreview,
+  isSceneCondition20Preview,
   readSceneConditionDatasetView,
   readSceneConditionPreview,
   SCENE_CONDITION_DATASET_KIND,
@@ -37,7 +37,13 @@ import {
   type ScopedInputPreviewCase,
   type ScopedResultItem,
   type ScopedSnapshot,
+  type ScopedSnapshotScope,
 } from "../src/features/scoped-acoustic-model.ts";
+import {
+  CONVERSATION_MODES,
+  LEGACY_SCENE_CONDITION_PROFILES,
+  SCENE_CONDITION_PROFILES,
+} from "../src/features/scene-condition-profiles.ts";
 
 type ContractItem = {
   id: string;
@@ -88,14 +94,28 @@ const BATCH_ID = "a".repeat(32);
 const DATASET_ID = "b".repeat(32);
 const ALGORITHM_ID = "vcp-balanced";
 const CREATED_AT = "2026-11-05T08:30:00.000Z";
+const LEGACY_SCE1_PROFILE = LEGACY_SCENE_CONDITION_PROFILES.sce1;
+const ACTIVE_SCE1_PROFILE = SCENE_CONDITION_PROFILES.sce1;
 
 function selectedContractRows(
-  scope: AcousticTestScope,
+  scope: ScopedSnapshotScope,
   mode: FiveSignalMode,
   scene?: BackgroundNoiseScene,
 ): ContractItem[] {
   return contract.items.filter((row) => {
     if (row.sheet !== mode) return false;
+    if (scope === "basic_uplink") {
+      return row.direction === "send"
+        && [
+          "slr",
+          "frequency_response",
+          "listening_quality",
+          "idle_noise_level",
+          "idle_noise_peaks",
+          "out_of_band",
+          "hats_snr",
+        ].includes(row.family);
+    }
     if (scope === "basic_downlink") return row.direction === "receive";
     if (scope === "echo") return row.family === "tclw";
     if (scope === "double_talk") {
@@ -123,7 +143,7 @@ function catalogFor(
     upper_limit: row.upper_limit,
   }));
   return {
-    test_scope: scope,
+    test_scope: scope as AcousticTestScope,
     mode,
     scene,
     item_count: items.length,
@@ -216,7 +236,7 @@ function summarize(items: ScopedResultItem[]) {
 
 function makeSnapshot(
   state: FixtureState,
-  scope: AcousticTestScope = "basic_downlink",
+  scope: ScopedSnapshotScope = "basic_downlink",
   mode: FiveSignalMode = "NB-wired",
   scene?: BackgroundNoiseScene,
 ): ScopedSnapshot {
@@ -296,7 +316,7 @@ function makeSnapshot(
     dataset_id: DATASET_ID,
     dataset_name: "NV200 2026-11-05",
     algorithm_cluster_id: ALGORITHM_ID,
-    test_scope: scope,
+    test_scope: scope as AcousticTestScope,
     selected_mode: mode,
     selected_scene: scene ?? null,
     created_at: CREATED_AT,
@@ -322,6 +342,94 @@ function makeSnapshot(
     })),
     error: null,
   };
+}
+
+function makeSingleSnapshot(
+  state: "pending" | "completed" = "completed",
+  scope: ScopedSnapshotScope = "basic_downlink",
+  mode: FiveSignalMode = "NB-wired",
+  scene?: BackgroundNoiseScene,
+  datasetCaseCount?: number,
+): ScopedSnapshot {
+  const full = makeSnapshot("completed", scope, mode, scene);
+  const sourceCaseCount = datasetCaseCount ?? full.progress.total_cases;
+  const selectedCase = full.cases[0];
+  assert.ok(selectedCase);
+  const items = structuredClone(
+    full.items.filter(
+      (item) => item.evidence_binding?.case_id === selectedCase.case_id,
+    ),
+  );
+  const value = structuredClone(full);
+  value.case_count = 1;
+  value.observation_count = items.length;
+  value.preview_condition_group_count = sourceCaseCount;
+  value.execution_scope = "single_case";
+  value.selected_case_id = selectedCase.case_id;
+  value.dataset_case_count = sourceCaseCount;
+  value.dataset_observation_count = scopedItemCount(scope, mode, scene);
+  value.items = items;
+  value.cases = [selectedCase];
+  value.progress = {
+    completed_cases: 1,
+    total_cases: 1,
+    completed_items: items.length,
+    total_items: items.length,
+  };
+  value.summary = summarize(items);
+  if (state === "pending") {
+    value.status = "queued";
+    value.cases = [];
+    value.items = items.map((item) => ({
+      ...item,
+      status: "pending" as const,
+      value: null,
+    }));
+    value.progress = {
+      completed_cases: 0,
+      total_cases: 1,
+      completed_items: 0,
+      total_items: items.length,
+    };
+    value.summary = summarize(value.items);
+  }
+  return value;
+}
+
+function withActualCaseCount(
+  source: ScopedSnapshot,
+  caseCount: number,
+): ScopedSnapshot {
+  const value = structuredClone(source);
+  const itemCount = value.items.length;
+  assert.ok(caseCount > 0 && caseCount <= itemCount);
+  const perCase = Array.from(
+    { length: caseCount },
+    (_, index) => (index < itemCount - caseCount ? 2 : 1),
+  );
+  const cases = perCase.map((_, index) => ({
+    case_id: `actual-case-${String(index + 1).padStart(2, "0")}`,
+    report_id: `actual-report-${String(index + 1).padStart(2, "0")}`,
+    status: "completed",
+  }));
+  let itemIndex = 0;
+  for (const [caseIndex, count] of perCase.entries()) {
+    for (let offset = 0; offset < count; offset += 1) {
+      value.items[itemIndex].evidence_binding!.case_id =
+        cases[caseIndex].case_id;
+      itemIndex += 1;
+    }
+  }
+  value.cases = cases;
+  value.case_count = caseCount;
+  value.preview_condition_group_count = caseCount;
+  value.progress = {
+    completed_cases: caseCount,
+    total_cases: caseCount,
+    completed_items: itemCount,
+    total_items: itemCount,
+  };
+  return value;
 }
 
 function rejectsSnapshot(
@@ -1363,8 +1471,8 @@ function sceneConditionPreviewFixture(caseCount = 20) {
     ]),
   );
   return {
-    dataset_id: "edea6f9a51df87d0a4aefb2303dd8e1f",
-    dataset_name: "background-noise-sce1-wb-wired-20-condition-preview-v1",
+    dataset_id: LEGACY_SCE1_PROFILE.datasetId,
+    dataset_name: LEGACY_SCE1_PROFILE.datasetName,
     dataset_manifest_sha256: "d".repeat(64),
     dataset_assets_sha256: "e".repeat(64),
     test_scope: "background_noise",
@@ -1392,6 +1500,109 @@ function sceneConditionPreviewFixture(caseCount = 20) {
   };
 }
 
+function conversationPreviewFixture(
+  scene: BackgroundNoiseScene = "sce1",
+): Record<string, any> {
+  const profile = SCENE_CONDITION_PROFILES[scene];
+  const roles = ["microphone", "reference", "far_end", "noise"] as const;
+  const wave = "A".repeat(1_920);
+  const mel = "A".repeat(25_600);
+  const cases: Record<string, any>[] = [];
+  for (const [modeIndex, conversationMode] of CONVERSATION_MODES.entries()) {
+    const isNoise = conversationMode === "noise_only";
+    for (let offset = 0; offset < 20; offset += 1) {
+      const caseIndex = modeIndex * 20 + offset;
+      const caseId =
+        `${scene}-${conversationMode}-${String(offset + 1).padStart(2, "0")}`;
+      const hashes = Object.fromEntries(
+        roles.map((role, roleIndex) => [
+          role,
+          ((caseIndex * roles.length + roleIndex + 1) % 256)
+            .toString(16)
+            .padStart(2, "0")
+            .repeat(32),
+        ]),
+      );
+      cases.push({
+        case_id: caseId,
+        conditions: {
+          mode: "WB-wired",
+          direction: "send",
+          scene,
+          volume: "nominal",
+          window_ms: null,
+          input_level_db: 0,
+        },
+        families: isNoise
+          ? ["cng_level", "cng_spectrum"]
+          : ["g_mos", "n_mos", "s_mos"],
+        signals: [...roles],
+        signals_sha256: hashes,
+        contract_item_ids: isNoise
+          ? profile.contractItemIds.slice(3)
+          : profile.contractItemIds.slice(0, 3),
+        provenance: {
+          engineering_preview: true,
+          actual_vehicle_recording: false,
+          conversation_mode: conversationMode,
+        },
+      });
+    }
+  }
+  const visualCases = Object.fromEntries(
+    cases.map((previewCase) => [
+      previewCase.case_id,
+      Object.fromEntries(
+        roles.map((role) => [
+          role,
+          {
+            source_sha256: previewCase.signals_sha256[role],
+            duration_s: 12,
+            sample_rate: 16_000,
+            channels: role === "microphone" ? 2 : 1,
+            peak: 0.25,
+            wave_scale: 1,
+            wave_min_i16: wave,
+            wave_max_i16: wave,
+            mel_i16: mel,
+            mel_ceiling_db: -5.5,
+          },
+        ]),
+      ),
+    ]),
+  );
+  return {
+    dataset_id: profile.datasetId,
+    dataset_name: profile.datasetName,
+    dataset_manifest_sha256: "d".repeat(64),
+    dataset_assets_sha256: "e".repeat(64),
+    test_scope: "background_noise",
+    mode: "WB-wired",
+    scene,
+    cases,
+    visuals: {
+      schema: "scoped-acoustic-visual-v1",
+      waveform_bins: 720,
+      mel_bands: 40,
+      mel_frames: 240,
+      mel_fft_size: 512,
+      mel_hop_ms: 10,
+      mel_dynamic_range_db: 80,
+      mel_db_offset_db: -200,
+      mel_db_step_db: 0.1,
+      cases: visualCases,
+    },
+    preview_condition_group_count: 100,
+    contract_item_count: 5,
+    observation_count: 280,
+    conversation_counts: { ...profile.conversationCounts },
+    standard_compliance: false,
+    formal_test_status: "not_measured",
+    dataset_kind: profile.datasetKind,
+    schema_version: profile.schemaVersion,
+  };
+}
+
 function sceneConditionDatasetViewFixture() {
   return {
     test_scope: "background_noise",
@@ -1403,13 +1614,45 @@ function sceneConditionDatasetViewFixture() {
     formal_test_status: "not_measured",
     datasets: [
       {
-        dataset_id: "edea6f9a51df87d0a4aefb2303dd8e1f",
-        dataset_name: "background-noise-sce1-wb-wired-20-condition-preview-v1",
+        dataset_id: LEGACY_SCE1_PROFILE.datasetId,
+        dataset_name: LEGACY_SCE1_PROFILE.datasetName,
         test_scope: "background_noise",
         mode: "WB-wired",
         scene: "sce1",
         contract_item_count: 5,
         preview_condition_group_count: 20,
+        standard_compliance: false,
+        formal_test_status: "not_measured",
+      },
+    ],
+  };
+}
+
+function conversationDatasetViewFixture(
+  scene: BackgroundNoiseScene = "sce1",
+) {
+  const profile = SCENE_CONDITION_PROFILES[scene];
+  return {
+    test_scope: "background_noise",
+    mode: "WB-wired",
+    scene,
+    preview_condition_group_count: 100,
+    contract_item_count: 5,
+    observation_count: 280,
+    conversation_counts: { ...profile.conversationCounts },
+    standard_compliance: false,
+    formal_test_status: "not_measured",
+    datasets: [
+      {
+        dataset_id: profile.datasetId,
+        dataset_name: profile.datasetName,
+        test_scope: "background_noise",
+        mode: "WB-wired",
+        scene,
+        contract_item_count: 5,
+        preview_condition_group_count: 100,
+        observation_count: 280,
+        conversation_counts: { ...profile.conversationCounts },
         standard_compliance: false,
         formal_test_status: "not_measured",
       },
@@ -1480,6 +1723,69 @@ test("scene-condition dataset view accepts exactly one 20-condition preview", ()
     readSceneConditionDatasetView(
       missingDatasetFields,
       { mode: "WB-wired", scene: "sce1" },
+    ),
+  );
+});
+
+test("conversation dataset views derive 100/280 and five mode counts from the dataset profile", () => {
+  for (const scene of BACKGROUND_NOISE_SCENES) {
+    const profile = SCENE_CONDITION_PROFILES[scene];
+    const parsed = readSceneConditionDatasetView(
+      conversationDatasetViewFixture(scene),
+      { mode: "WB-wired", scene },
+    );
+    assert.equal(parsed.preview_condition_group_count, 100);
+    assert.equal(parsed.observation_count, 280);
+    assert.deepEqual(parsed.conversation_counts, {
+      near_single: 20,
+      far_single: 20,
+      double_talk: 20,
+      transition: 20,
+      noise_only: 20,
+    });
+    assert.equal(parsed.datasets[0].dataset_id, profile.datasetId);
+    assert.equal(parsed.datasets[0].preview_condition_group_count, 100);
+    assert.equal(parsed.datasets[0].observation_count, 280);
+  }
+
+  const view = conversationDatasetViewFixture();
+  assert.throws(() =>
+    readSceneConditionDatasetView(
+      { ...view, preview_condition_group_count: 99 },
+      { mode: "WB-wired", scene: "sce1" },
+    ),
+  );
+  assert.throws(() =>
+    readSceneConditionDatasetView(
+      { ...view, observation_count: 50 },
+      { mode: "WB-wired", scene: "sce1" },
+    ),
+  );
+  assert.throws(() =>
+    readSceneConditionDatasetView(
+      {
+        ...view,
+        conversation_counts: {
+          ...view.conversation_counts,
+          near_single: 19,
+        },
+      },
+      { mode: "WB-wired", scene: "sce1" },
+    ),
+  );
+  const wrongName = conversationDatasetViewFixture();
+  wrongName.datasets[0].dataset_name =
+    LEGACY_SCE1_PROFILE.datasetName;
+  assert.throws(() =>
+    readSceneConditionDatasetView(
+      wrongName,
+      { mode: "WB-wired", scene: "sce1" },
+    ),
+  );
+  assert.throws(() =>
+    readSceneConditionDatasetView(
+      view,
+      { mode: "WB-wired", scene: "sce2" },
     ),
   );
 });
@@ -1692,30 +1998,413 @@ test("scene-condition preview validates all 20 cases and four visual tracks", ()
   );
 });
 
-test("idle 20-condition mode is limited to Sce1 WB-wired previews", () => {
+test("conversation previews parse 100 cases, five modes, 80/20 families, and four 12-second tracks", () => {
+  for (const scene of BACKGROUND_NOISE_SCENES) {
+    const profile = SCENE_CONDITION_PROFILES[scene];
+    const preview = conversationPreviewFixture(scene);
+    const parsed = readSceneConditionPreview(
+      preview,
+      preview.dataset_id,
+      "WB-wired",
+      scene,
+    );
+    assert.equal(parsed.cases.length, 100);
+    assert.equal(parsed.preview_condition_group_count, 100);
+    assert.equal(parsed.observation_count, 280);
+    assert.equal(parsed.schema_version, "scene-condition-preview-v2");
+    assert.equal(
+      parsed.dataset_kind,
+      "background_noise_conversation_preview",
+    );
+    assert.equal(Object.keys(parsed.visuals.cases).length, 100);
+    for (const mode of CONVERSATION_MODES) {
+      assert.equal(
+        parsed.cases.filter(
+          (entry) => entry.provenance.conversation_mode === mode,
+        ).length,
+        20,
+        `${scene}/${mode}`,
+      );
+    }
+    const familyCounts = {
+      speech: parsed.cases.filter(
+        (entry) => entry.families.includes("g_mos"),
+      ).length,
+      cng: parsed.cases.filter(
+        (entry) => entry.families.includes("cng_level"),
+      ).length,
+    };
+    assert.deepEqual(familyCounts, { speech: 80, cng: 20 });
+    for (const previewCase of parsed.cases) {
+      assert.deepEqual(
+        Object.keys(parsed.visuals.cases[previewCase.case_id]).sort(),
+        ["far_end", "microphone", "noise", "reference"],
+      );
+      for (const role of [
+        "microphone",
+        "reference",
+        "far_end",
+        "noise",
+      ] as const) {
+        const track =
+          parsed.visuals.cases[previewCase.case_id][role];
+        assert.equal(track.duration_s, 12);
+        assert.equal(track.sample_rate, 16_000);
+        assert.equal(
+          track.channels,
+          role === "microphone" ? 2 : 1,
+        );
+      }
+    }
+    assert.deepEqual(parsed.conversation_counts, profile.conversationCounts);
+  }
+});
+
+test("conversation preview rejects missing modes, duplicate identities, wrong mode counts, and cross-scene data", () => {
+  const missingMode = conversationPreviewFixture();
+  delete missingMode.cases[0].provenance.conversation_mode;
+  assert.throws(() =>
+    readSceneConditionPreview(
+      missingMode,
+      missingMode.dataset_id,
+      "WB-wired",
+      "sce1",
+    ),
+    /通话模式/,
+  );
+
+  const duplicateCase = conversationPreviewFixture();
+  duplicateCase.cases[1].case_id = duplicateCase.cases[0].case_id;
+  assert.throws(() =>
+    readSceneConditionPreview(
+      duplicateCase,
+      duplicateCase.dataset_id,
+      "WB-wired",
+      "sce1",
+    ),
+  );
+
+  const duplicateMode = conversationPreviewFixture();
+  duplicateMode.cases[20].provenance.conversation_mode = "near_single";
+  assert.throws(() =>
+    readSceneConditionPreview(
+      duplicateMode,
+      duplicateMode.dataset_id,
+      "WB-wired",
+      "sce1",
+    ),
+    /通话模式数量/,
+  );
+
+  const wrongFamily = conversationPreviewFixture();
+  wrongFamily.cases[0].families = ["cng_level", "cng_spectrum"];
+  assert.throws(() =>
+    readSceneConditionPreview(
+      wrongFamily,
+      wrongFamily.dataset_id,
+      "WB-wired",
+      "sce1",
+    ),
+    /合同族分组/,
+  );
+
+  const wrongCount = conversationPreviewFixture();
+  wrongCount.preview_condition_group_count = 99;
+  assert.throws(() =>
+    readSceneConditionPreview(
+      wrongCount,
+      wrongCount.dataset_id,
+      "WB-wired",
+      "sce1",
+    ),
+  );
+
+  const wrongObservations = conversationPreviewFixture();
+  wrongObservations.observation_count = 50;
+  assert.throws(() =>
+    readSceneConditionPreview(
+      wrongObservations,
+      wrongObservations.dataset_id,
+      "WB-wired",
+      "sce1",
+    ),
+  );
+
+  const wrongDeclaredCounts = conversationPreviewFixture();
+  wrongDeclaredCounts.conversation_counts.near_single = 19;
+  assert.throws(() =>
+    readSceneConditionPreview(
+      wrongDeclaredCounts,
+      wrongDeclaredCounts.dataset_id,
+      "WB-wired",
+      "sce1",
+    ),
+  );
+
+  const crossScene = conversationPreviewFixture("sce2");
+  assert.throws(() =>
+    readSceneConditionPreview(
+      crossScene,
+      crossScene.dataset_id,
+      "WB-wired",
+      "sce1",
+    ),
+  );
+});
+
+test("scene-condition 20-group previews support all four scenes only in WB-wired", () => {
+  for (const scene of ["sce1", "sce2", "sce3", "sce4"] as const) {
+    assert.equal(
+      isSceneCondition20Preview(
+        { previewMode: "scene-condition-20", scene },
+        "WB-wired",
+      ),
+      true,
+    );
+    assert.equal(
+      isSceneCondition20Preview(
+        { previewMode: "scene-condition-20", scene },
+        "NB-wired",
+      ),
+      false,
+    );
+  }
   assert.equal(
-    isIdle20ConditionPreview(
-      { previewMode: "idle-20-condition", scene: "sce1" },
+    isSceneCondition20Preview(
+      { previewMode: "scene-condition-20", scene: "sce1" },
       "WB-wired",
     ),
     true,
   );
   assert.equal(
-    isIdle20ConditionPreview(
-      { previewMode: "idle-20-condition", scene: "sce2" },
-      "WB-wired",
+    isSceneCondition20Preview({ scene: "sce1" }, "WB-wired"),
+    false,
+  );
+});
+
+test("single-case scoped snapshots preserve the scope's source totals", () => {
+  const single = makeSingleSnapshot(
+    "completed",
+    "basic_downlink",
+    "WB-wired",
+    undefined,
+    7,
+  );
+  const caseId = single.selected_case_id!;
+  const parsed = readScopedSnapshot(single, "basic_downlink", {
+    caseId,
+    datasetCaseCount: 7,
+  });
+  assert.equal(parsed.execution_scope, "single_case");
+  assert.equal(parsed.selected_case_id, caseId);
+  assert.equal(parsed.case_count, 1);
+  assert.equal(parsed.observation_count, parsed.items.length);
+  assert.equal(parsed.preview_condition_group_count, 7);
+  assert.equal(parsed.dataset_case_count, 7);
+  assert.equal(parsed.dataset_observation_count, 9);
+  assert.deepEqual(parsed.progress, {
+    completed_cases: 1,
+    total_cases: 1,
+    completed_items: parsed.items.length,
+    total_items: parsed.items.length,
+  });
+  assert.equal(parsed.cases.length, 1);
+  assert.ok(
+    parsed.items.every(
+      (item) => item.evidence_binding?.case_id === caseId,
     ),
-    false,
   );
-  assert.equal(
-    isIdle20ConditionPreview(
-      { previewMode: "idle-20-condition", scene: "sce1" },
-      "NB-wired",
-    ),
-    false,
+
+  const uplink = makeSingleSnapshot(
+    "completed",
+    "basic_uplink",
+    "WB-wired",
+    undefined,
+    6,
   );
-  assert.equal(
-    isIdle20ConditionPreview({ scene: "sce1" }, "WB-wired"),
-    false,
+  const parsedUplink = readScopedSnapshot(
+    uplink,
+    "basic_uplink",
+    {
+      mode: "WB-wired",
+      caseId: uplink.selected_case_id!,
+      datasetCaseCount: 6,
+    },
   );
+  assert.equal(parsedUplink.preview_condition_group_count, 6);
+  assert.equal(parsedUplink.dataset_case_count, 6);
+  assert.equal(parsedUplink.dataset_observation_count, 8);
+
+  const downlinkFull = withActualCaseCount(
+    makeSnapshot("completed", "basic_downlink", "WB-wired"),
+    7,
+  );
+  const parsedDownlinkFull = readScopedSnapshot(
+    downlinkFull,
+    "basic_downlink",
+    { mode: "WB-wired", datasetCaseCount: 7 },
+  );
+  assert.equal(parsedDownlinkFull.case_count, 7);
+  assert.equal(parsedDownlinkFull.preview_condition_group_count, 7);
+  assert.equal(parsedDownlinkFull.progress.total_cases, 7);
+  assert.equal(parsedDownlinkFull.progress.total_items, 9);
+
+  const uplinkFull = withActualCaseCount(
+    makeSnapshot("completed", "basic_uplink", "WB-wired"),
+    6,
+  );
+  const parsedUplinkFull = readScopedSnapshot(
+    uplinkFull,
+    "basic_uplink",
+    { mode: "WB-wired", datasetCaseCount: 6 },
+  );
+  assert.equal(parsedUplinkFull.case_count, 6);
+  assert.equal(parsedUplinkFull.preview_condition_group_count, 6);
+  assert.equal(parsedUplinkFull.progress.total_cases, 6);
+  assert.equal(parsedUplinkFull.progress.total_items, 8);
+
+  const pending = makeSingleSnapshot("pending");
+  assert.doesNotThrow(() =>
+    readScopedSnapshot(pending, "basic_downlink", {
+      caseId: pending.selected_case_id!,
+    })
+  );
+  assert.equal(pending.cases.length, 0);
+});
+
+test("single-case scoped selection is all-or-none and request-bound", () => {
+  const full = makeSnapshot("completed");
+  const single = makeSingleSnapshot("completed");
+  const caseId = single.selected_case_id!;
+
+  assert.throws(
+    () => readScopedSnapshot(full, "basic_downlink", { caseId }),
+    /缺少单案选择字段/,
+  );
+  assert.throws(
+    () => readScopedSnapshot(single, "basic_downlink", {
+      caseId: "different-case",
+    }),
+    /请求 case_id 不一致/,
+  );
+  assert.throws(
+    () => readScopedSnapshot(single, "basic_downlink", {
+      caseId,
+      datasetCaseCount: 4,
+    }),
+    /请求的单案数据集条件组数量|数量字段/,
+  );
+  for (const field of [
+    "execution_scope",
+    "selected_case_id",
+    "dataset_case_count",
+    "dataset_observation_count",
+  ] as const) {
+    const partial = structuredClone(single);
+    delete partial[field];
+    assert.throws(
+      () => readScopedSnapshot(partial, "basic_downlink"),
+      /四项同时存在/,
+    );
+  }
+
+  const forgedFull = structuredClone(full);
+  Object.assign(forgedFull, {
+    execution_scope: "single_case",
+    selected_case_id: caseId,
+    dataset_case_count: 5,
+    dataset_observation_count: 9,
+  });
+  assert.throws(() => readScopedSnapshot(forgedFull, "basic_downlink"));
+
+  const deletedRows = structuredClone(full);
+  deletedRows.items = deletedRows.items.slice(0, 1);
+  deletedRows.cases = deletedRows.cases.slice(0, 1);
+  assert.throws(() => readScopedSnapshot(deletedRows, "basic_downlink"));
+
+  const mutations: Array<(value: ScopedSnapshot) => void> = [
+    (value) => { value.dataset_case_count = 0; },
+    (value) => { value.dataset_case_count = 10; },
+    (value) => { value.dataset_observation_count = 8; },
+    (value) => { value.preview_condition_group_count = 4; },
+    (value) => { value.case_count = 5; },
+    (value) => { value.observation_count = 9; },
+    (value) => { value.progress.total_cases = 5; },
+    (value) => { value.progress.total_items = 9; },
+    (value) => { value.items[0].evidence_binding!.case_id = "different-case"; },
+    (value) => { value.items[0].evidence_binding!.dataset_id = "d".repeat(32); },
+    (value) => { value.items[0].status = "pending"; value.items[0].value = null; },
+    (value) => { value.cases[0].status = "pending"; },
+  ];
+  for (const mutate of mutations) {
+    const value = structuredClone(single);
+    mutate(value);
+    assert.throws(() => readScopedSnapshot(value, "basic_downlink"));
+  }
+
+  const forgedFullProgress = withActualCaseCount(
+    makeSnapshot("completed", "basic_downlink", "WB-wired"),
+    7,
+  );
+  forgedFullProgress.progress.total_cases = 10;
+  assert.throws(() =>
+    readScopedSnapshot(forgedFullProgress, "basic_downlink", {
+      mode: "WB-wired",
+    })
+  );
+  const mismatchedFullMetadata = withActualCaseCount(
+    makeSnapshot("completed", "basic_downlink", "WB-wired"),
+    7,
+  );
+  mismatchedFullMetadata.case_count = 6;
+  assert.throws(() =>
+    readScopedSnapshot(mismatchedFullMetadata, "basic_downlink", {
+      mode: "WB-wired",
+    })
+  );
+
+  const mixed = readScopedHistory([full, single], "basic_downlink");
+  assert.equal(mixed.length, 2);
+  assert.equal(mixed[0].execution_scope, undefined);
+  assert.equal(mixed[1].execution_scope, "single_case");
+
+  const actualDownlinkHistory = readScopedHistory(
+    [
+      withActualCaseCount(
+        makeSnapshot("completed", "basic_downlink", "WB-wired"),
+        7,
+      ),
+      makeSingleSnapshot(
+        "completed",
+        "basic_downlink",
+        "WB-wired",
+        undefined,
+        7,
+      ),
+    ],
+    "basic_downlink",
+  );
+  assert.equal(actualDownlinkHistory.length, 2);
+  assert.equal(actualDownlinkHistory[0].progress.total_cases, 7);
+  assert.equal(actualDownlinkHistory[1].dataset_case_count, 7);
+
+  const actualUplinkHistory = readScopedHistory(
+    [
+      withActualCaseCount(
+        makeSnapshot("completed", "basic_uplink", "WB-wired"),
+        6,
+      ),
+      makeSingleSnapshot(
+        "completed",
+        "basic_uplink",
+        "WB-wired",
+        undefined,
+        6,
+      ),
+    ],
+    "basic_uplink",
+  );
+  assert.equal(actualUplinkHistory.length, 2);
+  assert.equal(actualUplinkHistory[0].progress.total_cases, 6);
+  assert.equal(actualUplinkHistory[1].dataset_case_count, 6);
 });

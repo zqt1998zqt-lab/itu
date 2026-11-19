@@ -1,10 +1,12 @@
+import { ACOUSTIC_SIGNAL_LABELS } from "./acoustic-terminology.ts";
+
 export const AUDIO_ROLES = ["reference", "before", "after", "echo"] as const;
 export type AudioRole = (typeof AUDIO_ROLES)[number];
 export const ROLE_LABEL: Record<AudioRole, string> = {
-  reference: "干净参考",
-  before: "麦克风处理前",
-  after: "麦克风处理后",
-  echo: "扬声器回声参考",
+  reference: ACOUSTIC_SIGNAL_LABELS.reference,
+  before: ACOUSTIC_SIGNAL_LABELS.before,
+  after: ACOUSTIC_SIGNAL_LABELS.after,
+  echo: ACOUSTIC_SIGNAL_LABELS.echo,
 };
 export const ROLE_COLOR: Record<AudioRole, string> = {
   reference: "#64748b",

@@ -59,7 +59,7 @@ const flow = (
   eyebrow: "UPLINK · TX DYNAMIC RANGE",
   title,
   description,
-  lanes: ["TX PCM", "包络 / 增益 / 峰值证据"],
+  lanes: ["发送处理输出（TX） PCM", "包络 / 增益 / 峰值证据"],
   nodes,
   edges,
 });
@@ -191,7 +191,7 @@ const drcFlow = (
         "output",
         4,
         1,
-        "TX 输出",
+        "发送处理输出（TX）",
         "继续编码 / 传输",
         "output",
         "OUTPUT",
@@ -225,7 +225,7 @@ const limiterFlow = (): AlgorithmFlow =>
         "input",
         0,
         0,
-        "TX PCM",
+        "发送处理输出（TX） PCM",
         "无 TX DRC",
         "input",
         "BYPASS DRC",
@@ -300,7 +300,7 @@ const researchFlow = (
         "input",
         0,
         0,
-        "TX / RX PCM",
+        "发送处理输出（TX）/ 接收处理输出（RX） PCM",
         "当前无统一冻结入口",
         "input",
         "RESEARCH",
@@ -398,7 +398,7 @@ const drcCase = (
       sampleRate,
       windowSeconds: [13, 21],
       delaySamples,
-      beforeLabel: "配对控制 · 无 TX DRC / 无 limiter",
+      beforeLabel: "配对控制输入 · 无 TX DRC / 无 limiter",
       afterLabel,
       beforeFile: resultWav("bypass", key),
       afterFile: resultWav(variant, key),
@@ -422,7 +422,7 @@ const defaultCases = [
     16000,
     0,
     "通过：ΔSI-SDR −0.0063 dB；ΔSTOI −0.0000005；峰值下降 0.641 dB",
-    "输出 · 默认 TX DRC",
+    "处理后发送输出 · 默认 TX DRC",
   ),
   drcCase(
     "fail",
@@ -438,7 +438,7 @@ const defaultCases = [
     48000,
     0,
     "失败：ΔSI-SDR −10.0886 dB；ΔSTOI −0.004614",
-    "输出 · 默认 TX DRC",
+    "处理后发送输出 · 默认 TX DRC",
   ),
 ];
 
@@ -457,7 +457,7 @@ const gentleCases = [
     16000,
     5,
     "通过：ΔSI-SDR −0.0013 dB；峰值下降 0.433 dB",
-    "输出 · gentle TX DRC",
+    "处理后发送输出 · gentle TX DRC",
   ),
   drcCase(
     "fail",
@@ -473,7 +473,7 @@ const gentleCases = [
     48000,
     0,
     "失败：ΔSI-SDR −6.5662 dB；ΔSTOI −0.001821",
-    "输出 · gentle TX DRC",
+    "处理后发送输出 · gentle TX DRC",
   ),
 ];
 
@@ -492,7 +492,7 @@ const aggressiveCases = [
     24000,
     163,
     "通过：ΔSI-SDR −0.0102 dB；峰值下降 1.509 dB",
-    "输出 · aggressive TX DRC",
+    "处理后发送输出 · aggressive TX DRC",
   ),
   drcCase(
     "fail",
@@ -508,7 +508,7 @@ const aggressiveCases = [
     48000,
     0,
     "失败：ΔSI-SDR −18.3867 dB；ΔSTOI −0.054759；峰值下降 5.369 dB",
-    "输出 · aggressive TX DRC",
+    "处理后发送输出 · aggressive TX DRC",
   ),
 ];
 
@@ -527,7 +527,7 @@ const fastCases = [
     16000,
     0,
     "通过：ΔSI-SDR −0.0610 dB；峰值下降 1.317 dB",
-    "输出 · fast TX DRC",
+    "处理后发送输出 · fast TX DRC",
   ),
   drcCase(
     "fail",
@@ -543,7 +543,7 @@ const fastCases = [
     48000,
     0,
     "失败：ΔSI-SDR −11.8920 dB；ΔSTOI −0.008390",
-    "输出 · fast TX DRC",
+    "处理后发送输出 · fast TX DRC",
   ),
 ];
 
@@ -562,7 +562,7 @@ const lookaheadCases = [
     16000,
     32,
     "通过：ΔSI-SDR 0.0000 dB；ΔSTOI 0.0000000；声明延时 2 ms",
-    "输出 · Look-ahead limiter 2 ms",
+    "处理后发送输出 · Look-ahead limiter 2 ms",
   ),
   drcCase(
     "fail",
@@ -578,7 +578,7 @@ const lookaheadCases = [
     24000,
     96,
     "失败：语音门通过，但 4.0 ms 新增 look-ahead 延迟超过 3 ms 时延门限",
-    "输出 · Look-ahead limiter 2 ms",
+    "处理后发送输出 · Look-ahead limiter 2 ms",
   ),
 ];
 
@@ -664,7 +664,7 @@ export const drcAlgorithms: DrcAlgorithm[] = [
           16000,
           0,
           "未覆盖：ΔSI-SDR 0 dB；输出 SHA 与 bypass 相同",
-          "输出 · 仅终级 limiter",
+          "处理后发送输出 · 仅终级 limiter",
         ),
       ],
     },
@@ -786,7 +786,7 @@ export const drcAlgorithms: DrcAlgorithm[] = [
     summary:
       "下行路径复用同一个 compressor 实现，但持有独立配置与状态。源码核验证明它存在，本轮新增 CLI 仅隔离评测 TX DRC。",
     boundary:
-      "没有扬声器、功放、阻抗、编码器或声学回放链路；不能把 TX PCM 结果外推为 RX 保护。",
+      "没有扬声器、功放、阻抗、编码器或声学回放链路；不能把发送处理输出（TX） PCM 结果外推为 RX 保护。",
     evaluation: pendingEvaluation(
       "待建",
       "扬声器 / 功放 / 回放 / true peak / 热保护",

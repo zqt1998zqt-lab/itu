@@ -365,7 +365,7 @@ const coordinated: AgcAlgorithm = {
   entry: "AdaptiveController · PostAecContext",
   cli: "profile 默认；ecnr_coordinated_control / ecnr_v2_control",
   summary:
-    "协调控制器把 AEC 参考状态、线性残差、双讲证据和 NS 噪声资格送到同一个增益上限。Guarded5 读取该上限，避免后级只凭麦克风 VAD 决定是否提升。",
+    "协调控制器把远端播放信号 / 回声参考状态、线性残差、双讲证据和 NS 噪声资格送到同一个增益上限。Guarded5 读取该上限，避免后级只凭麦克风混合输入 VAD 决定是否提升。",
   boundary:
     "它是控制组合，不是独立 AGC 后端。本轮统一矩阵改变的是最终策略或后级开关；协调上限本身仍需独立开关实验，不能把 Stage4 或 TX DRC 的差异单独归给协调控制器。",
   evaluation: {
@@ -512,24 +512,24 @@ const txDrc: AgcAlgorithm = {
 const rxDrc: AgcAlgorithm = {
   id: "rx-drc",
   title: "RX Downlink DRC",
-  short: "下行 NR → EQ → DRC → 扬声器 / AEC reference",
+  short: "接收处理（RX）：NR → EQ → DRC → 扬声器 / 远端播放信号 / 回声参考",
   category: "composite",
   status: "下行播放保护",
   rate: "16 / 24 / 48 kHz",
   entry: "DownlinkPipeline",
   cli: "--rx-in ...；VCP rx_processing 默认",
   summary:
-    "下行链路在扬声器前完成轻度降噪、频响补偿和 DRC，并把同一处理结果作为 AEC reference。目标是减少扬声器削波造成的非线性回声路径。",
+    "下行链路在扬声器前完成轻度降噪、频响补偿和 DRC，并把同一处理结果作为远端播放信号 / 回声参考。目标是减少扬声器削波造成的非线性回声路径。",
   boundary:
     "它是远端播放保护，不是近端麦克风 AGC。尚无声学闭环结果证明降低削波后 AEC/双讲指标一定改善。",
   evaluation: {
     tone: "pending",
     status: "VCP 默认启用 · 声学闭环待补",
     headline: "下行实现已核验",
-    scope: "Downlink NR → EQ → DRC → speaker / AEC reference",
+    scope: "接收处理（RX）：NR → EQ → DRC → speaker / 远端播放信号 / 回声参考",
     source: "cpp/src/downlink_pipeline.hpp",
     note:
-      "当前证据覆盖实现与播放参考时基；没有冻结扬声器非线性、播放电平和车内声学环境的闭环矩阵，不能声称 AEC 已因此达标。",
+      "当前证据覆盖实现与远端播放信号 / 回声参考时基；没有冻结扬声器非线性、播放电平和车内声学环境的闭环矩阵，不能声称 AEC 已因此达标。",
     metrics: [
       { label: "默认拓扑", value: "已启用", detail: "VCP rx_processing" },
       { label: "默认 ceiling", value: "−0.5 dBFS", detail: "扬声器与 reference 同源" },
@@ -538,15 +538,15 @@ const rxDrc: AgcAlgorithm = {
   },
   flow: flow(
     "RX DOWNLINK · ACOUSTIC LINEARITY",
-    "RX DRC：让扬声器和回声参考保持同一线性链",
-    "远端 PCM 依次经过 NR、EQ、DRC；扬声器播放与 AEC reference 使用同一处理结果。",
-    ["播放音频 / AEC reference", "下行动态保护"],
+    "RX DRC：让扬声器和远端播放信号 / 回声参考保持同一线性链",
+    "远端 PCM 依次经过 NR、EQ、DRC；扬声器播放与远端播放信号 / 回声参考使用同一处理结果。",
+    ["接收处理（RX）音频", "远端播放信号 / 回声参考 / 下行动态保护"],
     [
       node("input", 0, 0, "下行 PCM", "远端播放输入", "input", "RX INPUT", "输入来自网络或播放文件。", "AudioEngine::process_downlink()", "与近端 AGC 独立。", ["reference_channels"], "r_in"),
       node("nr", 1, 0, "下行 NR", "轻度背景抑制", "core", "RX NR", "只做温和降噪，保持远端语音自然度。", "DownlinkPipeline", "最大抑制量可配置。", ["nr_max_suppression_db"], "r_nr"),
       node("eq", 2, 0, "扬声器 EQ", "频响补偿", "core", "RX EQ", "补偿车内扬声器频响，降低后续压缩的频带偏置。", "ParametricEq", "参数来自 profile。", ["rx_config.eq"], "r_eq"),
       node("drc", 3, 0, "下行 DRC", "软膝压缩与限幅", "core", "RX DRC", "防止扬声器削波和声学非线性。", "DynamicRangeCompressor", "默认 ratio 4:1。", ["threshold_dbfs", "ratio", "ceiling_dbfs"], "r_drc"),
-      node("split", 4, 0, "同一结果分送", "speaker + AEC reference", "output", "OUTPUT", "扬声器与 AEC reference 必须逐样本一致。", "DownlinkPipeline::process()", "任一侧单独改动会造成参考偏差。", ["current_drc_gain_db"], "speaker = reference = r_drc"),
+      node("split", 4, 0, "接收处理输出（RX）", "扬声器 + 远端播放信号 / 回声参考", "output", "OUTPUT", "扬声器播放与远端播放信号 / 回声参考必须逐样本一致。", "DownlinkPipeline::process()", "任一侧单独改动会造成参考偏差。", ["current_drc_gain_db"], "speaker = reference = r_drc"),
     ],
     [
       ["input", "nr", "audio"],

@@ -1,0 +1,25 @@
+.localvqe-test { display: flex; flex-direction: column; gap: 16px; }
+.localvqe-boundary { padding: 12px 14px; border: 1px solid #c9d9f2; border-left: 4px solid var(--blue); border-radius: var(--radius); background: #f6f9ff; color: #34465d; font-size: .82rem; line-height: 1.65; }
+.localvqe-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.localvqe-card { display: flex; flex-direction: column; gap: 13px; padding: 16px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); }
+.localvqe-card label { display: flex; flex-direction: column; gap: 7px; font-size: .8rem; color: #34465d; }
+.localvqe-card select, .localvqe-card input { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; background: #fff; color: #233248; }
+.localvqe-meta { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 6px 10px; margin: 0; font-size: .76rem; }
+.localvqe-meta dt { color: var(--muted); }
+.localvqe-meta dd { margin: 0; overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
+.localvqe-result { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); }
+.localvqe-result h3 { margin: 0; font-size: .95rem; }
+.localvqe-result p { margin: 0; }
+.localvqe-result audio { width: min(100%, 480px); }
+.localvqe-ab { display: flex; flex-direction: column; gap: 14px; padding: 16px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); }
+.localvqe-ab-group { display: flex; flex-direction: column; gap: 8px; }
+.localvqe-ab-group h3 { margin: 0; font-size: .86rem; color: #34465d; }
+.localvqe-ab table { font-size: .76rem; }
+.localvqe-ab th { text-align: left; font-weight: 600; }
+.localvqe-ab-assessment { margin: 0; padding: 10px 12px; border-left: 3px solid #b77318; background: #fff8ec; color: #724816; font-size: .82rem; line-height: 1.6; }
+.localvqe-ab-audio-case { margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+.localvqe-ab-audio-case p { margin: 0 0 8px; font-size: .8rem; }
+.localvqe-ab-audio-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.localvqe-ab-audio-grid label { display: grid; gap: 5px; font-size: .76rem; }
+.localvqe-ab-audio-grid audio { width: 100%; }
+@media (max-width: 760px) { .localvqe-grid { grid-template-columns: 1fr; } }

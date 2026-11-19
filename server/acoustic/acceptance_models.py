@@ -493,6 +493,7 @@ def _send_report(
     mode: str,
     prepared_inputs: Mapping[str, Mapping[str, Any]],
     tx: Mapping[str, Any],
+    execution: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     missing = [
         role for role in SEND_INPUT_ROLES if role not in prepared_inputs
@@ -515,6 +516,7 @@ def _send_report(
         channel=0,
         max_delay_ms=2000,
         persist=False,
+        execution=execution,
     )
 
 
@@ -756,6 +758,7 @@ def _receive_report(
     reference: Mapping[str, Any] | None = None,
     receive_config: Mapping[str, Any] | None = None,
     receive_ir_paths: Mapping[str, Path] | None = None,
+    execution: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     upper_hz = MODE_UPPER_HZ.get(_bandwidth(mode))
     samples = np.asarray(rx["samples"], dtype=np.float64)
@@ -770,6 +773,7 @@ def _receive_report(
             source_rate // common,
         )
     input_processing = {
+        "scope": "acceptance_model_only",
         "source_sample_rate_hz": source_rate,
         "simulation_sample_rate_hz": target_rate,
         "resampled": source_rate != target_rate,
@@ -822,10 +826,28 @@ def _receive_report(
     # These additions are bound by assessment.json, not the immutable synthetic
     # report's digest. Never rewrite that report or reuse its digest for them.
     report["acceptance_acoustic_configuration"] = config
+    rate_path = (
+        execution.get("rate_path")
+        if isinstance(execution, Mapping)
+        else None
+    )
+    native_nb8 = (
+        isinstance(rate_path, Mapping)
+        and rate_path.get("sample_rate_hz") == 8_000
+        and rate_path.get("cluster_id") == "speex_dpdfnet2_8khz"
+    )
     report["acceptance_transfer_response"] = {
         "available": False, "span_db": None,
         "reason": "缺少已知远端激励，不能将输出频谱当作传递函数",
         "standard_compliance": False, "calibrated": False,
+        "engine_sample_rate_hz": source_rate,
+        "analysis_sample_rate_hz": target_rate,
+        "analysis_resampled": source_rate != target_rate,
+        "analysis_resampling": input_processing["resampling"],
+        "processing_route": (
+            "native_nb8_dpdfnet2" if native_nb8 else "legacy_vcp_rx"
+        ),
+        "vcp_rx_equivalent": not native_nb8,
     }
     if reference is not None:
         try:
@@ -853,7 +875,11 @@ def _receive_report(
             transfer["reference_sample_rate_hz"] = reference_rate
             transfer["reference_resampled"] = reference_rate != target_rate
             transfer["reference_sha256"] = reference.get("sha256")
-            transfer["signal_path"] = "far_end -> VCP RX -> virtual binaural outputs"
+            transfer["signal_path"] = (
+                "far_end -> native NB8 DPDFNet2 -> virtual binaural outputs"
+                if native_nb8
+                else "far_end -> VCP RX -> virtual binaural outputs"
+            )
             transfer["evidence_digest_scope"] = "acceptance assessment, not synthetic result_sha256"
             required = transfer.get("required_bands_hz", [])
             if required and max(required) * 2 ** (1 / 6) >= reference_rate / 2:
@@ -1901,6 +1927,7 @@ def calculate_case_items(
                     mode=str(conditions.get("mode")),
                     prepared_inputs=prepared_inputs,
                     tx=tx,
+                    execution=execution,
                 )
             except Exception as error:
                 _raise_storage_failure(error)
@@ -2140,6 +2167,7 @@ def calculate_case_items(
                     reference=prepared_inputs.get("far_end"),
                     receive_config=receive_config,
                     receive_ir_paths=receive_ir_paths,
+                    execution=execution,
                 )
             except Exception as error:
                 _raise_storage_failure(error)

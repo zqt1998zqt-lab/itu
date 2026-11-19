@@ -23,6 +23,7 @@ import "./itut-alignment.css";
 import FiveSignalFlow from "./FiveSignalFlow";
 import AlignmentAcceptanceBatch, { type AcceptanceBatchSnapshot } from "./AlignmentAcceptanceBatch";
 import { FIVE_SIGNAL_MODES, type FiveSignalMode } from "./five-signal-flow-model";
+import { businessModeLabel as modeLabel } from "../domain/business-modes.ts";
 
 type Failure = {
   pair?: number;
@@ -407,6 +408,7 @@ export default function ItuAlignment({
     >
     <AlignmentAcceptanceBatch
       algorithmClusterId={algorithmClusterId}
+      onAlgorithmClusterChange={setAlgorithmClusterId}
       externalRunning={isRunning || externalRunning}
       onBusyChange={setBatchBusy}
       onRestoringChange={setBatchRestoring}
@@ -536,7 +538,7 @@ export default function ItuAlignment({
           <div className="alignment-scope-select">
             <label htmlFor="run-mode-select">业务模式（与流程图同步）：</label>
             <select id="run-mode-select" className="alignment-select-input" value={selectedMode} disabled={isRunning || batchRunning || externalRunning || runScope !== "full"} onChange={event => setSelectedMode(event.target.value as FiveSignalMode)}>
-              {FIVE_SIGNAL_MODES.map(mode => <option key={mode} value={mode}>{mode}</option>)}
+              {FIVE_SIGNAL_MODES.map(mode => <option key={mode} value={mode}>{modeLabel(mode)}</option>)}
             </select>
           </div>
 

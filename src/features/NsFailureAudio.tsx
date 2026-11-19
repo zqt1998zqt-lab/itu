@@ -86,17 +86,17 @@ function FailureCard({ sample, number, onPlay }: { sample: Sample; number: numbe
     </div>
     <div className="nsf-audio-grid">
       <section className="nsf-player input">
-        <h4>输入 · 带噪音频</h4>
-        <p>两个算法使用同一份输入</p>
-        <AudioPlayer key={url("input")} src={url("input")} title="带噪输入" sampleId={sample.scene_id} onPlay={onPlay} />
-        <p className="nsf-alignment">{sample.input_crop_samples ? `冷启动已裁去原音频前 ${(sample.input_crop_samples / sample.sample_rate * 1000).toFixed(0)} ms` : "与评测输入一致的 PCM16"}</p>
+        <h4>麦克风混合输入 · 带噪</h4>
+        <p>两个算法使用同一份麦克风混合输入</p>
+        <AudioPlayer key={url("input")} src={url("input")} title="麦克风混合输入 · 带噪" sampleId={sample.scene_id} onPlay={onPlay} />
+        <p className="nsf-alignment">{sample.input_crop_samples ? `冷启动已裁去原音频前 ${(sample.input_crop_samples / sample.sample_rate * 1000).toFixed(0)} ms` : "与评测麦克风混合输入一致的 PCM16"}</p>
       </section>
       {(["omlsa", "super_gaussian"] as const).map((role) => {
         const backend = sample.backends[role];
         return <section key={role} className={`nsf-player ${role}`}>
-          <h4>{role === "omlsa" ? "OM-LSA + IMCRA" : "Super-Gaussian"} <span>平衡档</span></h4>
+          <h4>发送处理输出（TX） · {role === "omlsa" ? "OM-LSA + IMCRA" : "Super-Gaussian"} <span>平衡档</span></h4>
           <p>已扣除 {(backend.delay_samples / sample.sample_rate * 1000).toFixed(0)} ms 固定算法延时</p>
-          <AudioPlayer key={url(role)} src={url(role)} title={role === "omlsa" ? "OM-LSA 降噪后" : "Super-Gaussian 降噪后"} sampleId={sample.scene_id} onPlay={onPlay} />
+          <AudioPlayer key={url(role)} src={url(role)} title={role === "omlsa" ? "发送处理输出（TX） · OM-LSA" : "发送处理输出（TX） · Super-Gaussian"} sampleId={sample.scene_id} onPlay={onPlay} />
           <ul className="nsf-metrics">
             {backend.failures.map((failure) => <li key={failure.label} className={windowId !== "full" && failure.window !== windowId ? "other-window" : ""}>
               <div><span>{windowText(failure.window)} · {METRICS[failure.metric] ?? failure.metric}</span><strong>{valueText(failure.value, failure.unit)}</strong></div>
@@ -107,10 +107,10 @@ function FailureCard({ sample, number, onPlay }: { sample: Sample; number: numbe
       })}
     </div>
     <details className="nsf-evidence">
-      <summary>干净语音参考与结果来源</summary>
+      <summary>干净近端参考与结果来源</summary>
       <div className="nsf-reference">
         <div><h4>干净近端参考</h4><p>用于听辨语音损伤；纯噪声窗口内可能静音。</p></div>
-        <AudioPlayer key={url("clean")} src={url("clean")} title="干净语音参考" sampleId={sample.scene_id} onPlay={onPlay} />
+        <AudioPlayer key={url("clean")} src={url("clean")} title="干净近端参考" sampleId={sample.scene_id} onPlay={onPlay} />
       </div>
       <p>冻结结果重放已通过逐文件 SHA-256 校验。试听仅裁剪固定延时和所选窗口，不调节增益、不重采样。</p>
       {(["omlsa", "super_gaussian"] as const).map((role) => <p key={role} className="nsf-hash">{sample.backends[role].variant} · SHA-256 {sample.backends[role].output_sha256}</p>)}
@@ -158,8 +158,8 @@ export default function NsFailureAudio() {
   const start = (shownPage - 1) * PAGE_SIZE;
   return <div className="nsf" ref={container}>
     <section className="nsf-overview">
-      <div className="nsf-overview-title"><Headphones size={22} aria-hidden="true" /><h2>共同失败样本试听</h2><span><CheckCircle2 size={14} aria-hidden="true" /> 已验证的真实算法输出</span></div>
-      <p>逐项比较带噪输入与两个算法的降噪结果。可切换到失败窗口，结合原始指标判断噪声残留和语音损伤。</p>
+      <div className="nsf-overview-title"><Headphones size={22} aria-hidden="true" /><h2>共同失败样本试听</h2><span><CheckCircle2 size={14} aria-hidden="true" /> 已验证的真实发送处理输出（TX）</span></div>
+      <p>逐项比较麦克风混合输入与两个算法的发送处理输出（TX）。可切换到失败窗口，结合原始指标判断噪声残留和语音损伤。</p>
       <div className="nsf-scope-filters" role="group" aria-label="测试类型筛选">
         <button type="button" aria-pressed={!scope} onClick={() => changeFilter(setScope, "")}>全部共同失败 <strong>{catalog.total}</strong></button>
         {["steady", "transient", "cold"].map((key) => <button type="button" key={key} aria-pressed={scope === key} onClick={() => changeFilter(setScope, key)}>{SCOPES[key]} <strong>{catalog.scope_counts[key] ?? 0}</strong></button>)}

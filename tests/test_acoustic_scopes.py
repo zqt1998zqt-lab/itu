@@ -930,6 +930,10 @@ def test_cli_command_direction_uses_original_case_conditions(
     assert set(receive_outputs) == {"rx"}
     assert len(receive_execution["commands"]) == 1
     assert "--rx-processing" in receive_execution["commands"][0]
+    assert receive_execution["echo_reference"] is None
+    assert receive_execution["rx_playback_artifact"]["processed_sha256"] == (
+        receive_execution["output_sha256"]["rx"]
+    )
 
     send_destination = tmp_path / "send"
     send_destination.mkdir()
@@ -939,8 +943,17 @@ def test_cli_command_direction_uses_original_case_conditions(
         send_destination,
         "vcp_default",
     )
-    assert set(send_outputs) == {"tx"}
-    assert len(send_execution["commands"]) == 1
-    assert "--mic" in send_execution["commands"][0]
-    assert "--rx-processing" not in send_execution["commands"][0]
-    assert len(commands) == 2
+    assert set(send_outputs) == {"rx", "tx"}
+    assert len(send_execution["commands"]) == 2
+    assert "--rx-processing" in send_execution["commands"][0]
+    assert "--no-rx-processing" not in send_execution["commands"][0]
+    assert "--mic" in send_execution["commands"][1]
+    assert send_execution["commands"][1][
+        send_execution["commands"][1].index("--echo") + 1
+    ] == str(send_outputs["rx"])
+    assert send_execution["echo_reference"]["source"] == "vcp_rx_processed"
+    assert (
+        send_execution["echo_reference"]["tx_echo_argument_sha256"]
+        == send_execution["output_sha256"]["rx"]
+    )
+    assert len(commands) == 3

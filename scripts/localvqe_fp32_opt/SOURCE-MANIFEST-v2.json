@@ -1,0 +1,121 @@
+{
+  "schema": "itu-localvqe-fp32-opt-source-v1",
+  "status": "frozen",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3778,
+      "sha256": "9dd16f0765a402b0dc3d87d91240006c3b292131eed3b4e5da7a2d194cb9c73d"
+    },
+    {
+      "path": "analyze_run.py",
+      "bytes": 4881,
+      "sha256": "e0d40786f9522ba1ac491de3f33276b11e7e0ad071220c704119a5fb5b487c19"
+    },
+    {
+      "path": "build.py",
+      "bytes": 10691,
+      "sha256": "edc39d2e9310e25f9653e5712fa690cd7af4ce2a81f5a747166fad687a5f5147"
+    },
+    {
+      "path": "daf/gru_batch.hpp",
+      "bytes": 3667,
+      "sha256": "5d470043ed5401adf5ed25af27b820467f6721544bfbdbd547609aeb8af24df8"
+    },
+    {
+      "path": "daf-root-v2/daf_frontend.cpp",
+      "bytes": 26475,
+      "sha256": "f7a1ccb19a90f847de0172ef7621a4e069cb7b5c70422c87f530ac00820d38e1"
+    },
+    {
+      "path": "inputs.json",
+      "bytes": 5451,
+      "sha256": "1b157a8594a3661a21793c15e945cc6e5250570b07293848b771fcead4c95585"
+    },
+    {
+      "path": "layout/localvqe_graph.cpp",
+      "bytes": 80862,
+      "sha256": "d65b7556e8cdf993c7d31e39be0721c8cee35d91cffbc7d6383bffcb7cd222df"
+    },
+    {
+      "path": "layout/prepare_layout.py",
+      "bytes": 9089,
+      "sha256": "ba596ffdfa4ed2b17e197adb9e032cb1866b6887b65225ddf04df54d5d5e7910"
+    },
+    {
+      "path": "layout/verify_layout.py",
+      "bytes": 22354,
+      "sha256": "737ea126c585b12e775be046bc50d26cf74b15e8e781d9590fc828e39f4a44ef"
+    },
+    {
+      "path": "run.py",
+      "bytes": 9055,
+      "sha256": "3d92b8f922bdd499e2944454202b42a2973eebf03451d746b5141e5fb2db8073"
+    },
+    {
+      "path": "run_v2.py",
+      "bytes": 9736,
+      "sha256": "875e31e708c9cd9409f3ec6127047a03ace94f20535b82f590f649388dd7e13e"
+    },
+    {
+      "path": "sgemm-root-v2/dispatch_audit.h",
+      "bytes": 9352,
+      "sha256": "c15c3e76a093f02e3cb1aaa6f81bb8db4e68f07c85e1ceb81717b89607903269"
+    },
+    {
+      "path": "sgemm-root-v2/ggml-cpu.c",
+      "bytes": 125030,
+      "sha256": "b9314795dd9bad5b2df6c06a5f7360c6f3fec32daacd0e3f4c51210dc317989b"
+    },
+    {
+      "path": "tests/sgemm_stub.c",
+      "bytes": 2870,
+      "sha256": "fae5677fc16adeac854f2c791b5c10c6951087d8650a803935ecd4840df179db"
+    },
+    {
+      "path": "tests/verify_gru.cpp",
+      "bytes": 11355,
+      "sha256": "d58ef949cb61e8b1c40f8c86a13e67378348ee0464c6c5020e5c63d28b21fa20"
+    },
+    {
+      "path": "validation-root/compare.py",
+      "bytes": 3220,
+      "sha256": "7e30cb322946b285314813afce839ca48838be640f826e833db4ab39e2a2a64e"
+    },
+    {
+      "path": "validation-root/layout-lifetime-graph.cpp",
+      "bytes": 80920,
+      "sha256": "fb0caf8345f25a68714d07ac11f51b564b9dbfd5a800feab41613ba80d30a684"
+    },
+    {
+      "path": "validation-root/original-lifetime-graph.cpp",
+      "bytes": 79651,
+      "sha256": "e2e20378662dabff0e600140e7820db824883bed151df73087614ab7f6bac03a"
+    },
+    {
+      "path": "validation-root/probe.cpp",
+      "bytes": 4214,
+      "sha256": "e732ae70565a130dabae9d5fcd03b73c2923052a01c0cd0006bda5a499c7b37c"
+    },
+    {
+      "path": "validation-root/probe_api.cpp",
+      "bytes": 33916,
+      "sha256": "2976b7d01a2dbc77892f74edc80b8c1e126b1dbd05359daf650ae5d0abfe3ff4"
+    },
+    {
+      "path": "validation-root/probe_exports.hpp",
+      "bytes": 3825,
+      "sha256": "4ac767506b2812e30299509553bd0940db6249e34cbab9d429aadb72bb436e73"
+    },
+    {
+      "path": "verify.py",
+      "bytes": 4978,
+      "sha256": "7711148ded9ba932d00e896a94b4138a0a1b1079f966e38eb78712717872c3e7"
+    }
+  ],
+  "original_model": "localvqe-v1.4-aec-200K-f32.gguf",
+  "original_model_sha256": "b6e43138588a83bfe903ab5e143b4020b91c1e1629f5a575ac5855ff0003c731",
+  "test_result": "build/localvqe-fp32-opt/verification-20261117T174259189151/RESULT.json",
+  "source_bundle_build": "build/localvqe-fp32-opt/build-20261117T173608499761/MANIFEST.json",
+  "prior_manifest_is_historical": true
+}

@@ -7,6 +7,10 @@
 #include "omlsa_imcra.hpp"
 #include "unified_ns.hpp"
 #include "hybrid_ns_control.hpp"
+#include "residual_ns_control.hpp"
+#include "residual_ns_control_v2.hpp"
+#include "causal_pitch_filter.hpp"
+#include "complex_spectral_control.hpp"
 #include "residual_noise_suppressor.hpp"
 #include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/ns/noise_suppressor.h"
@@ -66,6 +70,22 @@ class TransientSpectralGuard final : public detail::NsSpectralControl {
   float max_db_, wind_hold_ = 0, indicator_hold_ = 0;
   float last_applied_ = 1;
 };
+// The complex hook runs after OM-LSA synthesis gain and before IFFT. The
+// pitch filter changes only the complex wet spectrum; PSD, DD and the
+// statistical gain array remain the estimator's own values.
+class CausalPitchPostControl final : public detail::ComplexSpectralControl {
+ public:
+  explicit CausalPitchPostControl(detail::CausalPitchFilter* filter)
+      : filter_(filter) {}
+  void observe(detail::ComplexSpectralFrame frame) noexcept override {
+    if (filter_ && frame.rate == detail::CausalPitchFilter::sample_rate &&
+        frame.fft_size == detail::CausalPitchFilter::fft_size &&
+        frame.bins == detail::CausalPitchFilter::bins)
+      filter_->process(frame.spectrum, frame.gain);
+  }
+ private:
+  detail::CausalPitchFilter* filter_;
+};
 }
 struct VehicleNsProcessor::Impl {
   unsigned rate,hop,core_rate,core_hop,repair_mode,startup_ms,core_delay,delay;
@@ -77,6 +97,7 @@ struct VehicleNsProcessor::Impl {
   bool dynamic_rumble_corner=false;
   bool quantize_input;
   bool residual_enabled=false;
+  bool hybrid_v2_enabled=false;
   bool unified_raw_budget=false;
   float unified_high_snr_bypass_db=0,unified_high_snr_probability=.80f;
   bool unified_high_snr_bypass=false;
@@ -92,6 +113,10 @@ struct VehicleNsProcessor::Impl {
   std::unique_ptr<detail::OmlsaImcra> omlsa;
   std::unique_ptr<detail::UnifiedNs> unified;
   std::unique_ptr<detail::HybridNsControl> student;
+  std::unique_ptr<detail::ResidualNsControl> residual_model;
+  std::unique_ptr<detail::ResidualNsControlV2> hybrid_v2_model;
+  std::unique_ptr<detail::CausalPitchFilter> hybrid_v2_pitch;
+  std::unique_ptr<CausalPitchPostControl> hybrid_v2_pitch_control;
   std::unique_ptr<detail::SpeechBandProtection> speech_band;
   std::unique_ptr<TransientSpectralGuard> transient_spectral;
   std::unique_ptr<detail::NsSpectralChain> spectral_chain;
@@ -108,6 +133,9 @@ struct VehicleNsProcessor::Impl {
   float steady_speech_hold=0,steady_mix_target=0;
   float spectral_dry_guard=0,spectral_hold=0,spectral_guard_applied=1;
   float transient_dry_guard=0,transient_guard_applied=1;
+  float hybrid_v2_raw_mix=0;
+  std::uint64_t hybrid_v2_pitch_active_seen=0;
+  bool hybrid_v2_pitch_active=false;
   NsRepairAlignment aligned,startup_control,rumble_control;
   std::size_t frame=0;
   static const char* name(VehicleNsBackend b) {
@@ -122,6 +150,53 @@ struct VehicleNsProcessor::Impl {
     const bool dual_policy=(c.backend==VehicleNsBackend::webrtc ||
         c.backend==VehicleNsBackend::speex) &&
         (c.policy=="parallel" || c.policy=="parallel_start");
+    const auto& omlsa=c.omlsa_tuning;
+    if(!std::isfinite(omlsa.noise_update_scale) ||
+       !std::isfinite(omlsa.speech_recovery) ||
+       !std::isfinite(omlsa.release_ms) || !std::isfinite(omlsa.speech_floor_db))
+      throw std::invalid_argument("invalid OM-LSA tuning");
+    if(omlsa.noise_update_scale<.1f || omlsa.noise_update_scale>1 ||
+       omlsa.speech_recovery<0 || omlsa.speech_recovery>1 ||
+       omlsa.release_ms<0 || omlsa.release_ms>200 ||
+       omlsa.speech_floor_db< -40 || omlsa.speech_floor_db>0)
+      throw std::invalid_argument("invalid OM-LSA tuning range");
+    const bool omlsa_adaptive_enabled=omlsa.adaptive_noise_tracking ||
+        omlsa.high_snr_transparency || omlsa.low_band_protection;
+    if(omlsa_adaptive_enabled && c.backend!=VehicleNsBackend::omlsa_imcra)
+      throw std::invalid_argument("OM-LSA adaptive options require the native OM-LSA backend");
+    if((omlsa.noise_update_scale<1 || omlsa.speech_recovery>0 || omlsa.speech_floor_db> -40) &&
+       c.backend!=VehicleNsBackend::omlsa_imcra)
+      throw std::invalid_argument("OM-LSA tuning requires the native OM-LSA backend");
+    if(omlsa.noise_update_scale<1 && c.noise_step_recovery>0)
+      throw std::invalid_argument("OM-LSA noise tuning and broadband-step recovery are mutually exclusive");
+    if(!std::isfinite(c.residual_model_mix+c.residual_model_floor_db) ||
+       c.residual_model_mix<0.f || c.residual_model_mix>1.f ||
+       c.residual_model_floor_db< -40.f || c.residual_model_floor_db>0.f)
+      throw std::invalid_argument("invalid residual NS model mix or floor");
+    if(!c.residual_model_path.empty()) {
+      if(c.backend!=VehicleNsBackend::omlsa_imcra)
+        throw std::invalid_argument("residual NS model requires the native OM-LSA backend");
+      if(r!=16000)
+        throw std::invalid_argument("residual NS model requires native 16 kHz processing");
+      if(!c.student_model_path.empty())
+        throw std::invalid_argument("residual NS model and hybrid student are mutually exclusive");
+    }
+    if(!std::isfinite(c.hybrid_v2_mix+c.hybrid_v2_floor_db+
+                      c.hybrid_v2_pitch_strength) ||
+       c.hybrid_v2_mix<0.f || c.hybrid_v2_mix>1.f ||
+       c.hybrid_v2_floor_db< -40.f || c.hybrid_v2_floor_db>0.f ||
+       c.hybrid_v2_pitch_strength<0.f || c.hybrid_v2_pitch_strength>1.f)
+      throw std::invalid_argument("invalid hybrid V2 mix, floor or pitch strength");
+    if(!c.hybrid_v2_model_path.empty() &&
+       (!c.student_model_path.empty() || !c.residual_model_path.empty()))
+      throw std::invalid_argument(
+          "hybrid V2 model is mutually exclusive with legacy model paths");
+    if(!c.hybrid_v2_model_path.empty() || c.hybrid_v2_pitch_strength>0.f) {
+      if(c.backend!=VehicleNsBackend::omlsa_imcra)
+        throw std::invalid_argument("hybrid V2 requires the native OM-LSA backend");
+      if(r!=16000)
+        throw std::invalid_argument("hybrid V2 requires native 16 kHz processing");
+    }
     if(c.unified_raw_budget &&
        (dual_policy || c.policy=="dynamic" || c.policy=="steady_dynamic"))
       throw std::invalid_argument(
@@ -200,6 +275,8 @@ struct VehicleNsProcessor::Impl {
     dynamic_rumble_corner=rumble_adaptive_hz>c.rumble_hz;
     noise_step_recovery=c.noise_step_recovery;
     transient_dry_guard=c.transient_dry_guard;
+    hybrid_v2_enabled=!c.hybrid_v2_model_path.empty() ||
+        c.hybrid_v2_pitch_strength>0.f;
     residual_enabled=c.residual_max_db>0;
     residual_max_db=c.residual_max_db;
     residual_speech_guard=c.residual_speech_guard;
@@ -222,7 +299,22 @@ struct VehicleNsProcessor::Impl {
     if(backend=="omlsa_imcra" || backend=="super_gaussian") {
       constexpr float floors[]={-9.f,-12.f,-18.f,-24.f};
       omlsa=std::make_unique<detail::OmlsaImcra>(core_rate,floors[strength],true,
-          backend=="super_gaussian" ? detail::SpectralGainRule::super_gaussian_map:detail::SpectralGainRule::omlsa);
+          backend=="super_gaussian" ? detail::SpectralGainRule::super_gaussian_map:detail::SpectralGainRule::omlsa,
+          c.omlsa_tuning);
+      if(!c.residual_model_path.empty()) residual_model=
+          std::make_unique<detail::ResidualNsControl>(
+              core_rate,omlsa->fft_size(),c.residual_model_path,
+              c.residual_model_floor_db,c.residual_model_mix);
+      if(!c.hybrid_v2_model_path.empty()) hybrid_v2_model=
+          std::make_unique<detail::ResidualNsControlV2>(
+              core_rate,omlsa->fft_size(),c.hybrid_v2_model_path,
+              c.hybrid_v2_floor_db,c.hybrid_v2_mix);
+      if(c.hybrid_v2_pitch_strength>0.f) {
+        hybrid_v2_pitch=std::make_unique<detail::CausalPitchFilter>(
+            c.hybrid_v2_pitch_strength);
+        hybrid_v2_pitch_control=std::make_unique<CausalPitchPostControl>(
+            hybrid_v2_pitch.get());
+      }
       if(!c.student_model_path.empty()) student=std::make_unique<detail::HybridNsControl>(
           core_rate,omlsa->fft_size(),c.student_model_path,floors[strength],
           c.student_spp_mix,c.student_snr_mix,c.student_speech_floor_db);
@@ -233,9 +325,11 @@ struct VehicleNsProcessor::Impl {
       if(c.transient_spectral_guard_db>0)
         transient_spectral=std::make_unique<TransientSpectralGuard>(
             controller.get(),c.transient_spectral_guard_db);
-      if(spectral_chain || student || speech_band || transient_spectral)
+      if(hybrid_v2_model || residual_model || student || speech_band || transient_spectral)
         spectral_chain=std::make_unique<detail::NsSpectralChain>(
-            student.get(),speech_band.get(),transient_spectral.get());
+            std::initializer_list<detail::NsSpectralControl*>{
+                hybrid_v2_model.get(),residual_model.get(),student.get(),speech_band.get(),
+                transient_spectral.get()});
     }
     if(policy=="steady_dynamic") steady_speex=std::make_unique<itu::SpeexNs>(core_rate,c.steady_suppression_db);
     if(backend=="unified") {
@@ -278,6 +372,8 @@ struct VehicleNsProcessor::Impl {
     for(unsigned i=0;i<count;++i) if(!std::isfinite(samples[i])) return false;
     raw_mix_target=raw_mix_applied_min=raw_mix_applied_max=0;
     unified_high_snr_bypass=false;
+    hybrid_v2_raw_mix=0;
+    hybrid_v2_pitch_active=false;
     for(unsigned i=0;i<hop;++i) input[i]=quantize_input ? std::lround(std::clamp(samples[i]*32768.f,-32768.f,32767.f))/32768.f : samples[i];
       if(up) {
         if(up->Resample(input.data(),hop,core.data(),core_hop)) return false;
@@ -337,7 +433,15 @@ struct VehicleNsProcessor::Impl {
       detail::NsSpectralControl* spectral_control =
           spectral_chain ? static_cast<detail::NsSpectralControl*>(spectral_chain.get()) :
           student ? static_cast<detail::NsSpectralControl*>(student.get()) : nullptr;
-      if(omlsa) omlsa->process(core.data(),spectral_control,noise_step_recovery*(controller?controller->noise_step_probability():0.f));
+      if(hybrid_v2_pitch) hybrid_v2_pitch->observe_input(core.data());
+      if(omlsa) omlsa->process(core.data(),spectral_control,
+          noise_step_recovery*(controller?controller->noise_step_probability():0.f),
+          hybrid_v2_pitch_control.get());
+      if(hybrid_v2_pitch) {
+        const auto active=hybrid_v2_pitch->active_frames();
+        hybrid_v2_pitch_active=active>hybrid_v2_pitch_active_seen;
+        hybrid_v2_pitch_active_seen=active;
+      }
       if(unified) {
         unified->process(core.data());
         unified_high_snr_bypass =
@@ -437,6 +541,7 @@ struct VehicleNsProcessor::Impl {
           raw_mix_applied_max=std::max(raw_mix_applied_max,total_raw);
         }
         previous_dry=next_dry;previous_gain=next_gain;
+        if(hybrid_v2_enabled) hybrid_v2_raw_mix=raw_mix_applied_max;
       }
       if(adaptive_rumble) {
         const float fraction=controller->rumble_fraction();
@@ -487,6 +592,9 @@ struct VehicleNsProcessor::Impl {
 VehicleNsProcessor::VehicleNsProcessor(unsigned r,const VehicleNsConfig& c,bool quantize):impl_(std::make_unique<Impl>(r,c,quantize)){}
 VehicleNsProcessor::~VehicleNsProcessor()=default;
 bool VehicleNsProcessor::process(float* samples,unsigned count) noexcept {return impl_->process(samples,count);}
+void VehicleNsProcessor::set_capture_evidence(float excess_fraction) noexcept {
+  if(impl_->omlsa) impl_->omlsa->set_capture_evidence(excess_fraction);
+}
 unsigned VehicleNsProcessor::delay_samples() const noexcept {return impl_->delay;}
 unsigned VehicleNsProcessor::core_rate() const noexcept {return impl_->core_rate;}
 unsigned VehicleNsProcessor::core_delay_samples() const noexcept {return impl_->core_delay;}
@@ -532,6 +640,32 @@ VehicleNsStatistics VehicleNsProcessor::statistics() const noexcept {
   if(s.student) {
     x.student_state=unsigned(s.student->corrector.state());x.student_applied=s.student->applied;
     x.student_inferences=s.student->inferences;x.student_fallback_frames=s.student->fallback_frames;
+  }
+  if(s.residual_model) {
+    x.residual_model_state=s.residual_model->model_ready() ? 1u : 0u;
+    x.residual_model_inferences=s.residual_model->inferences();
+    x.residual_model_fallback_frames=s.residual_model->fallback_frames();
+    x.residual_model_applied_frames=s.residual_model->applied_frames();
+    x.residual_model_parameters=detail::TinyNsResidual::parameter_count;
+  }
+  if(s.hybrid_v2_enabled) {
+    x.hybrid_v2_state=s.hybrid_v2_model ? 1u : 2u;
+    x.hybrid_v2_raw_mix=s.hybrid_v2_raw_mix;
+    if(s.hybrid_v2_model) {
+      x.hybrid_v2_inferences=s.hybrid_v2_model->inferences();
+      x.hybrid_v2_fallback_frames=s.hybrid_v2_model->fallback_frames();
+      x.hybrid_v2_applied_frames=s.hybrid_v2_model->applied_frames();
+      x.hybrid_v2_parameters=s.hybrid_v2_model->parameter_count();
+      x.hybrid_v2_input_dim=s.hybrid_v2_model->input_dim();
+      x.hybrid_v2_applied=s.hybrid_v2_model->applied();
+    }
+    if(s.hybrid_v2_pitch) {
+      x.hybrid_v2_pitch_active=s.hybrid_v2_pitch_active;
+      x.hybrid_v2_pitch_active_frames=s.hybrid_v2_pitch->active_frames();
+      x.hybrid_v2_pitch_fallback_frames=s.hybrid_v2_pitch->fallback_frames();
+      x.hybrid_v2_pitch_lag_samples=s.hybrid_v2_pitch->lag_samples();
+      x.hybrid_v2_pitch_periodicity=s.hybrid_v2_pitch->periodicity();
+    }
   }
   if(s.unified) {
     x.unified_weights=s.unified->weights();

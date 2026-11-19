@@ -24,8 +24,18 @@ import {
   type FiveSignalMode,
   type FiveSignalFlowSnapshot,
 } from "./five-signal-flow-model";
+import { businessModeLabel as modeLabel } from "../domain/business-modes.ts";
 import { MODE_METAS } from "../domain/nv200-table";
-import { chainPresets, chainStages, optionFor } from "./enhancement-chain-model";
+import {
+  algorithmClusterById,
+  algorithmClusterGroupsForMode,
+  algorithmClustersForMode,
+  defaultAlgorithmClusterForMode,
+  isAlgorithmClusterSupportedForMode,
+  sampleRateForBusinessMode,
+} from "./rate-algorithm-clusters";
+import { AecRouteAvailability } from "./AecRouteAvailability";
+import { isCapabilityAecRoute } from "./aec-route-capability";
 import { FIVE_SIGNAL_FLOW_LAYOUT as FLOW } from "./five-signal-flow-layout";
 import type { ReactNode } from "react";
 import type { AcceptanceBatchSnapshot } from "./AlignmentAcceptanceBatch";
@@ -738,8 +748,17 @@ export default function FiveSignalFlow({algorithmClusterId, onAlgorithmClusterCh
     };
   }, [syncNow, refreshToken]);
 
-  const algorithmCluster = chainPresets.find(preset => preset.id === algorithmClusterId)
-    ?? chainPresets.find(preset => preset.id === "vcp_default")!;
+  const selectedRateHz = sampleRateForBusinessMode(selectedMode);
+  const availableClusterGroups = algorithmClusterGroupsForMode(selectedMode, { vcpOnly: false });
+  const availableClusterCount = algorithmClustersForMode(selectedMode, { vcpOnly: false }).length;
+  const clusterSupportedForMode = isAlgorithmClusterSupportedForMode(
+    algorithmClusterId,
+    selectedMode,
+    { vcpOnly: false },
+  );
+  const algorithmCluster =
+    algorithmClusterById(algorithmClusterId)
+    ?? algorithmClusterById(defaultAlgorithmClusterForMode(selectedMode))!;
   const selectedReport = snapshot.latestByMode[selectedMode];
   // Batch IDs identify condition-bound assessments, not legacy five-signal reports.
   const selectedId = batch || suppressLegacySync ? "" : selectedReport?.evaluation_id ?? "";
@@ -898,7 +917,16 @@ export default function FiveSignalFlow({algorithmClusterId, onAlgorithmClusterCh
   const selectedDetail = !batch && detail?.mode === selectedMode ? detail : null;
   const detailStale = Boolean(selectedDetail && selectedDetail.evaluation_id !== selectedId);
   const execution = selectedDetail?.execution;
-  const executionMatches = Boolean(execution?.source === "alignment_cli" && execution.algorithm_cluster_id === algorithmClusterId && !detailStale);
+  const requestedExecutionCluster = execution?.requested_algorithm_cluster_id
+    ?? execution?.algorithm_cluster_id;
+  const executionMatches = Boolean(
+    (execution?.source === "alignment_cli" || execution?.source === "native_rate_path")
+    && requestedExecutionCluster === algorithmClusterId
+    && !detailStale,
+  );
+  const executionOutputSha = typeof execution?.output_sha256 === "string"
+    ? execution.output_sha256
+    : execution?.output_sha256.tx ?? execution?.output_sha256.rx ?? "未声明";
   const vcpState = batch ? (batch.status === "failed" ? "invalid" : batch.status === "completed" ? "complete" : batch.progress.completed_cases > 0 || isRunning ? "partial" : "pending") : isRunning ? "partial" : executionMatches ? "complete" : "pending";
   const availability = analysisAvailability(selectedDetail, snapshot.invalidModeCount > 0 || detailInvalid);
   const analysisState = batch ? (batch.summary.invalid > 0 ? "invalid" : batch.summary.computed > 0 ? "complete" : "pending") : availability.state;
@@ -1058,7 +1086,7 @@ export default function FiveSignalFlow({algorithmClusterId, onAlgorithmClusterCh
 
       <div className="five-signal-flow-report-context">
         <label>执行 / 查看业务模式 <select value={selectedMode} disabled={isRunning} onChange={event => onModeChange(event.target.value as FiveSignalMode)}>
-          {FIVE_SIGNAL_MODES.map(mode => <option key={mode} value={mode}>{MODE_LABELS[mode]} · {mode}{snapshot.latestByMode[mode] ? " · 有报告" : " · 暂无报告"}</option>)}
+          {FIVE_SIGNAL_MODES.map(mode => <option key={mode} value={mode}>{modeLabel(mode)}{snapshot.latestByMode[mode] ? " · 有报告" : " · 暂无报告"}</option>)}
         </select></label>
         <span role="status">{suppressLegacySync ? "正在恢复最近批次，尚未启动新的 VCP 处理" : isRunning ? `正在执行 ${algorithmCluster.label} · ${selectedMode}…` : `选定算法簇：${algorithmCluster.label}`}</span>
         <span role="status">{batch ? `当前批次 ${batch.batch_id} · 逐项条件及产物见下方批次表` : detailLoading ? "正在获取报告详情…" : selectedDetail ? `报告 ${selectedDetail.evaluation_id} · ${selectedDetail.created_at}` : "暂无可用报告详情"}</span>
@@ -1068,7 +1096,7 @@ export default function FiveSignalFlow({algorithmClusterId, onAlgorithmClusterCh
             {FIVE_SIGNAL_ROLES.map(role => { const input = selectedDetail.inputs[role]; return <tr key={role}><th>{FIVE_SIGNAL_ROLE_LABELS[role]}（{role}）</th><td>{input.name}</td><td>{input.sample_rate} Hz</td><td>{input.duration_s.toFixed(2)} s</td><td><code>{input.sha256}</code></td></tr>; })}
           </tbody></table></div>
           <p>VCP 处理后的近端输出（near_end）来自本次 CLI 处理；麦克风混合输入（microphone）基线取混合输入第 0 通道，干净近端参考（reference）取波束目标；实际引擎使用标定多麦输入。固定场景含近端、远端与双讲区段，但业务模式只选择合同条目，不模拟传输链路。</p>
-          {execution && <p>执行身份：{execution.algorithm_cluster_label} · 数据集 {execution.dataset_id} · 输出 SHA-256 <code>{execution.output_sha256}</code></p>}
+          {execution && <p>执行身份：{execution.algorithm_cluster_label ?? execution.algorithm_cluster_id} · 数据集 {execution.dataset_id ?? "未声明"} · 输出 SHA-256 <code>{executionOutputSha}</code></p>}
           <div className="five-signal-flow-metadata-table"><table><thead><tr><th>指标字段</th><th>值（报告原单位）</th></tr></thead><tbody>
             {METRIC_VALUE_KEYS.flat().map(key => <tr key={key}><th>{key}</th><td>{numeric(key)}</td></tr>)}
           </tbody></table></div>
@@ -1361,31 +1389,44 @@ export default function FiveSignalFlow({algorithmClusterId, onAlgorithmClusterCh
             >
               <div className="five-signal-flow-algorithm-cluster">
                 <div className="five-signal-flow-algorithm-cluster-head">
-                  <label htmlFor={`${uid}-algorithm-cluster`}>选择算法簇
+                  <label htmlFor={`${uid}-algorithm-cluster`}>选择算法簇（{selectedRateHz / 1000} kHz 可选 {availableClusterCount} 项）
                     <select
                       id={`${uid}-algorithm-cluster`}
                       value={algorithmCluster.id}
                       disabled={isRunning}
                       onChange={event => onAlgorithmClusterChange(event.target.value)}
                     >
-                      {chainPresets.map(preset => (
-                        <option key={preset.id} value={preset.id}>{preset.label}</option>
+                      {!clusterSupportedForMode ? (
+                        <option value={algorithmCluster.id}>
+                          {algorithmCluster.label}（当前 {selectedRateHz / 1000} kHz 不可执行）
+                        </option>
+                      ) : null}
+                      {availableClusterGroups.map(group => (
+                        <optgroup key={group.id} label={group.label}>
+                          {group.clusters.map(cluster => (
+                            <option key={cluster.id} value={cluster.id}>{cluster.label}</option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                   </label>
                   <p>{algorithmCluster.description}</p>
                 </div>
                 <dl className="five-signal-flow-algorithm-cluster-stages" aria-live="polite">
-                  {chainStages.map(stage => (
-                    <div key={stage.id}>
-                      <dt>{stage.label}</dt>
-                      <dd>{optionFor(stage, algorithmCluster).label}</dd>
+                  {algorithmCluster.stages.map(stage => (
+                    <div key={stage.stageId}>
+                      <dt>{stage.stageLabel}</dt>
+                      <dd>{stage.optionLabel}</dd>
                     </div>
                   ))}
                 </dl>
-                <p className="five-signal-flow-algorithm-cluster-note">
-                  与下方执行控制台共享选型；点击“一键执行测试”后运行该上行预设并归档实际输出。下行保持架构示意。
-                </p>
+                {algorithmCluster.aecRouteId && isCapabilityAecRoute(algorithmCluster.aecRouteId) ? (
+                  <AecRouteAvailability routeId={algorithmCluster.aecRouteId} compact />
+                ) : (
+                  <p className="five-signal-flow-algorithm-cluster-note">
+                    与下方执行控制台共享选型；点击“一键执行测试”后运行该上行预设并归档实际输出。下行保持架构示意。
+                  </p>
+                )}
               </div>
             </foreignObject>
           </FlowGroup>

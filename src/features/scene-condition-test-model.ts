@@ -2,10 +2,23 @@ import type { FiveSignalMode } from "./five-signal-flow-model.ts";
 import {
   SCOPED_INPUT_SIGNAL_ROLES,
   SCOPED_STATUS_LABELS,
+  type BackgroundNoiseScene,
   type ScopedInputPreviewCase,
   type ScopedPreviewVisualTrack,
   type ScopedSnapshot,
+  readSingleCaseSelection,
 } from "./scoped-acoustic-model.ts";
+import {
+  CONVERSATION_MODES,
+  conversationModeOf,
+  sceneConditionCounts,
+  sceneConditionProfileForDatasetId,
+  type ConversationMode,
+  type SceneConditionItemId,
+  type SceneConditionProfile,
+} from "./scene-condition-profiles.ts";
+
+export type { SceneConditionItemId } from "./scene-condition-profiles.ts";
 
 export const SCENE_CONDITION_BATCHES_URL =
   "/api/alignment/acceptance/scene-condition-batches";
@@ -16,16 +29,6 @@ export const SCENE_CONDITION_SCHEMA_VERSION =
 export const SCENE_CONDITION_BATCH_COUNT = 20 as const;
 export const SCENE_CONDITION_OBSERVATION_COUNT = 50 as const;
 export const SCENE_CONDITION_CONTRACT_ITEM_COUNT = 5 as const;
-export const SCENE_CONDITION_ITEM_IDS = [
-  "WB-wired:B24",
-  "WB-wired:B25",
-  "WB-wired:B26",
-  "WB-wired:B27",
-  "WB-wired:B28",
-] as const;
-
-export type SceneConditionItemId =
-  (typeof SCENE_CONDITION_ITEM_IDS)[number];
 export type SceneConditionBatchStatus =
   | "queued"
   | "running"
@@ -44,6 +47,18 @@ export type SceneConditionInputHashes = Record<
 >;
 export type SceneConditionOutputHashes = {
   tx: string;
+  rx?: string;
+};
+
+export type SceneConditionDynamicMicrophone = {
+  source: "post_rx_runtime_mix";
+  path: string;
+  sha256: string;
+  sample_rate: number;
+  channels: number;
+  frames: number;
+  capture_gain: number;
+  playback_sha256: string;
 };
 
 export type SceneConditionEvidenceBinding = {
@@ -76,10 +91,17 @@ export type SceneConditionCase = {
   status: SceneConditionCaseStatus;
   report_id: string | null;
   conditions: SceneConditionConditions;
+  provenance?: Record<string, unknown>;
+  conversation_diagnostics?: Record<string, unknown>;
   signals_sha256: SceneConditionInputHashes;
   input_sha256: SceneConditionInputHashes;
   output_sha256?: SceneConditionOutputHashes;
+  dynamic_microphone?: SceneConditionDynamicMicrophone;
+  dynamic_microphone_visual?: ScopedPreviewVisualTrack;
+  effective_input_sha256?: SceneConditionInputHashes;
+  execution?: Record<string, unknown>;
   tx_visual?: ScopedPreviewVisualTrack;
+  rx_visual?: ScopedPreviewVisualTrack;
   error?: string;
 };
 
@@ -100,11 +122,16 @@ export type SceneConditionBatch = Omit<
   cli_sha256: string;
   updated_at: string;
   status: SceneConditionBatchStatus;
-  selected_mode: "WB-wired";
-  selected_scene: "sce1";
+  selected_mode: FiveSignalMode;
+  selected_scene: BackgroundNoiseScene;
   formal_test_status: "not_measured";
   contract_item_count: typeof SCENE_CONDITION_CONTRACT_ITEM_COUNT;
-  observation_count: typeof SCENE_CONDITION_OBSERVATION_COUNT;
+  case_count: number;
+  preview_condition_group_count: number;
+  observation_count: number;
+  speech_case_count: number;
+  cng_case_count: number;
+  conversation_counts: Record<string, number>;
   items: SceneConditionObservation[];
   cases: SceneConditionCase[];
 };
@@ -115,6 +142,8 @@ export type SceneConditionCaseTxEvidence = {
   visual: ScopedPreviewVisualTrack | undefined;
   reason: string;
 };
+
+export type SceneConditionCaseRxEvidence = SceneConditionCaseTxEvidence;
 
 const ID = /^[a-f0-9]{32}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
@@ -139,22 +168,74 @@ const TERMINAL_ITEM_STATUSES = new Set<string>([
   "not_measured",
   "invalid",
 ]);
-const ITEM_IDS = new Set<string>(SCENE_CONDITION_ITEM_IDS);
-const SPEECH_ITEM_IDS = new Set<string>([
-  "WB-wired:B24",
-  "WB-wired:B25",
-  "WB-wired:B26",
+const FAMILY_BY_POSITION = [
+  "g_mos",
+  "n_mos",
+  "s_mos",
+  "cng_level",
+  "cng_spectrum",
+] as const;
+const SPEECH_FAMILIES = new Set<string>([
+  "g_mos",
+  "n_mos",
+  "s_mos",
 ]);
-const CNG_ITEM_IDS = new Set<string>([
-  "WB-wired:B27",
-  "WB-wired:B28",
+const CNG_FAMILIES = new Set<string>([
+  "cng_level",
+  "cng_spectrum",
 ]);
-const FAMILY_BY_ITEM: Record<SceneConditionItemId, string> = {
-  "WB-wired:B24": "g_mos",
-  "WB-wired:B25": "n_mos",
-  "WB-wired:B26": "s_mos",
-  "WB-wired:B27": "cng_level",
-  "WB-wired:B28": "cng_spectrum",
+const CONVERSATION_DIAGNOSTICS_SCHEMA =
+  "scene-condition-conversation-diagnostics-v1";
+const CONVERSATION_DIAGNOSTIC_STATUSES = new Set<string>([
+  "review_required",
+  "not_measurable",
+  "not_applicable",
+]);
+const CONVERSATION_SEGMENT_MODES = new Set<string>([
+  "near",
+  "far",
+  "double_talk",
+  "noise",
+  "not_applicable",
+]);
+const CONVERSATION_METRIC_KEYS = [
+  "near_gain_db",
+  "near_correlation",
+  "echo_reduction_db",
+  "tx_level_dbfs",
+] as const;
+const CONVERSATION_SEGMENT_MODE_BY_LABEL: Record<string, string> = {
+  speech: "near",
+  far_speech: "far",
+  double_talk: "double_talk",
+  quiet: "not_applicable",
+  far_only: "far",
+  near_only: "near",
+  noise_only: "noise",
+  cng_active: "not_applicable",
+  cng_settling: "not_applicable",
+  cng_noise_observation: "noise",
+};
+const CONVERSATION_SEGMENT_LABELS_BY_MODE: Record<
+  ConversationMode,
+  readonly string[]
+> = {
+  near_single: ["speech"],
+  far_single: ["far_speech"],
+  double_talk: ["double_talk"],
+  transition: [
+    "quiet",
+    "far_only",
+    "near_only",
+    "far_only",
+    "double_talk",
+    "noise_only",
+  ],
+  noise_only: [
+    "cng_active",
+    "cng_settling",
+    "cng_noise_observation",
+  ],
 };
 const WAVEFORM_BINS = 720;
 const MEL_BANDS = 40;
@@ -200,6 +281,171 @@ function isFiniteJson(value: unknown, depth = 0): boolean {
   return false;
 }
 
+function readConversationDiagnostics(
+  value: unknown,
+  expected: {
+    caseId: string;
+    txSha256?: string;
+    provenance: Record<string, unknown>;
+    require: boolean;
+    sampleRateHz?: number;
+  },
+): Record<string, unknown> | undefined {
+  if (value === undefined || value === null) {
+    assert(
+      !expected.require,
+      "v2 完成 case 缺少 conversation_diagnostics",
+    );
+    return undefined;
+  }
+  assert(isRecord(value), "conversation_diagnostics 必须为对象");
+  const mode = conversationModeOf({ provenance: expected.provenance });
+  assert(mode !== null, "conversation_diagnostics 缺少有效 provenance 模式");
+  const renderMetadata = expected.provenance.render_metadata;
+  assert(
+    isRecord(renderMetadata)
+      && typeof renderMetadata.duration_s === "number"
+      && Number.isFinite(renderMetadata.duration_s)
+      && Math.abs(renderMetadata.duration_s - 12) <= 1e-6
+      && renderMetadata.sample_rate_hz === (expected.sampleRateHz ?? 16_000)
+      && Array.isArray(renderMetadata.segments),
+    "conversation_diagnostics 缺少有效 provenance 活动段",
+  );
+  const expectedLabels = CONVERSATION_SEGMENT_LABELS_BY_MODE[mode];
+  const renderSegments: Array<{
+    label: string;
+    start_s: number;
+    end_s: number;
+  }> = [];
+  let cursor = 0;
+  assert(
+    renderMetadata.segments.length === expectedLabels.length,
+    "conversation_diagnostics provenance 活动段数量无效",
+  );
+  for (const [index, segment] of renderMetadata.segments.entries()) {
+    assert(
+      isRecord(segment)
+        && segment.label === expectedLabels[index]
+        && typeof segment.start_s === "number"
+        && Number.isFinite(segment.start_s)
+        && typeof segment.end_s === "number"
+        && Number.isFinite(segment.end_s)
+        && Math.abs(segment.start_s - cursor) <= 1e-9
+        && segment.end_s > segment.start_s
+        && segment.end_s <= 12 + 1e-9,
+      "conversation_diagnostics provenance 活动段标签或时间无效",
+    );
+    renderSegments.push({
+      label: segment.label as string,
+      start_s: segment.start_s,
+      end_s: segment.end_s,
+    });
+    cursor = segment.end_s;
+  }
+  assert(
+    Math.abs(cursor - 12) <= 1e-9,
+    "conversation_diagnostics provenance 活动段未覆盖 12 秒",
+  );
+  assert(
+    value.schema_version === CONVERSATION_DIAGNOSTICS_SCHEMA,
+    "conversation_diagnostics schema_version 无效",
+  );
+  assert(
+    value.case_id === expected.caseId,
+    "conversation_diagnostics case_id 与 case 不一致",
+  );
+  assert(
+    value.conversation_mode === mode,
+    "conversation_diagnostics conversation_mode 与 provenance 不一致",
+  );
+  assert(
+    value.evidence_grade === "engineering_proxy"
+      && value.formal_compliance === false
+      && value.standard_compliance === false
+      && value.formal_test_status === "not_measured",
+    "conversation_diagnostics 工程代理或正式边界无效",
+  );
+  assert(
+    CONVERSATION_DIAGNOSTIC_STATUSES.has(String(value.status)),
+    "conversation_diagnostics 顶层状态无效",
+  );
+  assert(
+    typeof value.reason === "string" && value.reason.trim().length > 0,
+    "conversation_diagnostics reason 无效",
+  );
+  assert(
+    typeof value.review_required === "boolean"
+      && value.review_required === (value.status === "review_required"),
+    "conversation_diagnostics review_required 与状态不一致",
+  );
+  assert(
+    typeof value.tx_sha256 === "string"
+      && SHA256.test(value.tx_sha256)
+      && (expected.txSha256 === undefined
+        || value.tx_sha256 === expected.txSha256),
+    "conversation_diagnostics tx_sha256 与输出不一致",
+  );
+  assert(
+    typeof value.sample_rate_hz === "number"
+      && Number.isInteger(value.sample_rate_hz)
+      && value.sample_rate_hz === (expected.sampleRateHz ?? 16_000)
+      && typeof value.source_duration_s === "number"
+      && Number.isFinite(value.source_duration_s)
+      && Math.abs(value.source_duration_s - 12) <= 1e-6
+      && typeof value.tx_duration_s === "number"
+      && Number.isFinite(value.tx_duration_s)
+      && value.tx_duration_s >= 0,
+    "conversation_diagnostics 时长或采样率无效",
+  );
+  assert(
+    Array.isArray(value.segments)
+      && value.segments.length === renderSegments.length,
+    "conversation_diagnostics segments 数量与 provenance 不一致",
+  );
+  const segmentStatuses: string[] = [];
+  for (const [index, segment] of value.segments.entries()) {
+    assert(
+      isRecord(segment)
+        && segment.label === renderSegments[index].label
+        && segment.start_s === renderSegments[index].start_s
+        && segment.end_s === renderSegments[index].end_s
+        && typeof segment.mode === "string"
+        && CONVERSATION_SEGMENT_MODES.has(segment.mode)
+        && segment.mode === CONVERSATION_SEGMENT_MODE_BY_LABEL[String(segment.label)]
+        && CONVERSATION_DIAGNOSTIC_STATUSES.has(String(segment.status))
+        && typeof segment.reason === "string"
+        && segment.reason.trim().length > 0
+        && isRecord(segment.metrics),
+      "conversation_diagnostics 活动段字段、模式或时间无效",
+    );
+    const metricKeys = Object.keys(segment.metrics).sort();
+    const expectedMetricKeys = [...CONVERSATION_METRIC_KEYS].sort();
+    assert(
+      metricKeys.length === expectedMetricKeys.length
+        && metricKeys.every(
+          (key, keyIndex) => key === expectedMetricKeys[keyIndex],
+        )
+        && Object.values(segment.metrics).every(
+          (metric) =>
+            metric === null
+            || typeof metric === "number" && Number.isFinite(metric),
+        ),
+      "conversation_diagnostics metrics 不是有限数或 null",
+    );
+    segmentStatuses.push(String(segment.status));
+  }
+  const aggregateStatus = segmentStatuses.includes("review_required")
+    ? "review_required"
+    : segmentStatuses.includes("not_measurable")
+      ? "not_measurable"
+      : "not_applicable";
+  assert(
+    value.status === aggregateStatus,
+    "conversation_diagnostics 顶层状态与活动段不一致",
+  );
+  return value;
+}
+
 function readId(value: unknown, message: string): string {
   assert(typeof value === "string" && ID.test(value), message);
   return value;
@@ -218,7 +464,11 @@ function readTimestamp(value: unknown, message: string): string {
   return value;
 }
 
-function readConditions(value: unknown): SceneConditionConditions {
+function readConditions(
+  value: unknown,
+  scene: BackgroundNoiseScene,
+  mode: FiveSignalMode = "WB-wired",
+): SceneConditionConditions {
   assert(isRecord(value), "20 组批次条件组格式无效");
   const keys = Object.keys(value).sort();
   assert(
@@ -232,18 +482,18 @@ function readConditions(value: unknown): SceneConditionConditions {
     "20 组批次条件组字段不完整",
   );
   assert(
-    value.mode === "WB-wired"
+    value.mode === mode
       && value.direction === "send"
-      && value.scene === "sce1"
+      && value.scene === scene
       && value.volume === "nominal"
       && value.window_ms === null
       && value.input_level_db === 0,
-    "20 组批次条件组超出 WB-wired / sce1 合同",
+    `20 组批次条件组超出 ${mode} / ${scene} 合同`,
   );
   return {
-    mode: "WB-wired",
+    mode,
     direction: "send",
-    scene: "sce1",
+    scene,
     volume: "nominal",
     window_ms: null,
     input_level_db: 0,
@@ -270,13 +520,25 @@ function readOutputHashes(
   value: unknown,
   message: string,
 ): SceneConditionOutputHashes {
+  const keys = isRecord(value) ? Object.keys(value).sort() : [];
   assert(
     isRecord(value)
-      && Object.keys(value).length === 1
+      && (keys.length === 1 || keys.length === 2)
       && Object.hasOwn(value, "tx"),
     message,
   );
-  return { tx: readSha(value.tx, message) };
+  if (keys.length === 2) {
+    assert(
+      keys[0] === "rx" && keys[1] === "tx",
+      message,
+    );
+  }
+  return {
+    tx: readSha(value.tx, message),
+    ...(Object.hasOwn(value, "rx")
+      ? { rx: readSha(value.rx, message) }
+      : {}),
+  };
 }
 
 function readOptionalOutputHashes(
@@ -288,6 +550,40 @@ function readOptionalOutputHashes(
     return undefined;
   }
   return readOutputHashes(value, message);
+}
+
+function readDynamicMicrophone(
+  value: unknown,
+): SceneConditionDynamicMicrophone {
+  assert(isRecord(value), "20 组动态麦克风格式无效");
+  assert(
+    value.source === "post_rx_runtime_mix"
+      && typeof value.path === "string"
+      && value.path.length > 0
+      && isCount(value.sample_rate)
+      && isCount(value.channels)
+      && value.channels > 0
+      && isCount(value.frames)
+      && value.frames > 0
+      && typeof value.capture_gain === "number"
+      && Number.isFinite(value.capture_gain)
+      && value.capture_gain > 0
+      && value.capture_gain <= 1,
+    "20 组动态麦克风来源或参数无效",
+  );
+  return {
+    source: "post_rx_runtime_mix",
+    path: value.path,
+    sha256: readSha(value.sha256, "20 组动态麦克风哈希无效"),
+    sample_rate: value.sample_rate,
+    channels: value.channels,
+    frames: value.frames,
+    capture_gain: value.capture_gain,
+    playback_sha256: readSha(
+      value.playback_sha256,
+      "20 组动态麦克风 post-RX playback 哈希无效",
+    ),
+  };
 }
 
 function readVisualTrack(
@@ -387,10 +683,13 @@ function sameOutputHashes(
   left: SceneConditionOutputHashes | undefined,
   right: SceneConditionOutputHashes | undefined,
 ): boolean {
-  return left?.tx === right?.tx;
+  return left?.tx === right?.tx && left?.rx === right?.rx;
 }
 
-function readCase(value: unknown): SceneConditionCase {
+function readCase(
+  value: unknown,
+  profile: SceneConditionProfile,
+): SceneConditionCase {
   assert(isRecord(value), "20 组条件组记录格式无效");
   assert(
     typeof value.case_id === "string"
@@ -406,7 +705,7 @@ function readCase(value: unknown): SceneConditionCase {
     value.report_id === null
       ? null
       : readId(value.report_id, "20 组条件组报告 ID 无效");
-  const conditions = readConditions(value.conditions);
+  const conditions = readConditions(value.conditions, profile.scene, profile.mode ?? "WB-wired");
   const inputSha256 = readInputHashes(
     value.input_sha256,
     "20 组条件组四路输入哈希无效",
@@ -427,6 +726,53 @@ function readCase(value: unknown): SceneConditionCase {
     value.tx_visual === undefined || value.tx_visual === null
       ? undefined
       : readVisualTrack(value.tx_visual);
+  const rxVisual =
+    value.rx_visual === undefined || value.rx_visual === null
+      ? undefined
+      : readVisualTrack(value.rx_visual);
+  const dynamicMicrophone =
+    value.dynamic_microphone === undefined
+      || value.dynamic_microphone === null
+      ? undefined
+      : readDynamicMicrophone(value.dynamic_microphone);
+  const dynamicMicrophoneVisual =
+    value.dynamic_microphone_visual === undefined
+      || value.dynamic_microphone_visual === null
+      ? undefined
+      : readVisualTrack(value.dynamic_microphone_visual);
+  const effectiveInputSha256 =
+    value.effective_input_sha256 === undefined
+      || value.effective_input_sha256 === null
+      ? undefined
+      : readInputHashes(
+          value.effective_input_sha256,
+          "20 组运行时四路输入哈希无效",
+        );
+  const provenance =
+    value.provenance === undefined
+      ? undefined
+      : (() => {
+          assert(
+            isRecord(value.provenance)
+              && isFiniteJson(value.provenance),
+            "场景条件组 provenance 无效",
+          );
+          return value.provenance;
+        })();
+  if (profile.conversationCounts !== undefined) {
+    assert(
+      provenance !== undefined
+        && conversationModeOf({ provenance }) !== null
+        && provenance.engineering_preview === true
+        && provenance.actual_vehicle_recording === false,
+      "100 组条件组 provenance.conversation_mode 无效",
+    );
+  } else if (
+    provenance?.conversation_mode !== undefined
+    && conversationModeOf({ provenance }) === null
+  ) {
+    throw Error("20 组条件组 provenance.conversation_mode 无效");
+  }
   assert(
     value.error === undefined || typeof value.error === "string",
     "20 组条件组错误字段无效",
@@ -444,6 +790,12 @@ function readCase(value: unknown): SceneConditionCase {
       txVisual !== undefined,
       "已完成条件组缺少 TX 波形与梅尔频谱",
     );
+    if (outputSha256.rx !== undefined) {
+      assert(
+        rxVisual !== undefined,
+        "已完成条件组缺少 RX 处理后波形与梅尔频谱",
+      );
+    }
   }
   if (txVisual !== undefined && outputSha256 !== undefined) {
     assert(
@@ -451,15 +803,94 @@ function readCase(value: unknown): SceneConditionCase {
       "20 组 TX 可视化来源哈希与输出哈希不一致",
     );
   }
+  if (rxVisual !== undefined && outputSha256 !== undefined) {
+    assert(
+      outputSha256.rx !== undefined
+        && rxVisual.source_sha256 === outputSha256.rx,
+      "20 组 RX 处理后可视化来源哈希与输出哈希不一致",
+    );
+  }
+  if (outputSha256?.rx !== undefined) {
+    const execution = value.execution;
+    const echoReference = isRecord(execution)
+      ? execution.echo_reference
+      : undefined;
+    assert(
+      isRecord(echoReference)
+        && echoReference.source === "vcp_rx_processed"
+        && echoReference.processed_output === "rx"
+        && echoReference.processed_sha256 === outputSha256.rx
+        && echoReference.tx_echo_argument_sha256 === outputSha256.rx,
+      "20 组 TX 未绑定 RX 处理后回声参考",
+    );
+  }
+  if (dynamicMicrophone !== undefined) {
+    assert(
+      dynamicMicrophoneVisual !== undefined
+        && dynamicMicrophoneVisual.source_sha256
+          === dynamicMicrophone.sha256,
+      "20 组动态麦克风缺少绑定的波形与梅尔频谱",
+    );
+    assert(
+      effectiveInputSha256 !== undefined
+        && effectiveInputSha256.microphone
+          === dynamicMicrophone.sha256
+        && outputSha256?.rx !== undefined
+        && effectiveInputSha256.far_end === outputSha256.rx,
+      "20 组动态麦克风未绑定 post-RX 输入身份",
+    );
+  } else {
+    assert(
+      dynamicMicrophoneVisual === undefined
+        && effectiveInputSha256 === undefined,
+      "20 组动态麦克风证据缺少主字段",
+    );
+  }
+  let conversationDiagnostics: Record<string, unknown> | undefined;
+  if (profile.conversationCounts !== undefined) {
+    assert(provenance !== undefined, "100 组条件组缺少 provenance");
+    conversationDiagnostics = readConversationDiagnostics(
+      value.conversation_diagnostics,
+      {
+        caseId: value.case_id,
+        txSha256: outputSha256?.tx,
+        provenance,
+        require: status === "completed",
+        sampleRateHz: profile.sampleRateHz ?? 16_000,
+      },
+    );
+  } else if (value.conversation_diagnostics !== undefined) {
+    assert(
+      isRecord(value.conversation_diagnostics)
+        && isFiniteJson(value.conversation_diagnostics),
+      "场景条件组通话诊断字段无效",
+    );
+    conversationDiagnostics = value.conversation_diagnostics;
+  }
   return {
     case_id: value.case_id,
     status,
     report_id: reportId,
     conditions,
+    ...(provenance ? { provenance } : {}),
+    ...(conversationDiagnostics
+      ? { conversation_diagnostics: conversationDiagnostics }
+      : {}),
     signals_sha256: signalsSha256,
     input_sha256: inputSha256,
     ...(outputSha256 ? { output_sha256: outputSha256 } : {}),
+    ...(dynamicMicrophone ? { dynamic_microphone: dynamicMicrophone } : {}),
+    ...(dynamicMicrophoneVisual
+      ? { dynamic_microphone_visual: dynamicMicrophoneVisual }
+      : {}),
+    ...(effectiveInputSha256
+      ? { effective_input_sha256: effectiveInputSha256 }
+      : {}),
+    ...(isRecord(value.execution)
+      ? { execution: value.execution }
+      : {}),
     ...(txVisual ? { tx_visual: txVisual } : {}),
+    ...(rxVisual ? { rx_visual: rxVisual } : {}),
     ...(typeof value.error === "string" ? { error: value.error } : {}),
   };
 }
@@ -469,6 +900,7 @@ function readObservation(
   cases: Map<string, SceneConditionCase>,
   batchId: string,
   datasetId: string,
+  profile: SceneConditionProfile,
 ): SceneConditionObservation {
   assert(isRecord(value), "20 组逐观测记录格式无效");
   assert(
@@ -481,19 +913,22 @@ function readObservation(
   assert(caseRecord !== undefined, "20 组逐观测绑定了未知条件组");
   assert(
     typeof value.item_id === "string"
-      && ITEM_IDS.has(value.item_id),
-    "20 组逐观测合同测项超出 B24–B28",
+      && profile.contractItemIds.includes(
+        value.item_id as SceneConditionItemId,
+      ),
+    `20 组逐观测合同测项超出 ${profile.sceneLabel ?? profile.scene} 合同`,
   );
+  const expectedMode = profile.mode ?? "WB-wired";
   const itemId = value.item_id as SceneConditionItemId;
-  const sourceCell = itemId.slice("WB-wired:".length);
+  const sourceCell = itemId.slice(`${expectedMode}:`.length);
   assert(
     typeof value.observation_id === "string"
       && value.observation_id === `${caseId}:${itemId}`,
     "20 组观测 ID 与条件组/合同测项不一致",
   );
   assert(
-    value.mode === "WB-wired",
-    "20 组逐观测模式不是 WB-wired",
+    value.mode === expectedMode,
+    `20 组逐观测模式不是 ${expectedMode}`,
   );
   assert(
     Object.hasOwn(SCOPED_STATUS_LABELS, String(value.status)),
@@ -533,12 +968,30 @@ function readObservation(
       && typeof value.family === "string",
     "20 组逐观测说明字段无效",
   );
+  const itemPosition = profile.contractItemIds.indexOf(itemId);
   assert(
-    value.family === FAMILY_BY_ITEM[itemId]
+    FAMILY_BY_POSITION[itemPosition] === value.family
       && typeof value.source_cell === "string"
       && value.source_cell === sourceCell,
     "20 组逐观测合同族或源行不一致",
   );
+  const conversationMode = conversationModeOf(caseRecord);
+  if (
+    profile.conversationCounts !== undefined
+    && itemPosition < 3
+    && (
+      conversationMode === "far_single"
+      || conversationMode === "transition"
+    )
+  ) {
+    assert(
+      status === "not_measured"
+        || status === "pending"
+        || status === "running"
+        || status === "invalid",
+      `${conversationMode} 的 GNS 合同行不能工程通过`,
+    );
+  }
   assert(isRecord(value.evidence_binding), "20 组逐观测证据绑定无效");
   const binding = value.evidence_binding;
   const conditions = readConditions({
@@ -548,7 +1001,7 @@ function readObservation(
     volume: binding.volume,
     window_ms: binding.window_ms,
     input_level_db: binding.input_level_db,
-  });
+  }, profile.scene, expectedMode);
   assert(
     sameConditions(conditions, caseRecord.conditions),
     "20 组逐观测条件与条件组不一致",
@@ -596,7 +1049,7 @@ function readObservation(
     observation_id: value.observation_id,
     item_id: itemId,
     case_id: caseId,
-    mode: "WB-wired",
+    mode: expectedMode,
     status,
     value: numericValue,
     metric: typeof value.metric === "string" ? value.metric : null,
@@ -621,6 +1074,7 @@ export function readSceneConditionBatch(
   expected: {
     datasetId: string;
     algorithmClusterId: string;
+    caseId?: string;
   },
 ): SceneConditionBatch {
   assert(isRecord(value), "20 组批次快照必须为对象");
@@ -630,6 +1084,16 @@ export function readSceneConditionBatch(
   );
   const batchId = readId(value.batch_id, "20 组批次 ID 无效");
   const datasetId = readId(value.dataset_id, "20 组数据集 ID 无效");
+  const profile = sceneConditionProfileForDatasetId(datasetId);
+  assert(profile !== null, "20 组快照绑定了未注册的场景条件数据集");
+  const expectedCounts = sceneConditionCounts(profile);
+  const selection = readSingleCaseSelection(value, {
+    caseId: expected.caseId,
+    label: "场景条件批次",
+  });
+  const expectedCaseCount = selection === null
+    ? expectedCounts.cases
+    : 1;
   const algorithmClusterId =
     typeof value.algorithm_cluster_id === "string"
       ? value.algorithm_cluster_id
@@ -645,8 +1109,8 @@ export function readSceneConditionBatch(
   const datasetName = value.dataset_name;
   assert(
     typeof datasetName === "string"
-      && datasetName.trim().length > 0,
-    "20 组数据集名称为空",
+      && datasetName === profile.datasetName,
+    "20 组数据集名称与画像不一致",
   );
   const datasetManifestSha256 = readSha(
     value.dataset_manifest_sha256,
@@ -686,26 +1150,35 @@ export function readSceneConditionBatch(
     Date.parse(updatedAt) >= Date.parse(createdAt),
     "20 组批次更新时间早于创建时间",
   );
+  const expectedBatchMode = profile.mode ?? "WB-wired";
   assert(
     value.test_scope === "background_noise"
-      && value.selected_mode === "WB-wired"
-      && value.selected_scene === "sce1"
+      && value.selected_mode === expectedBatchMode
+      && value.selected_scene === profile.scene
       && value.standard_compliance === false
       && value.formal_test_status === "not_measured",
     "20 组批次范围、模式、场景或合规边界无效",
   );
   assert(
     value.contract_item_count === SCENE_CONDITION_CONTRACT_ITEM_COUNT
-      && value.observation_count === SCENE_CONDITION_OBSERVATION_COUNT,
-    "20 组批次合同项或观测数无效",
+      && isCount(value.observation_count)
+      && Number(value.observation_count) > 0
+      && value.case_count === expectedCaseCount
+      && value.preview_condition_group_count === expectedCounts.cases
+      && (selection === null
+        ? value.observation_count === expectedCounts.observations
+        : selection.dataset_case_count === expectedCounts.cases
+          && selection.dataset_observation_count
+            === expectedCounts.observations),
+    "场景条件批次合同项或观测数无效",
   );
   assert(isRecord(value.progress), "20 组批次进度格式无效");
   assert(
     isCount(value.progress.completed_cases)
-      && value.progress.total_cases === SCENE_CONDITION_BATCH_COUNT
+      && value.progress.total_cases === expectedCaseCount
       && isCount(value.progress.completed_items)
-      && value.progress.total_items === SCENE_CONDITION_OBSERVATION_COUNT,
-    "20 组批次进度合同无效",
+      && value.progress.total_items === value.observation_count,
+    "场景条件批次进度合同无效",
   );
   assert(isRecord(value.summary), "20 组批次汇总格式无效");
   const summary = value.summary;
@@ -720,21 +1193,28 @@ export function readSceneConditionBatch(
   ] as const;
   assert(
     summaryKeys.every((key) => isCount(summary[key]))
-      && summary.total === SCENE_CONDITION_OBSERVATION_COUNT,
-    "20 组批次汇总字段无效",
+      && summary.total === value.observation_count,
+    "场景条件批次汇总字段无效",
   );
   assert(
     Array.isArray(value.cases)
-      && value.cases.length === SCENE_CONDITION_BATCH_COUNT,
-    "20 组批次必须包含 20 个预建条件组",
+      && value.cases.length === expectedCaseCount,
+    "场景条件批次条件组数量与画像不一致",
   );
   assert(
     Array.isArray(value.items)
-      && value.items.length === SCENE_CONDITION_OBSERVATION_COUNT,
-    "20 组批次必须包含 50 条观测",
+      && value.items.length === value.observation_count,
+    "场景条件批次观测数量与画像不一致",
   );
+  assert(
+    isCount(value.speech_case_count)
+      && isCount(value.cng_case_count)
+      && isRecord(value.conversation_counts),
+    "场景条件批次语音、CNG 或通话模式计数无效",
+  );
+  const conversationCounts = value.conversation_counts;
 
-  const cases = value.cases.map(readCase);
+  const cases = value.cases.map((entry) => readCase(entry, profile));
   const caseMap = new Map<string, SceneConditionCase>();
   for (const caseRecord of cases) {
     assert(
@@ -743,8 +1223,15 @@ export function readSceneConditionBatch(
     );
     caseMap.set(caseRecord.case_id, caseRecord);
   }
+  if (selection !== null) {
+    assert(
+      cases.length === 1
+        && cases[0].case_id === selection.selected_case_id,
+      "单案场景批次 case 与 selected_case_id 不一致",
+    );
+  }
   const observations = value.items.map((item) =>
-    readObservation(item, caseMap, batchId, datasetId)
+    readObservation(item, caseMap, batchId, datasetId, profile)
   );
   const observationIds = new Set<string>();
   const itemCounts = new Map<SceneConditionItemId, number>();
@@ -796,39 +1283,143 @@ export function readSceneConditionBatch(
       computed += 1;
     }
   }
-  for (const itemId of SCENE_CONDITION_ITEM_IDS) {
-    assert(
-      itemCounts.get(itemId) === 10,
-      `${itemId} 必须恰好有 10 条观测`,
-    );
-  }
   assert(
-    observationsByCase.size === SCENE_CONDITION_BATCH_COUNT,
-    "20 组预建条件组必须全部绑定观测",
+    observationsByCase.size === expectedCaseCount,
+    "场景条件批次预建条件组必须全部绑定观测",
   );
   let speechCaseCount = 0;
   let cngCaseCount = 0;
+  const conversationModeCounts = new Map<ConversationMode, number>();
+  const speechItemIds = new Set<string>(
+    profile.contractItemIds.slice(0, 3),
+  );
+  const cngItemIds = new Set<string>(
+    profile.contractItemIds.slice(3),
+  );
   for (const [caseId, caseObservations] of observationsByCase) {
     const itemIds = new Set<string>(
       caseObservations.map((observation) => observation.item_id),
     );
-    const isSpeech =
-      itemIds.size === SPEECH_ITEM_IDS.size
-      && [...SPEECH_ITEM_IDS].every((itemId) => itemIds.has(itemId));
-    const isCng =
-      itemIds.size === CNG_ITEM_IDS.size
-      && [...CNG_ITEM_IDS].every((itemId) => itemIds.has(itemId));
-    assert(
-      isSpeech || isCng,
-      `20 组条件组 ${caseId} 的合同测项分组无效`,
-    );
-    if (isSpeech) speechCaseCount += 1;
-    else cngCaseCount += 1;
+    const caseRecord = caseMap.get(caseId);
+    assert(caseRecord !== undefined, `场景条件组 ${caseId} 不存在`);
+    const conversationMode = conversationModeOf(caseRecord);
+    if (profile.conversationCounts !== undefined) {
+      assert(
+        conversationMode !== null,
+        `100 组条件组 ${caseId} 缺少通话模式`,
+      );
+      conversationModeCounts.set(
+        conversationMode,
+        (conversationModeCounts.get(conversationMode) ?? 0) + 1,
+      );
+      const expectedItemIds = conversationMode === "noise_only"
+        ? cngItemIds
+        : speechItemIds;
+      const expectedFamilies = conversationMode === "noise_only"
+        ? CNG_FAMILIES
+        : SPEECH_FAMILIES;
+      assert(
+        itemIds.size === expectedItemIds.size
+          && [...expectedItemIds].every((itemId) => itemIds.has(itemId))
+          && caseObservations.every(
+            (observation) => expectedFamilies.has(observation.family),
+          ),
+        `100 组条件组 ${caseId} 的通话模式与合同族分组无效`,
+      );
+      if (conversationMode === "noise_only") cngCaseCount += 1;
+      else speechCaseCount += 1;
+    } else {
+      const isSpeech =
+        itemIds.size === speechItemIds.size
+        && [...speechItemIds].every((itemId) => itemIds.has(itemId));
+      const isCng =
+        itemIds.size === cngItemIds.size
+        && [...cngItemIds].every((itemId) => itemIds.has(itemId));
+      assert(
+        isSpeech || isCng,
+        `20 组条件组 ${caseId} 的合同测项分组无效`,
+      );
+      if (isSpeech) speechCaseCount += 1;
+      else cngCaseCount += 1;
+    }
   }
   assert(
-    speechCaseCount === 10 && cngCaseCount === 10,
-    "20 组必须由 10 个语音条件组与 10 个 CNG 条件组组成",
+    speechCaseCount + cngCaseCount === expectedCaseCount,
+    "场景条件批次语音/CNG 条件组数量与批次范围不一致",
   );
+  const selectedKind = selection === null
+    ? null
+    : speechCaseCount === 1
+      ? "speech"
+      : "cng";
+  for (const [index, itemId] of profile.contractItemIds.entries()) {
+    const expectedPerItem = selection === null
+      ? index < 3
+        ? expectedCounts.speech
+        : expectedCounts.cng
+      : selectedKind === "speech" && index < 3
+        || selectedKind === "cng" && index >= 3
+        ? 1
+        : 0;
+    assert(
+      (itemCounts.get(itemId) ?? 0) === expectedPerItem,
+      `${itemId} 必须恰好有 ${expectedPerItem} 条观测`,
+    );
+  }
+  assert(
+    value.speech_case_count === speechCaseCount
+      && value.cng_case_count === cngCaseCount,
+    "场景条件批次语音/CNG 数量与逐 case 结果不一致",
+  );
+  if (profile.conversationCounts !== undefined) {
+    for (const conversationMode of CONVERSATION_MODES) {
+      const expectedModeCount = selection === null
+        ? profile.conversationCounts[conversationMode]
+        : conversationModeCounts.get(conversationMode) ?? 0;
+      assert(
+        (conversationModeCounts.get(conversationMode) ?? 0)
+          === expectedModeCount,
+        `100 组 ${conversationMode} 条件组数量与画像不一致`,
+      );
+    }
+    if (selection !== null) {
+      const selectedCase = caseMap.get(selection.selected_case_id);
+      assert(selectedCase !== undefined, "单案场景批次缺少所选 case");
+      const selectedConversationMode = conversationModeOf(selectedCase);
+      assert(
+        selectedConversationMode !== null,
+        "单案场景批次所选 case 缺少通话模式",
+      );
+      const keys = Object.keys(conversationCounts).sort();
+      const expectedKeys = [...CONVERSATION_MODES].sort();
+      assert(
+        keys.length === expectedKeys.length
+          && keys.every((key, index) => key === expectedKeys[index])
+          && CONVERSATION_MODES.every(
+            (conversationMode) =>
+              conversationCounts[conversationMode]
+                === (conversationMode === selectedConversationMode ? 1 : 0),
+          ),
+        "单案场景批次 conversation_counts 无效",
+      );
+    } else {
+      assert(
+        CONVERSATION_MODES.every(
+          (conversationMode) =>
+            conversationCounts[conversationMode]
+              === profile.conversationCounts![conversationMode],
+        )
+          && Object.keys(conversationCounts).length
+            === CONVERSATION_MODES.length,
+        "场景条件批次 conversation_counts 与画像不一致",
+      );
+    }
+  } else {
+    assert(
+      Object.keys(conversationCounts).length === 0,
+      "v1 场景条件批次 conversation_counts 必须为空对象",
+    );
+  }
   const completedCases =
     cases.filter(
       (caseRecord) =>
@@ -864,10 +1455,15 @@ export function readSceneConditionBatch(
     assert(
       cases.every((caseRecord) => caseRecord.status === "completed")
         && value.progress.completed_cases
-          === SCENE_CONDITION_BATCH_COUNT
+          === expectedCaseCount
         && value.progress.completed_items
-          === SCENE_CONDITION_OBSERVATION_COUNT,
-      "20 组批次未完成全部条件组，不能标记 completed",
+          === value.observation_count
+        && observations.every(
+          (observation) =>
+            observation.status !== "pending"
+            && observation.status !== "running",
+        ),
+      "场景条件批次未完成全部条件组，不能标记 completed",
     );
   }
 
@@ -886,20 +1482,33 @@ export function readSceneConditionBatch(
     created_at: createdAt,
     updated_at: updatedAt,
     test_scope: "background_noise",
-    selected_mode: "WB-wired",
-    selected_scene: "sce1",
+    selected_mode: expectedBatchMode,
+    selected_scene: profile.scene,
     standard_compliance: false,
     formal_test_status: "not_measured",
     contract_item_count: SCENE_CONDITION_CONTRACT_ITEM_COUNT,
-    observation_count: SCENE_CONDITION_OBSERVATION_COUNT,
+    ...(selection ?? {}),
+    case_count: expectedCaseCount,
+    preview_condition_group_count: expectedCounts.cases,
+    observation_count: observations.length,
+    speech_case_count: speechCaseCount,
+    cng_case_count: cngCaseCount,
+    conversation_counts: profile.conversationCounts === undefined
+      ? {}
+      : Object.fromEntries(
+          CONVERSATION_MODES.map((conversationMode) => [
+            conversationMode,
+            conversationModeCounts.get(conversationMode) ?? 0,
+          ]),
+        ),
     progress: {
       completed_cases: value.progress.completed_cases,
-      total_cases: SCENE_CONDITION_BATCH_COUNT,
+      total_cases: expectedCaseCount,
       completed_items: value.progress.completed_items,
-      total_items: SCENE_CONDITION_OBSERVATION_COUNT,
+      total_items: observations.length,
     },
     summary: {
-      total: SCENE_CONDITION_OBSERVATION_COUNT,
+      total: observations.length,
       computed,
       pass: statusCounts.pass,
       fail: statusCounts.fail,
@@ -926,11 +1535,28 @@ export function readSceneConditionBatchHistory(
   expected: {
     datasetId: string;
     algorithmClusterId: string;
+    latestPerCase?: boolean;
   },
 ): SceneConditionBatch[] {
+  const latestPerCase = expected.latestPerCase ?? false;
   assert(
-    Array.isArray(value) && value.length <= 20,
-    "20 组批次历史必须是至多 20 条的数组",
+    typeof latestPerCase === "boolean",
+    "latestPerCase 必须为布尔值",
+  );
+  let maxBatches = 20;
+  if (latestPerCase) {
+    const profile = sceneConditionProfileForDatasetId(expected.datasetId);
+    assert(
+      profile !== null,
+      "latestPerCase 历史绑定了未注册的场景条件数据集",
+    );
+    maxBatches = sceneConditionCounts(profile).cases;
+  }
+  assert(
+    Array.isArray(value) && value.length <= maxBatches,
+    latestPerCase
+      ? `latestPerCase 历史必须至多 ${maxBatches} 条`
+      : "20 组批次历史必须是至多 20 条的数组",
   );
   const batches = value.map((entry) =>
     readSceneConditionBatch(entry, expected)
@@ -939,6 +1565,25 @@ export function readSceneConditionBatchHistory(
   for (const batch of batches) {
     assert(!ids.has(batch.batch_id), "20 组批次历史包含重复批次 ID");
     ids.add(batch.batch_id);
+  }
+  if (latestPerCase) {
+    const covered = new Set<string>();
+    for (const batch of batches) {
+      const newlyCovered = batch.cases.filter(
+        (caseRecord) => !covered.has(caseRecord.case_id),
+      );
+      assert(
+        newlyCovered.length > 0,
+        "latestPerCase 历史必须按服务端顺序逐行覆盖新的条件组",
+      );
+      for (const caseRecord of newlyCovered) {
+        covered.add(caseRecord.case_id);
+      }
+      assert(
+        covered.size <= maxBatches,
+        "latestPerCase 历史覆盖的条件组数超过数据集画像",
+      );
+    }
   }
   return batches;
 }
@@ -1013,13 +1658,55 @@ export function sceneConditionCaseTxEvidence(
   const caseObservations = batch.items.filter(
     (item) => item.case_id === previewCase.case_id,
   );
+  const batchProfile = sceneConditionProfileForDatasetId(batch.dataset_id);
+  if (!batchProfile || batchProfile.scene !== batch.selected_scene) {
+    return txUnavailable("批次数据集与场景合同身份不一致");
+  }
+  if (batchProfile.conversationCounts !== undefined) {
+    if (caseRecord.provenance === undefined) {
+      return txUnavailable("条件组缺少 provenance，拒绝展示诊断");
+    }
+    try {
+      readConversationDiagnostics(
+        caseRecord.conversation_diagnostics,
+        {
+          caseId: caseRecord.case_id,
+          txSha256: outputSha256.tx,
+          provenance: caseRecord.provenance,
+          require: true,
+          sampleRateHz: batchProfile.sampleRateHz ?? 16_000,
+        },
+      );
+    } catch {
+      return txUnavailable("条件组诊断证据身份或边界无效");
+    }
+  }
   const observedItemIds = new Set<string>(
     caseObservations.map((item) => item.item_id),
   );
-  const expectedItemIds =
-    [...observedItemIds].some((itemId) => CNG_ITEM_IDS.has(itemId))
-      ? CNG_ITEM_IDS
-      : SPEECH_ITEM_IDS;
+  const cngItemIds = new Set<string>(
+    batchProfile.contractItemIds.slice(3),
+  );
+  const speechItemIds = new Set<string>(
+    batchProfile.contractItemIds.slice(0, 3),
+  );
+  const caseConversationMode = conversationModeOf(caseRecord);
+  const previewConversationMode = conversationModeOf(previewCase);
+  if (
+    batchProfile.conversationCounts !== undefined
+    && (
+      caseConversationMode === null
+      || caseConversationMode !== previewConversationMode
+    )
+  ) {
+    return txUnavailable("条件组通话模式与当前待测样本不一致");
+  }
+  const expectedItemIds = caseConversationMode === "noise_only"
+    ? cngItemIds
+    : caseConversationMode === null
+      && [...observedItemIds].some((itemId) => cngItemIds.has(itemId))
+      ? cngItemIds
+      : speechItemIds;
   if (
     caseObservations.length !== expectedItemIds.size
     || [...expectedItemIds].some((itemId) => !observedItemIds.has(itemId))
@@ -1049,6 +1736,57 @@ export function sceneConditionCaseTxEvidence(
     )}/cases/${encodeURIComponent(
       previewCase.case_id,
     )}/outputs/tx?v=${encodeURIComponent(outputSha256.tx)}`,
+    visual,
+    reason: "",
+  };
+}
+
+export function sceneConditionCaseRxEvidence(
+  previewCase: ScopedInputPreviewCase,
+  batch: SceneConditionBatch | null,
+  manifestSha256: string,
+): SceneConditionCaseRxEvidence {
+  const txEvidence = sceneConditionCaseTxEvidence(
+    previewCase,
+    batch,
+    manifestSha256,
+  );
+  if (!txEvidence.ready || !batch) {
+    return {
+      ready: false,
+      url: "",
+      visual: undefined,
+      reason: txEvidence.reason,
+    };
+  }
+  const caseRecord = batch.cases.find(
+    (candidate) => candidate.case_id === previewCase.case_id,
+  );
+  const rxSha256 = caseRecord?.output_sha256?.rx;
+  if (!rxSha256) {
+    return {
+      ready: false,
+      url: "",
+      visual: undefined,
+      reason: "该历史批次未记录 VCP RX 处理后回声参考",
+    };
+  }
+  const visual = caseRecord?.rx_visual;
+  if (!visual || visual.source_sha256 !== rxSha256) {
+    return {
+      ready: false,
+      url: "",
+      visual: undefined,
+      reason: "RX 处理后波形与输出哈希不一致",
+    };
+  }
+  return {
+    ready: true,
+    url: `${SCENE_CONDITION_BATCHES_URL}/${encodeURIComponent(
+      batch.batch_id,
+    )}/cases/${encodeURIComponent(
+      previewCase.case_id,
+    )}/outputs/rx?v=${encodeURIComponent(rxSha256)}`,
     visual,
     reason: "",
   };

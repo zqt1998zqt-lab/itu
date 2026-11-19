@@ -1,0 +1,183 @@
+{
+  "schema": "acoustic-stress-diagnostics-golden-v1",
+  "sources": {
+    "v1": {
+      "snapshot_sha256": "5b3ff5264ecd3cefe5755ab6956b6c1a52cbb2797d54c97e7397adbec8d74b2e",
+      "case_id": "echo-WB-wired-steady_echo-01-stress-v1"
+    },
+    "v2": {
+      "snapshot_sha256": "32a22c1adda953221cf278445ce81446d6be7901d2b9667e0d2ff1864a185348",
+      "case_id": "echo-WB-wired-convergence-02-stress-v1"
+    }
+  },
+  "v1": {
+    "schema_version": "acoustic-stress-diagnostics-v1",
+    "case_id": "echo-WB-wired-steady_echo-01-stress-v1",
+    "tx_sha256": "80179a603567f52b0c4657abb574915ab4676fb31aa32d913bf5aee150ff1ee1",
+    "scope": "echo",
+    "mode": "WB-wired",
+    "category": "steady_echo",
+    "evidence_grade": "engineering_proxy",
+    "formal_compliance": false,
+    "standard_compliance": false,
+    "formal_test_status": "not_measured",
+    "status": "review_required",
+    "reason": "engineering stress proxy only; primary value requires review, not formal TCLw/ERLE or A1/A2",
+    "review_required": true,
+    "sample_rate_hz": 16000,
+    "source_duration_s": 12.0,
+    "tx_duration_s": 12.0,
+    "tx_muted": false,
+    "primary": {
+      "name": "echo_primary_proxy_db",
+      "value": 10.70689342386789,
+      "unit": "dB",
+      "status": "review_required"
+    },
+    "convergence_db": null,
+    "segments": [
+      {
+        "label": "far_only",
+        "start_s": 0.0,
+        "end_s": 12.0,
+        "mode": "far",
+        "status": "review_required",
+        "metrics": {
+          "primary": 10.70689342386789,
+          "tx_residual_reduction_db": 8.79040627435822,
+          "convergence_db": null,
+          "cleanref_projection_gain_db": null,
+          "cleanref_correlation": null,
+          "tx_level_dbfs": -60.37099604238552,
+          "mic_level_dbfs": -51.580589768027295,
+          "far_level_dbfs": -40.87369634415941,
+          "near_level_dbfs": null
+        },
+        "reason": "远端活动段的 far/mic 功率比；含噪耦合代理，不是正式 TCLw/ERLE"
+      }
+    ],
+    "limitations": [
+      "engineering proxy only",
+      "not formal ITU-T compliance evidence",
+      "echo metric is a noisy coupling proxy, not formal TCLw or ERLE",
+      "double-talk metric is a power ratio, not A1/A2",
+      "mute, silence, no overlap, and short TX are not passing evidence"
+    ]
+  },
+  "v2": {
+    "schema_version": "acoustic-stress-diagnostics-v2",
+    "case_id": "echo-WB-wired-convergence-02-stress-v1",
+    "tx_sha256": "07fe2a0720bd7daf94463c8287b795336db131682d86304632b1595c455ba6ff",
+    "scope": "echo",
+    "mode": "WB-wired",
+    "category": "convergence",
+    "evidence_grade": "engineering_proxy",
+    "formal_compliance": false,
+    "standard_compliance": false,
+    "formal_test_status": "not_measured",
+    "status": "review_required",
+    "reason": "engineering stress proxy only; primary value requires review, not formal TCLw/ERLE or A1/A2",
+    "review_required": true,
+    "sample_rate_hz": 16000,
+    "source_duration_s": 12.0,
+    "tx_duration_s": 12.0,
+    "tx_muted": false,
+    "activity_gate": {
+      "frame_ms": 20,
+      "hop_ms": 10,
+      "rms_threshold": 1e-05,
+      "min_active_s": 0.05,
+      "min_coverage": 0.05
+    },
+    "primary": {
+      "name": "echo_primary_proxy_db",
+      "value": 11.698934446811894,
+      "unit": "dB",
+      "status": "review_required"
+    },
+    "convergence_db": -6.361594194453129,
+    "convergence_note": "supplemental TX power ratio for convergence: 10-12 s versus 0.5-1.5 s; signal-level confound, not an adaptive-filter convergence measurement",
+    "segments": [
+      {
+        "label": "quiet",
+        "start_s": 0.0,
+        "end_s": 0.5,
+        "mode": "not_applicable",
+        "status": "not_applicable",
+        "metrics": {
+          "primary": null,
+          "tx_residual_reduction_db": null,
+          "convergence_db": null,
+          "cleanref_projection_gain_db": null,
+          "cleanref_correlation": null,
+          "tx_level_dbfs": null,
+          "mic_level_dbfs": null,
+          "far_level_dbfs": null,
+          "near_level_dbfs": null
+        },
+        "reason": "静音/噪声段不构造 stress 主指标或替代门限；该结论要求 near/far 实际无活动",
+        "activity": {
+          "frame_ms": 20,
+          "hop_ms": 10,
+          "rms_threshold": 1e-05,
+          "min_active_s": 0.05,
+          "min_coverage": 0.05,
+          "near_active_samples": 0,
+          "far_active_samples": 0,
+          "joint_active_samples": 0,
+          "near_coverage": 0.0,
+          "far_coverage": 0.0,
+          "joint_coverage": 0.0,
+          "valid": true,
+          "reason": "quiet has no near/far activity"
+        }
+      },
+      {
+        "label": "far_only",
+        "start_s": 0.5,
+        "end_s": 12.0,
+        "mode": "far",
+        "status": "review_required",
+        "metrics": {
+          "primary": 11.698934446811894,
+          "tx_residual_reduction_db": 10.428122256697726,
+          "convergence_db": null,
+          "cleanref_projection_gain_db": null,
+          "cleanref_correlation": null,
+          "tx_level_dbfs": -52.290848352180966,
+          "mic_level_dbfs": -41.86272609548324,
+          "far_level_dbfs": -30.16379164867135,
+          "near_level_dbfs": null
+        },
+        "reason": "echo input coupling on far-active frames after a 100 ms delay guard; far/mic only, not TX-dependent, and not formal TCLw or ERLE",
+        "activity": {
+          "frame_ms": 20,
+          "hop_ms": 10,
+          "rms_threshold": 1e-05,
+          "min_active_s": 0.05,
+          "min_coverage": 0.05,
+          "near_active_samples": 0,
+          "far_active_samples": 183840,
+          "joint_active_samples": 0,
+          "near_coverage": 0.0,
+          "far_coverage": 0.9991304347826087,
+          "joint_coverage": 0.0,
+          "valid": true,
+          "reason": "far_only has sufficient far activity and no near activity",
+          "echo_delay_guard_ms": 100.0,
+          "echo_guarded_active_samples": 181241,
+          "echo_guarded_active_s": 11.3275625
+        }
+      }
+    ],
+    "limitations": [
+      "engineering proxy only",
+      "not formal ITU-T compliance evidence",
+      "echo metric is a noisy coupling proxy, not formal TCLw or ERLE",
+      "double-talk metric is a power ratio, not A1/A2",
+      "activity uses 20 ms frames, 10 ms hop, and 1e-5 RMS",
+      "echo input coupling is independent of TX; TX residual is not AEC proof",
+      "mute, silence, no overlap, and short TX are not passing evidence"
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "revision": "measurement-20261117-r2",
+  "scenes": {
+    "sce1": {
+      "NB-bt": "82ee7feff7df7b7a8c8248bfd7cb1b77",
+      "NB-wired": "23ce24476d9428e11985791e99f7e05a",
+      "NB-wireless": "0c28d3f11ed3d3dc274143eb3c413abc",
+      "SWB-wired": "aaf4728b269a1d733d6804a31c6cd870",
+      "SWB-wireless": "86ca3fc7a584ca10a86502938da761a2",
+      "WB-bt": "c1127b8d05e5d5c3c13fea38fc92adb4",
+      "WB-wired": "44176011a3d9b36f0c50c807d6ec6d59",
+      "WB-wireless": "8874d4a0a63f785143860e572c31cbcb"
+    },
+    "sce2": {
+      "NB-bt": "b640dff6cd9564f93c8518ed204c2c46",
+      "NB-wired": "434ac37524a55d684e439746f0440a30",
+      "NB-wireless": "c20d60e7f98206a25fd4a88a3564ec9c",
+      "SWB-wired": "a6d584449d46270eec4c6b6d68fd2151",
+      "SWB-wireless": "db0b917e270865317764e8db020a5658",
+      "WB-bt": "6006ad371980cace9d3da01a913ce016",
+      "WB-wired": "5237eaf6590e3942b43574d1e44cd8d5",
+      "WB-wireless": "cdda04d71bd836010ade7123870b40c8"
+    },
+    "sce3": {
+      "NB-bt": "a5cade96a256a681b6629bbfd45c5be7",
+      "NB-wired": "2d3899578fa1c8ac86f68ea3cb39d932",
+      "NB-wireless": "7419f6a6c2a0d5170f86c856371fe9cf",
+      "SWB-wired": "3e4280e8681d92d70d1c2bf7e4772951",
+      "SWB-wireless": "99a1d33da0c7ba94ba4aa718ab162c9c",
+      "WB-bt": "bb809fd58b69acb1e81538ffcb3eb442",
+      "WB-wired": "b820ffcad5c89bc9ec06a13455e61758",
+      "WB-wireless": "98f658e6f453f0fa9974e47f6f80e964"
+    },
+    "sce4": {
+      "NB-bt": "3ef056db0c6058f055702fd40f86f222",
+      "NB-wired": "4281b9c1f410ded1f956d4fc478a9844",
+      "NB-wireless": "5f523e43c801cc5a39f75803e223ccb2",
+      "SWB-wired": "d4ac979d6145bc345d11118e586005e4",
+      "SWB-wireless": "ec02f4ae2a2ece2583e49fa4e04112aa",
+      "WB-bt": "32053bc357f08408bfe59ea96e58880c",
+      "WB-wired": "a5632e43ae2e9acd0c103fc4144e03f1",
+      "WB-wireless": "0ca33348d89aa3ec0931af361df78b13"
+    }
+  }
+}

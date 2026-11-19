@@ -15,6 +15,11 @@ from server.acoustic.acceptance_scene_conditions import (
     MODE,
     SCENE,
 )
+from server.acoustic.acceptance_scope import background_noise_scene_items
+from server.acoustic.scene_condition_profiles import (
+    SCENE_CONDITION_PROFILES,
+    profile_for_scene,
+)
 from server.app import app
 
 
@@ -22,7 +27,7 @@ DATASET_PREFIX = "/api/alignment/acceptance/scene-condition-datasets"
 PREVIEW_PATH = "/api/alignment/acceptance/scene-condition-preview"
 ROLES = {"microphone", "reference", "far_end", "noise"}
 CONTRACT_ITEM_IDS = {
-    f"{MODE}:B{cell}" for cell in range(24, 29)
+    row["id"] for row in background_noise_scene_items(MODE, SCENE)
 }
 SHA256 = re.compile(r"^[a-f0-9]{64}$")
 REAL_BUILD = (
@@ -36,6 +41,15 @@ SIDECAR_MANIFEST = (
     / DATASET_ID
     / "manifest.json"
 )
+ALL_SIDECAR_MANIFESTS = [
+    (
+        REAL_BUILD
+        / "acoustic-scene-condition-datasets"
+        / profile.dataset_id
+        / "manifest.json"
+    )
+    for profile in SCENE_CONDITION_PROFILES.values()
+]
 
 
 @pytest.fixture(scope="module")
@@ -90,6 +104,7 @@ def test_scene_condition_dataset_list_exposes_exactly_one_preview(
             "scope": "background_noise",
             "mode": MODE,
             "scene": SCENE,
+            "version": "legacy",
         },
     )
 
@@ -109,6 +124,119 @@ def test_scene_condition_dataset_list_exposes_exactly_one_preview(
     assert dataset.get("dataset_name", dataset.get("name")) == DATASET_NAME
     assert dataset["preview_condition_group_count"] == 20
     assert dataset["standard_compliance"] is False
+
+
+def test_all_four_scene_condition_datasets_are_isolated_and_discoverable(
+    client: TestClient,
+):
+    if not all(path.is_file() for path in ALL_SIDECAR_MANIFESTS):
+        pytest.skip("all four scene-condition datasets are not generated")
+
+    seen_dataset_ids: set[str] = set()
+    for scene, profile in SCENE_CONDITION_PROFILES.items():
+        response = client.get(
+            DATASET_PREFIX,
+            params={
+                "scope": "background_noise",
+                "mode": MODE,
+                "scene": scene,
+                "version": "legacy",
+            },
+        )
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["scene"] == scene
+        datasets = _datasets(payload)
+        assert len(datasets) == 1
+        dataset = datasets[0]
+        assert dataset["dataset_id"] == profile.dataset_id
+        assert dataset["dataset_name"] == profile.dataset_name
+        assert dataset["dataset_id"] not in seen_dataset_ids
+        seen_dataset_ids.add(dataset["dataset_id"])
+
+        preview_response = client.get(
+            PREVIEW_PATH,
+            params={
+                "dataset_id": profile.dataset_id,
+                "mode": MODE,
+                "scene": scene,
+            },
+        )
+        assert preview_response.status_code == 200, preview_response.text
+        preview = preview_response.json()
+        assert preview["dataset_kind"] == profile.dataset_kind
+        assert len(preview["cases"]) == 20
+        covered = {
+            item_id
+            for case in preview["cases"]
+            for item_id in case["contract_item_ids"]
+        }
+        assert covered == set(profile.contract_item_ids)
+        assert all(
+            case["conditions"]["scene"] == scene
+            for case in preview["cases"]
+        )
+
+        binding_path = (
+            REAL_BUILD
+            / "acoustic-scene-condition-datasets"
+            / profile.dataset_id
+            / "runtime-contract-binding.json"
+        )
+        binding = json.loads(binding_path.read_text(encoding="utf-8"))
+        assert binding["dataset_id"] == profile.dataset_id
+        assert binding["status"] == "reconciled"
+
+
+def test_scene_condition_preview_rejects_a_dataset_from_another_scene(
+    client: TestClient,
+):
+    response = client.get(
+        PREVIEW_PATH,
+        params={
+            "dataset_id": profile_for_scene("sce1").dataset_id,
+            "mode": MODE,
+            "scene": "sce2",
+        },
+    )
+    assert response.status_code == 422
+    assert "不一致" in response.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "source_name",
+    ["scene_condition_profiles.py", "acceptance_scope.py"],
+)
+def test_new_scene_binding_rejects_profile_or_contract_scope_drift(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    source_name: str,
+):
+    profile = profile_for_scene("sce2")
+    source_path = (
+        Path(__file__).resolve().parents[1]
+        / "server"
+        / "acoustic"
+        / source_name
+    )
+    original_read_bytes = Path.read_bytes
+
+    def changed_source(path: Path) -> bytes:
+        if path == source_path:
+            return original_read_bytes(path) + b"\n# drift\n"
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", changed_source)
+    response = client.get(
+        PREVIEW_PATH,
+        params={
+            "dataset_id": profile.dataset_id,
+            "mode": MODE,
+            "scene": profile.scene,
+        },
+    )
+    assert response.status_code == 503
+    assert "来源契约" in response.json()["detail"]
 
 
 def test_scene_condition_preview_matches_the_twenty_group_contract(
@@ -322,7 +450,7 @@ def test_scene_condition_binding_errors_fail_closed(
 
     monkeypatch.setattr(Path, "read_text", read_binding)
     for endpoint, params in (
-        (DATASET_PREFIX, {"scope": "background_noise", "mode": MODE, "scene": SCENE}),
+        (DATASET_PREFIX, {"scope": "background_noise", "mode": MODE, "scene": SCENE, "version": "legacy"}),
         (PREVIEW_PATH, {"dataset_id": DATASET_ID, "mode": MODE, "scene": SCENE}),
     ):
         response = client.get(endpoint, params=params)

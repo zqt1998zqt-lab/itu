@@ -38,3 +38,10 @@ public/diagrams/
 public/car-3d.backup-*.html
 public/car-3d.day-*.html
 public/car-3d.snap-*.html
+
+# Runtime metadata fixtures have their own datasets/ directories; keep these
+# exact fixture paths visible despite the general datasets/ source-data rule.
+!benchmarks/fixtures/retired-acoustic-metadata-v1/datasets/
+!benchmarks/fixtures/retired-acoustic-metadata-v1/datasets/*.json
+!benchmarks/fixtures/acoustic-stress-model-schema-v1/historical/datasets/
+!benchmarks/fixtures/acoustic-stress-model-schema-v1/historical/datasets/**

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
 from .acceptance_batch import get_batch, list_batch_summaries, start_batch
@@ -49,6 +49,7 @@ class BatchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     dataset_id: str
     algorithm_cluster_id: str
+    case_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
 
 
 class ScopedBatchRequest(BatchRequest):
@@ -136,6 +137,7 @@ def _create_scoped_batch(request: ScopedBatchRequest, test_scope: str) -> dict:
             request.algorithm_cluster_id,
             test_scope=test_scope,
             mode=request.mode,
+            case_id=request.case_id,
         )
     except (ValueError, OSError) as error:
         raise HTTPException(422, str(error)) from error
@@ -149,6 +151,7 @@ def _create_background_scene_batch(request: BackgroundNoiseBatchRequest) -> dict
             test_scope="background_noise",
             mode=request.mode,
             scene=request.scene,
+            case_id=request.case_id,
         )
     except (ValueError, OSError) as error:
         raise HTTPException(422, str(error)) from error
@@ -479,6 +482,48 @@ async def upload_dataset(archive: Annotated[UploadFile, File()]):
         await archive.close()
 
 
+@router.get("/datasets/{dataset_id}/cases")
+def dataset_case_catalog(dataset_id: str, test_scope: str, mode: str):
+    if test_scope not in {"basic_uplink", "basic_downlink"}:
+        raise HTTPException(422, "请选择基础上行或基础下行测试范围")
+    try:
+        dataset = get_dataset(dataset_id)
+        if dataset is None:
+            raise HTTPException(404, "测试集不存在")
+        rows, cases = select_batch_scope(dataset["manifest"], test_scope=test_scope, mode=mode)
+    except (ValueError, OSError) as error:
+        raise HTTPException(422, str(error)) from error
+    payload = {
+        "schema_version": "acceptance-case-catalog-v1",
+        "dataset_id": dataset_id,
+        "dataset_manifest_sha256": dataset["manifest_sha256"],
+        "test_scope": test_scope,
+        "mode": mode,
+        "scene": None,
+        "case_count": len(cases),
+        "observation_count": len(rows),
+        "standard_compliance": False,
+        "formal_test_status": "not_measured",
+        "cases": [
+            {
+                "case_id": case["id"],
+                "conditions": case["conditions"],
+                "item_ids": case["item_ids"],
+                "signals_sha256": {
+                    role: dataset["assets"][relative]["sha256"]
+                    for role, relative in case["signals"].items()
+                },
+            }
+            for case in cases
+        ],
+    }
+    try:
+        payload["visuals"] = _preview_visuals(dataset_id, dataset, cases)
+    except (AcceptanceDatasetError, VisualizationCacheError, OSError, ValueError):
+        pass
+    return payload
+
+
 @router.get("/datasets/{dataset_id}/cases/{case_id}/inputs/{role}")
 def dataset_case_input(dataset_id: str, case_id: str, role: str):
     try:
@@ -530,7 +575,7 @@ def dataset_case_input(dataset_id: str, case_id: str, role: str):
 @router.post("/batches", status_code=202)
 def create_batch(request: BatchRequest):
     try:
-        return start_batch(request.dataset_id, request.algorithm_cluster_id)
+        return start_batch(request.dataset_id, request.algorithm_cluster_id, case_id=request.case_id)
     except (ValueError, OSError) as error:
         raise HTTPException(422, str(error)) from error
 

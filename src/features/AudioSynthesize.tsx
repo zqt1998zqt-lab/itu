@@ -18,6 +18,7 @@ import { matchingPreset, chainExecutionIssue } from "./enhancement-chain-model";
 import type { ChainConfiguration } from "./enhancement-chain-model";
 import { buildSynthesisOptions, synthesisConfigurationKey } from "./synthesize-model";
 import type { MicrophoneMode, SynthesisOptions, SynthesisProfile } from "./synthesize-model";
+import { AecRouteAvailabilityView, useAecRouteCapability } from "./AecRouteAvailability";
 import { parseAudioGraphicReport } from "../domain/audio-graphics";
 import type { AudioGraphicReport } from "../domain/audio-graphics";
 import "./audio-graph-engine.css";
@@ -80,31 +81,31 @@ type CompletedResult = Result & { request: RequestIdentity };
 
 // The engine's role vocabulary, relabelled for this page.
 const CHART_LABEL: Record<string, string> = {
-  before: "麦克音",
-  echo: "参考音",
-  after: "输出",
+  before: "麦克风混合输入",
+  echo: "远端播放信号 / 回声参考",
+  after: "VCP 处理后的近端输出",
 };
 
 const SLOTS: { id: Slot; label: string; hint: string }[] = [
   {
     id: "microphone",
-    label: "麦克音",
-    hint: "算法处理前的麦克风录音，保留噪声与回声。",
+    label: "麦克风混合输入",
+    hint: "microphone：设备输入阶段的麦克风混合录音，保留近端语音、噪声与回声。",
   },
   {
     id: "reference",
-    label: "参考音",
-    hint: "与麦克音同步的实际播放信号；保留全部 1–8 路声道，每路对应一条播放参考。",
+    label: "远端播放信号 / 回声参考",
+    hint: "far_end：与麦克风混合输入同步、送往扬声器的远端信号，不是干净近端参考；保留全部 1–8 路声道。",
   },
   {
     id: "clean",
-    label: "干净近端",
-    hint: "可选的近端纯净参考，用于计算 SI-SDR / STOI；不提供则跳过得分。",
+    label: "干净近端参考",
+    hint: "reference：可选的近端输入真值，用于计算 SI-SDR / STOI；不提供则跳过得分。",
   },
 ];
 
 const RATES = [
-  { value: "", label: "自动（跟随麦克音）" },
+  { value: "", label: "自动（跟随麦克风混合输入）" },
   { value: "16000", label: "16000 Hz" },
   { value: "24000", label: "24000 Hz" },
   { value: "48000", label: "48000 Hz" },
@@ -119,9 +120,18 @@ const REPORT_LABEL: Record<string, string> = {
   process_rtf: "实时率 RTF",
   processing_profile: "处理档位",
   microphones: "麦克风数",
-  output_channels: "输出声道",
+  output_channels: "发送处理输出（TX）声道",
   wind_noise_control: "空间风噪控制",
-  reference_unreliable_frames: "参考不可靠帧数",
+  ns_processing_mode: "NS 处理方式",
+  ns_execution_mode: "NS 执行入口",
+  ns_stream_chunk_samples: "NS 每回调样本数",
+  ns_delay_samples: "NS 固定缓冲样本数",
+  ns_lookahead_samples: "NS 前瞻样本上界",
+  ns_inference_calls: "NS 模型实际推理次数",
+  ns_stream_callback_max_ms: "NS 回调最大耗时",
+  ns_stream_callback_p95_upper_ms: "NS 回调 p95 上界",
+  ns_stream_callback_over_10ms: "NS 超过 10 ms 的回调数",
+  reference_unreliable_frames: "远端播放信号 / 回声参考不可靠帧数",
 };
 
 function formatValue(key: string, value: number | string | boolean | null) {
@@ -229,7 +239,7 @@ function UploadCard({
           </div>
           <audio controls preload="metadata" src={url || undefined} aria-label={`${slot.label}试听`} />
           <div className="audio-card-bottom">
-            <small className="preview-note">{slot.id === "reference" ? "试听原文件；生成保留全部参考声道。" : slot.id === "microphone" ? "试听原文件；处理声道由下方麦克风方式决定。" : "试听原文件；评分使用第 1 声道。"}</small>
+            <small className="preview-note">{slot.id === "reference" ? "试听原文件；生成保留全部远端播放信号声道。" : slot.id === "microphone" ? "试听原文件；处理声道由下方麦克风方式决定。" : "试听原文件；干净近端参考评分使用第 1 声道。"}</small>
             <button className="text-link" disabled={disabled} onClick={() => input.current?.click()}>
               重新选择
             </button>
@@ -301,6 +311,8 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
   const busy = operation?.kind === "generate";
   const locked = operation !== null || graphicsBusy;
   const ready = Boolean(files.microphone && files.reference);
+  const aecCapability = useAecRouteCapability(configuration?.selection.aec);
+  const submitIssue = executionIssue ?? aecCapability.blockReason;
 
   useEffect(() => () => {
     graphicsPending.current?.abort();
@@ -395,8 +407,12 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
   }
 
   async function generate() {
+    if (aecCapability.submitBlocked) {
+      setError(aecCapability.blockReason ?? "DSP 路由能力尚未确认，暂不允许提交。");
+      return;
+    }
     if (!files.microphone || !files.reference) {
-      setError("请先选择麦克音与参考音。");
+      setError("请先选择麦克风混合输入与远端播放信号 / 回声参考。");
       return;
     }
     let options: SynthesisOptions;
@@ -468,7 +484,7 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
     <div className="synthesize">
       {!embedded ? <div className="synthesize-modes" role="group" aria-label="音频展示方式">
         <button type="button" aria-pressed={mode === "failures"} onClick={() => changeMode("failures")}>失败样本试听</button>
-        <button type="button" aria-pressed={mode === "generate"} onClick={() => changeMode("generate")}>上传并生成输出</button>
+        <button type="button" aria-pressed={mode === "generate"} onClick={() => changeMode("generate")}>上传并生成发送处理输出（TX）</button>
       </div> : null}
       {mode === "failures" ? <NsFailureAudio /> : <>
       <div className="synthesize-route" aria-live="polite">
@@ -478,6 +494,7 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
           </select></label>}
         {(configuration?.profile ?? profile) === "vcp_joint" ? <p className="config-helper">联合方案优先保护双讲；启动期回声抑制和高信噪比场景仍需用实际录音确认。</p> : null}
         {executionIssue ? <p className="field-error" role="alert">{executionIssue}</p> : null}
+        <AecRouteAvailabilityView state={aecCapability} />
       </div>
       {demos.length ? (
         <div className="synthesize-demos">
@@ -527,7 +544,7 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
           aria-label="逐通道标定延迟" type="text" value={delayText} disabled={locked} placeholder="例如 1.44, 0"
           onChange={(event) => { setDelayText(event.target.value); setResult(null); setError(""); }} /></label> : null}
       </div>
-      <p className="config-helper">麦克风支持 1 / 2 / 4 路同步声道。多麦启用 BF 时请选择“使用标定阵列”并填写每路真实延迟；{configuration ? "只使用第 1 麦时需在上方旁路 BF。" : "单麦可直接使用第 1 麦。"}播放参考保留全部声道，不做平均。</p>
+      <p className="config-helper">麦克风混合输入支持 1 / 2 / 4 路同步声道。多麦启用 BF 时请选择“使用标定阵列”并填写每路真实延迟；{configuration ? "只使用第 1 麦时需在上方旁路 BF。" : "单麦可直接使用第 1 麦。"}远端播放信号 / 回声参考保留全部声道，不做平均。</p>
       <div className="synthesize-bar">
         <label>
           目标采样率
@@ -547,9 +564,9 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
         <small className="config-helper">
           引擎只实现 16 / 24 / 48 kHz 的 10 ms 帧；两路音频都会转换到该采样率，并按较短长度对齐。
         </small>
-        <button className="button primary" disabled={locked || !ready || Boolean(executionIssue)} onClick={generate}>
+        <button className="button primary" disabled={locked || !ready || Boolean(submitIssue)} onClick={generate}>
           {busy ? <LoaderCircle size={16} className="spin" /> : <Sparkles size={16} />}
-          {busy ? "生成中…" : "生成输出音频"}
+          {busy ? "生成中…" : "生成发送处理输出（TX）"}
         </button>
         {locked ? <button className="button secondary" onClick={cancel}>取消任务</button> : null}
       </div>
@@ -566,7 +583,7 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
         <div className="synthesize-result">
           <div className="synthesize-result-head">
             <div>
-              <h3>处理后音频</h3>
+              <h3>发送处理输出（TX）</h3>
               <span>
                 {result.seconds.toFixed(2)} s · {result.sample_rate / 1000} kHz · 档位 {result.profile}
                 {result.trimmed_seconds > 0.0005
@@ -587,10 +604,10 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
             目标采样率：{result.request.options.sample_rate ? `${result.request.options.sample_rate} Hz` : "自动"}；
             任务 {result.request.id}。</p>
           <p className="config-helper" data-testid="synthesis-input-channels">本次实际处理：档位 {result.profile}；
-            麦克风 {result.inputs.microphone.processed_channels ?? 1} 路；播放参考 {result.inputs.reference.processed_channels ?? 1} 路（全部保留）。
+            麦克风混合输入 {result.inputs.microphone.processed_channels ?? 1} 路；远端播放信号 / 回声参考 {result.inputs.reference.processed_channels ?? 1} 路（全部保留）。
             {result.request.options.microphone_mode === "beamform" ? "使用标定阵列。" : "使用第 1 麦。"}
           </p>
-          <audio controls preload="metadata" src={result.download_url} aria-label="处理后音频试听" />
+          <audio controls preload="metadata" src={result.download_url} aria-label="发送处理输出（TX）试听" />
 
           <div className="synthesize-levels">
             <table className="audio-table">
@@ -605,9 +622,9 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
               <tbody>
                 {(
                   [
-                    ["麦克音", result.inputs.microphone],
-                    ["参考音", result.inputs.reference],
-                    ["输出", result.output],
+                    ["麦克风混合输入", result.inputs.microphone],
+                    ["远端播放信号 / 回声参考", result.inputs.reference],
+                    ["发送处理输出（TX）", result.output],
                   ] as const
                 ).map(([label, side]) => (
                   <tr key={label}>
@@ -639,19 +656,19 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
                           <tr>
                             <td>总电平变化</td>
                             <td>{(result.metrics.level_change_db ?? 0).toFixed(2)} dB</td>
-                            <td>输出相对麦克音 RMS，全程</td>
+                            <td>发送处理输出（TX）相对麦克风混合输入 RMS，全程</td>
                           </tr>
                           <tr>
-                            <td>参考活动占比</td>
+                            <td>远端播放信号活动占比</td>
                             <td>{(result.metrics.reference_active_percent ?? 0).toFixed(1)}%</td>
-                            <td>参考音高于 −50 dBFS 的 10 ms 帧</td>
+                            <td>远端播放信号 / 回声参考高于 −50 dBFS 的 10 ms 帧</td>
                           </tr>
                           {result.metrics.quality?.available ? (
                             <>
                               <tr>
                                 <td>SI-SDR</td>
                                 <td>{(result.metrics.quality.si_sdr_db ?? 0).toFixed(2)} dB</td>
-                                <td>干净近端最小二乘投影</td>
+                                <td>干净近端参考最小二乘投影</td>
                               </tr>
                               <tr>
                                 <td>STOI</td>
@@ -664,7 +681,7 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
                             <tr key={band.low_hz}>
                               <td>{band.low_hz}–{Math.round(band.high_hz)} Hz</td>
                               <td>{band.change_db.toFixed(2)} dB</td>
-                              <td>该频带输出相对输入</td>
+                              <td>该频带发送处理输出（TX）相对麦克风混合输入</td>
                             </tr>
                           ))}
                         </tbody>
@@ -698,7 +715,7 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
                 <span className="synthesize-chart-note">Welch PSD · dBFS/Hz · 按频段保留峰值用于绘图</span>
                 <SpectrumPlot
                   unit="dBFS/Hz"
-                  label="麦克音、参考音与输出的功率谱密度对比"
+                  label="麦克风混合输入、远端播放信号 / 回声参考与发送处理输出（TX）的功率谱密度对比"
                   series={result.charts.map((chart) => ({
                     label: CHART_LABEL[chart.role] ?? chart.role,
                     color: ROLE_COLOR[chart.role],
@@ -710,7 +727,7 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
               <section className="synthesize-chart">
                 <h4>波形</h4>
                 <span className="synthesize-chart-note">
-                  完整输入 / 输出 · 输入图显示第 1 声道用于观察，参考处理保留全部声道 · 纵轴 ±1 FS
+                  完整输入 / 发送处理输出（TX） · 麦克风混合输入图显示第 1 声道用于观察，远端播放信号处理保留全部声道 · 纵轴 ±1 FS
                 </span>
                 <div className="waveform-list">
                   {result.charts.map((chart) => (
@@ -722,7 +739,7 @@ export default function AudioSynthesize({ configuration, embedded = false }: {
           ) : null}
 
           <section className="synthesize-chart synthesize-graphics" aria-label="本次音频的图片引擎分析">
-            <div className="synthesize-result-head"><div><h3>本次输出对比图</h3><p className="config-helper">使用这次实际处理的输入和输出，按声明的算法延迟对齐，不归一化响度。多麦输入图观察第 1 麦，与阵列输出的差异包含波束形成影响。</p></div>
+            <div className="synthesize-result-head"><div><h3>本次发送处理输出（TX）对比图</h3><p className="config-helper">使用这次实际处理的输入和发送处理输出（TX），按声明的算法延迟对齐，不归一化响度。多麦输入图观察第 1 麦，与阵列发送处理输出（TX）的差异包含波束形成影响。</p></div>
               {result.graphics_url ? <button className="button secondary" type="button" disabled={locked} onClick={generateGraphics}>
                 {graphicsBusy ? <LoaderCircle size={15} className="spin" /> : <Sparkles size={15} />}
                 {graphicsBusy ? "正在生成对比图…" : "生成本次对比图"}

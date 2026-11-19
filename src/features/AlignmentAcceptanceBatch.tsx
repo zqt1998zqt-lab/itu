@@ -27,6 +27,12 @@ import {
   FIVE_SIGNAL_MODES,
   type FiveSignalMode,
 } from "./five-signal-flow-model";
+import { businessModeLabel as modeLabel } from "../domain/business-modes.ts";
+import {
+  algorithmClusterLabel,
+  algorithmClusterRateSummary,
+  supportsMultiRateFullBatch,
+} from "./rate-algorithm-clusters";
 import "./alignment-acceptance-batch.css";
 
 const DATASETS_URL = "/api/alignment/acceptance/datasets";
@@ -166,6 +172,7 @@ type AcceptanceBatchSummary = Pick<
 
 type Props = {
   algorithmClusterId: string;
+  onAlgorithmClusterChange?: (id: string) => void;
   externalRunning?: boolean;
   onBusyChange?: (busy: boolean) => void;
   onRestoringChange?: (restoring: boolean) => void;
@@ -575,6 +582,7 @@ function ItemStatusBadge({ status }: { status: ItemStatus }) {
 
 export default function AlignmentAcceptanceBatch({
   algorithmClusterId,
+  onAlgorithmClusterChange,
   externalRunning = false,
   onBusyChange,
   onRestoringChange,
@@ -886,10 +894,12 @@ export default function AlignmentAcceptanceBatch({
       ? Math.min(100, Math.max(0, (progressDone / progressTotal) * 100))
       : 0;
   const selectedDatasetIsComplete = selectedDataset?.item_count === 336;
+  const fullBatchClusterSupported = supportsMultiRateFullBatch(algorithmClusterId);
   const canLaunch =
     !externalRunning &&
     Boolean(selectedDataset) &&
     Boolean(algorithmClusterId) &&
+    fullBatchClusterSupported &&
     selectedDatasetIsComplete &&
     !launching &&
     !isBatchActive &&
@@ -1361,9 +1371,30 @@ export default function AlignmentAcceptanceBatch({
                   ? "批次执行中…"
                   : "一键执行 336 项"}
             </button>
-            <p className="acceptance-batch-help">
-              按钮会锁定到当前批次结束，避免重复创建。
-            </p>
+            {!fullBatchClusterSupported && algorithmClusterId ? (
+              <div className="acceptance-batch-help" role="status">
+                <span>
+                  当前算法簇 {algorithmClusterLabel(algorithmClusterId)} 仅支持{" "}
+                  {algorithmClusterRateSummary(algorithmClusterId)}，不能直接运行覆盖
+                  8 / 16 / 48 kHz 的 336 项全模式批次；请切换为通用多采样率算法簇，或前往对应单模式页面执行。
+                </span>
+                {onAlgorithmClusterChange ? (
+                  <button
+                    className="button secondary"
+                    type="button"
+                    disabled={externalRunning || launching || isBatchActive}
+                    onClick={() => onAlgorithmClusterChange("vcp_unified")}
+                    style={{ marginLeft: 8 }}
+                  >
+                    切换为 VCP Unified（通用）
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <p className="acceptance-batch-help">
+                按钮会锁定到当前批次结束，避免重复创建。
+              </p>
+            )}
           </div>
         </li>
       </ol>
@@ -1685,7 +1716,7 @@ export default function AlignmentAcceptanceBatch({
                   <option value="all">全部 8 模式</option>
                   {FIVE_SIGNAL_MODES.map((mode) => (
                     <option key={mode} value={mode}>
-                      {mode}
+                      {modeLabel(mode)}
                     </option>
                   ))}
                 </select>

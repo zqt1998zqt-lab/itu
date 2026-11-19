@@ -173,7 +173,7 @@ export default function AudioCharts({ report }: { report: AudioReport }) {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <h2>{tab === "psd" ? "功率谱密度" : "参考到录音的传递函数"}</h2>
+            <h2>{tab === "psd" ? "功率谱密度" : "麦克风混合输入到处理后发送输出的传递函数"}</h2>
             <p>
               {tab === "psd"
                 ? "Welch PSD · 原始采样率 · dBFS/Hz"
@@ -199,7 +199,7 @@ export default function AudioCharts({ report }: { report: AudioReport }) {
           series={series}
           unit={tab === "psd" ? "dBFS/Hz" : "dB"}
           label={
-            tab === "psd" ? "各音频功率谱密度对比" : "处理前后工程传递函数对比"
+            tab === "psd" ? "各音频功率谱密度对比" : "麦克风混合输入与处理后发送输出的工程传递函数对比"
           }
         />
         <p className="chart-note">

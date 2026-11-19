@@ -1,0 +1,551 @@
+.dataset-case-runs {
+  margin: 0 24px 20px;
+  overflow: hidden;
+  color: #233248;
+  background: #ffffff;
+  border: 1px solid #dce7f5;
+  border-radius: 9px;
+}
+
+.dataset-case-runs-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px;
+  background: #f8fbff;
+  border-bottom: 1px solid #dce7f5;
+}
+
+.dataset-case-runs-header h3 {
+  margin: 0;
+  color: #1f2c40;
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.dataset-case-runs-header p {
+  max-width: 760px;
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.dataset-case-runs-header-meta {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.dataset-case-runs-header-meta > span {
+  color: #52647a;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dataset-case-runs-header-meta .button {
+  width: auto;
+  min-height: 34px;
+}
+
+.dataset-case-runs-error,
+.dataset-case-runs-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 14px 18px;
+  padding: 11px 12px;
+  border-radius: 7px;
+}
+
+.dataset-case-runs-error {
+  color: #963d3d;
+  background: #fff7f6;
+  border: 1px solid #f0cbc7;
+}
+
+.dataset-case-runs-error > svg,
+.dataset-case-runs-empty > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.dataset-case-runs-error strong {
+  font-size: 0.74rem;
+}
+
+.dataset-case-runs-error p,
+.dataset-case-runs-empty p {
+  margin: 3px 0 0;
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+.dataset-case-runs-identity {
+  margin: 14px 18px;
+  padding: 9px 10px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+.dataset-case-runs-empty {
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e1e8f0;
+}
+
+.dataset-case-runs-empty p {
+  margin: 0;
+}
+
+.dataset-case-runs-list {
+  display: grid;
+  gap: 16px;
+  max-height: min(620px, 65vh);
+  padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  background: #fbfdff;
+}
+
+.dataset-case-runs-list:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -3px;
+}
+
+.dataset-case-runs-card {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  background: #ffffff;
+  border: 1px solid #cbd9e8;
+  border-left: 4px solid #4f7fb8;
+  border-radius: 9px;
+  box-shadow: 0 1px 3px rgb(36 54 75 / 7%);
+}
+
+.dataset-case-runs-card.is-active {
+  border-color: #93b4ef;
+  box-shadow: 0 0 0 2px #eff6ff;
+}
+
+.dataset-case-runs-card > header,
+.dataset-case-runs-card > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dataset-case-runs-card > header {
+  margin: 0;
+  padding: 11px 13px;
+  background: #f1f7fd;
+  border-bottom: 1px solid #d7e5f3;
+}
+
+.dataset-case-runs-conditions,
+.dataset-case-runs-contracts,
+.dataset-case-runs-failure,
+.dataset-case-runs-downloads,
+.dataset-case-runs-card > footer {
+  margin-right: 13px;
+  margin-left: 13px;
+}
+
+.dataset-case-runs-card > footer {
+  margin-bottom: 13px;
+}
+
+.dataset-case-runs-card > footer {
+  margin-top: 13px;
+  padding-top: 10px;
+  border-top: 1px solid #edf1f6;
+}
+
+.dataset-case-runs-card > footer > span {
+  color: #7a8ba0;
+  font-size: 0.67rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dataset-case-runs-card > footer .button {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 34px;
+}
+
+.dataset-case-runs-card-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+}
+
+.dataset-case-runs-card-title > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dataset-case-runs-card-title > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dataset-case-runs-card-title code {
+  color: #52647a;
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+
+.dataset-case-runs-card-title strong {
+  color: #2d3e55;
+  font-size: 0.74rem;
+  font-weight: 650;
+}
+
+.dataset-case-runs-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  color: #64748b;
+  background: #f5f7fa;
+  border: 1px solid #dfe5ec;
+  border-radius: 5px;
+  font-size: 0.67rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.dataset-case-runs-status.is-running,
+.dataset-case-runs-status.is-queued {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.dataset-case-runs-status.is-completed,
+.dataset-case-runs-status.is-pass {
+  color: #287d5a;
+  background: #eef8f3;
+  border-color: #c7ead9;
+}
+
+.dataset-case-runs-status.is-failed,
+.dataset-case-runs-status.is-fail,
+.dataset-case-runs-status.is-invalid,
+.dataset-case-runs-status.is-cancelled {
+  color: #9f2f2f;
+  background: #fff6f5;
+  border-color: #f2c7c3;
+}
+
+.dataset-case-runs-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0 34px;
+}
+
+.dataset-case-runs-conditions > div {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  padding: 3px 6px;
+  background: #f8fafc;
+  border: 1px solid #e5ebf2;
+  border-radius: 5px;
+}
+
+.dataset-case-runs-conditions dt {
+  color: #8492a4;
+  font-size: 0.62rem;
+}
+
+.dataset-case-runs-conditions dd {
+  margin: 0;
+  color: #475569;
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dataset-case-runs-contracts {
+  display: grid;
+  gap: 6px;
+  margin-top: 11px;
+  margin-bottom: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dataset-case-runs-contracts li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 7px 9px;
+  background: #fbfcfe;
+  border: 1px solid #e8edf3;
+  border-radius: 6px;
+}
+
+.dataset-case-runs-contracts li > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dataset-case-runs-contracts strong {
+  color: #304158;
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.dataset-case-runs-contracts code {
+  color: #718096;
+  font-size: 0.63rem;
+  overflow-wrap: anywhere;
+}
+
+.dataset-case-runs-item-result {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 1px;
+  min-width: 90px;
+  text-align: right;
+}
+
+.dataset-case-runs-item-result b {
+  color: #304158;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dataset-case-runs-item-result small {
+  color: #8492a4;
+  font-size: 0.61rem;
+}
+
+.dataset-case-runs-item-result.is-pass b {
+  color: #287d5a;
+}
+
+.dataset-case-runs-item-result.is-fail b,
+.dataset-case-runs-item-result.is-invalid b {
+  color: #9f2f2f;
+}
+
+.dataset-case-runs-failure {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 9px;
+  margin-bottom: 0;
+  padding: 7px 8px;
+  color: #8f3333;
+  background: #fff7f6;
+  border: 1px solid #f0cbc7;
+  border-radius: 5px;
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
+.dataset-case-runs-failure svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.dataset-case-runs-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 9px;
+  margin-bottom: 0;
+}
+
+.dataset-case-runs-downloads a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #2563eb;
+  font-size: 0.67rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .dataset-case-runs {
+    margin-right: 14px;
+    margin-left: 14px;
+  }
+
+  .dataset-case-runs-header,
+  .dataset-case-runs-card > footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dataset-case-runs-header-meta {
+    justify-content: space-between;
+  }
+
+  .dataset-case-runs-conditions,
+  .dataset-case-runs-contracts,
+  .dataset-case-runs-failure,
+  .dataset-case-runs-downloads {
+    margin-left: 0;
+  }
+
+  .dataset-case-runs-card > footer .button {
+    width: 100%;
+  }
+}
+
+.dataset-case-runs-wave-section {
+  margin: 10px 13px 0 34px;
+}
+
+.dataset-case-runs-wave-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.dataset-case-runs-wave-toggle,
+.dataset-case-runs-mel-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  color: #2f5b8f;
+  background: #f3f7fc;
+  border: 1px solid #d0deef;
+  border-radius: 5px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dataset-case-runs-wave-toggle:hover,
+.dataset-case-runs-mel-toggle:hover {
+  background: #e9f1fb;
+  border-color: #a9c4e4;
+}
+
+.dataset-case-runs-wave-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 9px;
+}
+
+.dataset-case-runs-wave-track {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 10px;
+  background: #fafcff;
+  border: 1px solid #dce6f2;
+  border-radius: 7px;
+}
+
+.dataset-case-runs-wave-track.is-silent {
+  background: #f9fafb;
+  border-style: dashed;
+}
+
+.dataset-case-runs-wave-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+
+.dataset-case-runs-wave-meta strong {
+  color: #293b52;
+  font-size: 0.66rem;
+  font-weight: 650;
+}
+
+.dataset-case-runs-wave-meta span {
+  color: #5b6e84;
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dataset-case-runs-wave-track svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #ffffff;
+  border: 1px solid #e6edf5;
+  border-radius: 5px;
+}
+
+.dataset-case-runs-wave-track canvas {
+  display: block;
+  width: 100%;
+  height: 72px;
+  border-radius: 5px;
+}
+
+.dataset-case-runs-wave-audio {
+  display: flex;
+  align-items: center;
+}
+
+.dataset-case-runs-wave-audio button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  color: #315f91;
+  background: #ffffff;
+  border: 1px solid #cbd9e8;
+  border-radius: 5px;
+  font-size: 0.63rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dataset-case-runs-wave-audio audio {
+  width: 100%;
+  height: 28px;
+}
+
+@media (max-width: 760px) {
+  .dataset-case-runs-wave-section {
+    margin-left: 13px;
+  }
+
+  .dataset-case-runs-wave-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

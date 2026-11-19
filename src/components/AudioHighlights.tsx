@@ -33,7 +33,7 @@ export function Highlights({ report }: { report: AudioReport }) {
             <strong>
               {displayValue(m)} <small>{unit}</small>
             </strong>
-            <p>{m?.note ?? "需要干净参考及可靠对齐的有效片段"}</p>
+            <p>{m?.note ?? "需要干净近端参考及可靠对齐的有效片段"}</p>
           </section>
         );
       })}

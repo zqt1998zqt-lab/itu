@@ -16,21 +16,26 @@ from fastapi.responses import JSONResponse, Response
 from . import service
 from .acceptance_scene_conditions import (
     CONTRACT_ITEM_COUNT,
-    DATASET_ID,
-    DATASET_KIND,
-    DATASET_NAME,
     FORMAL_TEST_STATUS,
     MODE,
     PREVIEW_CONDITION_GROUP_COUNT,
     ROLES,
-    SCENE,
     SCHEMA_VERSION,
     STANDARD_COMPLIANCE,
     TEST_SCOPE,
+)
+from .acceptance_scene_condition_store import (
     SceneConditionDatasetError,
     asset_path,
     load_scene_condition_dataset,
 )
+from .scene_mode_conversation_profiles import (
+    SceneConditionScene,
+    profile_for_dataset,
+    profile_for_scene,
+    profile_for_scene_and_mode,
+)
+from .scene_condition_profiles import profile_for_scene as legacy_profile_for_scene
 from .acceptance_visualization import (
     MEL_BANDS,
     MEL_DB_OFFSET_DB,
@@ -52,8 +57,7 @@ router = APIRouter(
 )
 
 SceneConditionScope = Literal["background_noise"]
-SceneConditionMode = Literal["WB-wired"]
-SceneConditionScene = Literal["sce1"]
+SceneConditionMode = Literal["NB-wired", "NB-wireless", "NB-bt", "WB-wired", "WB-wireless", "WB-bt", "SWB-wired", "SWB-wireless"]
 
 _VISUAL_CACHE: dict[str, dict[str, Any]] = {}
 _VISUAL_CACHE_LOCK = Lock()
@@ -78,9 +82,11 @@ def _reject_unexpected_query_parameters(
 
 
 def _load_dataset(dataset_id: str) -> dict[str, Any]:
-    if dataset_id != DATASET_ID:
+    try:
+        profile = profile_for_dataset(dataset_id)
+    except ValueError as error:
         raise HTTPException(status_code=404, detail="场景条件测试集不存在")
-    _validate_runtime_contract_binding()
+    _validate_runtime_contract_binding(profile.dataset_id)
     try:
         return load_scene_condition_dataset(dataset_id)
     except SceneConditionDatasetError as error:
@@ -90,8 +96,12 @@ def _load_dataset(dataset_id: str) -> dict[str, Any]:
         ) from error
 
 
-def _validate_runtime_contract_binding() -> None:
-    root = Path(service.BUILD) / "acoustic-scene-condition-datasets" / DATASET_ID
+def _validate_runtime_contract_binding(dataset_id: str) -> None:
+    profile = profile_for_dataset(dataset_id)
+    root = Path(service.BUILD) / "acoustic-scene-condition-datasets" / dataset_id
+    if getattr(profile, "schema_version", "") == "scene-condition-preview-v2":
+        _validate_conversation_binding(root, dataset_id)
+        return
     binding_path = root / "runtime-contract-binding.json"
     contract_path = (
         Path(__file__).resolve().parent / "acceptance_scene_conditions.py"
@@ -110,7 +120,7 @@ def _validate_runtime_contract_binding() -> None:
     if (
         not isinstance(binding, dict)
         or binding.get("schema_version") != "scene-condition-runtime-binding-v1"
-        or binding.get("dataset_id") != DATASET_ID
+        or binding.get("dataset_id") != dataset_id
         or binding.get("status") != "reconciled"
         or binding.get("runtime_contract_sha256")
         != runtime_contract_sha256
@@ -179,11 +189,78 @@ def _validate_runtime_contract_binding() -> None:
             ).hexdigest()
         if reconstructed_sha != generation_sha:
             raise ValueError("generation contract cannot be reconstructed")
+        for source_key, source_path in (
+            (
+                "scene_profiles_sha256",
+                Path(__file__).resolve().parent
+                / "scene_condition_profiles.py",
+            ),
+            (
+                "acceptance_scope_sha256",
+                Path(__file__).resolve().parent / "acceptance_scope.py",
+            ),
+        ):
+            recorded = {
+                artifacts[name]
+                .get("source_hashes", {})
+                .get(source_key)
+                for name in ("summary.json", "quality.json")
+            }
+            if recorded == {None} and profile.scene == "sce1":
+                continue
+            current = hashlib.sha256(source_path.read_bytes()).hexdigest()
+            if len(recorded) != 1 or next(iter(recorded)) != current:
+                raise ValueError(
+                    f"generation source does not match: {source_key}"
+                )
     except (OSError, ValueError, KeyError, TypeError) as error:
         raise HTTPException(
             status_code=503,
             detail=f"场景条件来源契约校验失败: {error}",
         ) from error
+
+
+def _validate_conversation_binding(root: Path, dataset_id: str) -> None:
+    """V2 binds the frozen inputs and generating sources without rewriting V1."""
+    project = Path(__file__).resolve().parents[2]
+    required_sources = {
+        "server/acoustic/scene_conversation_profiles.py",
+        "scripts/acceptance_signal_design.py",
+        "scripts/create-background-noise-conversation-dataset.py",
+        "scripts/create-background-noise-scene-condition-dataset.py",
+        "server/acoustic/acceptance_scope.py",
+        "cpp/evaluation/nv200-test-contract.json",
+    }
+    try:
+        binding = json.loads((root / "runtime-contract-binding.json").read_text())
+        if (not isinstance(binding, dict)
+            or binding.get("schema_version") != "scene-condition-runtime-binding-v2"
+            or binding.get("dataset_id") != dataset_id
+            or binding.get("status") != "reconciled"):
+            raise ValueError("conversation dataset binding identity differs")
+        artifacts = binding.get("artifact_sha256")
+        if not isinstance(artifacts, dict) or set(artifacts) != {
+            "manifest.json", "assets.json", "summary.json", "quality.json",
+        }:
+            raise ValueError("conversation dataset artifact hashes incomplete")
+        for name, digest in artifacts.items():
+            if not isinstance(digest, str) or re.fullmatch(r"[a-f0-9]{64}", digest) is None:
+                raise ValueError("conversation artifact digest invalid")
+            if hashlib.sha256((root / name).read_bytes()).hexdigest() != digest:
+                raise ValueError(f"conversation artifact changed: {name}")
+        sources = binding.get("source_sha256")
+        if not isinstance(sources, dict) or not required_sources.issubset(sources):
+            raise ValueError("conversation generating sources incomplete")
+        for name, digest in sources.items():
+            if not isinstance(name, str) or Path(name).is_absolute() or ".." in Path(name).parts:
+                raise ValueError("conversation source path invalid")
+            source = (project / name).resolve(strict=True)
+            if not source.is_relative_to(project) or not isinstance(digest, str):
+                raise ValueError("conversation source escapes project")
+            if hashlib.sha256(source.read_bytes()).hexdigest() != digest:
+                raise ValueError(f"conversation source changed: {name}")
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        raise HTTPException(503, f"通话场景测试集来源契约校验失败: {error}") from error
 
 
 def _visual_track(path, source_sha256: str) -> dict[str, Any]:
@@ -211,7 +288,9 @@ def _visual_track(path, source_sha256: str) -> dict[str, Any]:
         return dict(cached)
 
 
-def _preview_visuals(dataset: dict[str, Any]) -> dict[str, Any]:
+def _preview_visuals(
+    dataset: dict[str, Any], *, waveform_only: bool = False,
+) -> dict[str, Any]:
     visual_cases: dict[str, dict[str, dict[str, Any]]] = {}
     for case in dataset["cases"]:
         tracks: dict[str, dict[str, Any]] = {}
@@ -219,9 +298,16 @@ def _preview_visuals(dataset: dict[str, Any]) -> dict[str, Any]:
             relative = case["signals"][role]
             source_sha256 = case["signals_sha256"][role]
             path = asset_path(dataset["root"], relative)
-            tracks[role] = _visual_track(path, source_sha256)
+            track = _visual_track(path, source_sha256)
+            if waveform_only:
+                track = {
+                    key: value for key, value in track.items()
+                    if key not in {"mel_i16", "mel_ceiling_db"}
+                }
+            tracks[role] = track
         visual_cases[case["case_id"]] = tracks
     return {
+        **({"detail": "waveform"} if waveform_only else {}),
         "schema": VISUAL_SCHEMA,
         "waveform_bins": WAVEFORM_BINS,
         "mel_bands": MEL_BANDS,
@@ -251,31 +337,50 @@ def scene_condition_datasets(
     scope: SceneConditionScope,
     mode: SceneConditionMode,
     scene: SceneConditionScene,
+    version: Literal["current", "legacy"] = "current",
 ) -> dict[str, Any]:
     _reject_unexpected_query_parameters(
         request,
-        frozenset({"scope", "mode", "scene"}),
+        frozenset({"scope", "mode", "scene", "version"}),
     )
-    _load_dataset(DATASET_ID)
+    if version == "legacy":
+        if mode != MODE:
+            raise HTTPException(
+                status_code=422,
+                detail="20 组历史预览测试集仅支持 WB-wired",
+            )
+        profile = legacy_profile_for_scene(scene)
+    else:
+        profile = profile_for_scene_and_mode(scene, mode)
+    dataset = _load_dataset(profile.dataset_id)
+    if dataset["mode"] != mode or dataset["scene"] != scene:
+        raise HTTPException(
+            status_code=422,
+            detail="场景、模式与场景条件测试集身份不一致",
+        )
     return {
         "test_scope": TEST_SCOPE,
-        "mode": MODE,
-        "scene": SCENE,
-        "contract_item_count": CONTRACT_ITEM_COUNT,
-        "preview_condition_group_count": PREVIEW_CONDITION_GROUP_COUNT,
+        "mode": dataset["mode"],
+        "scene": dataset["scene"],
+        "contract_item_count": dataset["contract_item_count"],
+        "preview_condition_group_count": dataset["preview_condition_group_count"],
+        "observation_count": dataset.get("observation_count", 50),
+        "conversation_counts": dataset.get("conversation_counts", {}),
         "standard_compliance": STANDARD_COMPLIANCE,
         "formal_test_status": FORMAL_TEST_STATUS,
         "datasets": [
             {
-                "dataset_id": DATASET_ID,
-                "dataset_name": DATASET_NAME,
+                "dataset_id": dataset["dataset_id"],
+                "dataset_name": dataset["dataset_name"],
                 "test_scope": TEST_SCOPE,
-                "mode": MODE,
-                "scene": SCENE,
-                "contract_item_count": CONTRACT_ITEM_COUNT,
+                "mode": dataset["mode"],
+                "scene": dataset["scene"],
+                "contract_item_count": dataset["contract_item_count"],
                 "preview_condition_group_count": (
-                    PREVIEW_CONDITION_GROUP_COUNT
+                    dataset["preview_condition_group_count"]
                 ),
+                "observation_count": dataset.get("observation_count", 50),
+                "conversation_counts": dataset.get("conversation_counts", {}),
                 "standard_compliance": STANDARD_COMPLIANCE,
                 "formal_test_status": FORMAL_TEST_STATUS,
             }
@@ -296,12 +401,18 @@ def scene_condition_preview(
     ],
     mode: SceneConditionMode,
     scene: SceneConditionScene,
+    visual_detail: Literal["full", "waveform"] = "full",
 ):
     _reject_unexpected_query_parameters(
         request,
-        frozenset({"dataset_id", "mode", "scene"}),
+        frozenset({"dataset_id", "mode", "scene", "visual_detail"}),
     )
     dataset = _load_dataset(dataset_id)
+    if dataset["mode"] != mode or dataset["scene"] != scene:
+        raise HTTPException(
+            status_code=422,
+            detail="场景、模式与场景条件测试集身份不一致",
+        )
     cases = []
     for case in dataset["cases"]:
         roles = sorted(ROLES)
@@ -319,33 +430,49 @@ def scene_condition_preview(
             }
         )
     try:
-        visuals = _preview_visuals(dataset)
+        visuals = (
+            _preview_visuals(dataset, waveform_only=True)
+            if visual_detail == "waveform" else _preview_visuals(dataset)
+        )
     except (OSError, SceneConditionDatasetError, VisualizationCacheError) as error:
         raise HTTPException(
             status_code=503,
             detail=f"场景条件可视化不可用: {error}",
         ) from error
     payload = {
+        **({"visual_detail": "waveform"} if visual_detail == "waveform" else {}),
         "dataset_id": dataset["dataset_id"],
         "dataset_name": dataset["dataset_name"],
         "dataset_manifest_sha256": dataset["dataset_manifest_sha256"],
         "dataset_assets_sha256": dataset["dataset_assets_sha256"],
         "test_scope": TEST_SCOPE,
-        "mode": MODE,
-        "scene": SCENE,
+        "mode": dataset["mode"],
+        "scene": dataset["scene"],
         "cases": cases,
         "visuals": visuals,
-        "preview_condition_group_count": PREVIEW_CONDITION_GROUP_COUNT,
-        "contract_item_count": CONTRACT_ITEM_COUNT,
+        "preview_condition_group_count": dataset["preview_condition_group_count"],
+        "observation_count": dataset.get("observation_count", 50),
+        "conversation_counts": dataset.get("conversation_counts", {}),
+        "contract_item_count": dataset["contract_item_count"],
         "standard_compliance": STANDARD_COMPLIANCE,
         "formal_test_status": FORMAL_TEST_STATUS,
-        "dataset_kind": DATASET_KIND,
-        "schema_version": SCHEMA_VERSION,
+        "dataset_kind": dataset["dataset_kind"],
+        "schema_version": dataset["manifest"]["schema_version"],
     }
     etag = (
         f'"{dataset["dataset_manifest_sha256"]}-'
         f'{dataset["dataset_assets_sha256"]}"'
     )
+    if visual_detail == "waveform":
+        etag = f'{etag[:-1]}-waveform"'
+    # The browser can reuse the immutable representation after revalidating its
+    # identity; the full and waveform-only variants have distinct validators.
+    validators = request.headers.get("if-none-match", "").split(",")
+    if any(value.strip().removeprefix("W/") in {etag, "*"} for value in validators):
+        return Response(status_code=304, headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "ETag": etag,
+        })
     return JSONResponse(
         payload,
         headers={

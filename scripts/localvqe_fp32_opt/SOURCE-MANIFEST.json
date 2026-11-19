@@ -1,0 +1,76 @@
+{
+  "status": "source_bundle",
+  "implementation": "FP32 eligible convolution layout + existing NEON SGEMM; independently selectable exact-order batched DAF",
+  "frozen_original_model_sha256": "b6e43138588a83bfe903ab5e143b4020b91c1e1629f5a575ac5855ff0003c731",
+  "entries": [
+    {
+      "path": "layout/localvqe_graph.cpp",
+      "sha256": "d65b7556e8cdf993c7d31e39be0721c8cee35d91cffbc7d6383bffcb7cd222df",
+      "source": "/home/zhangqingtian/project/itu/build/localvqe-opt-20261117/layout/localvqe_graph.cpp"
+    },
+    {
+      "path": "sgemm-root-v2/ggml-cpu.c",
+      "sha256": "b9314795dd9bad5b2df6c06a5f7360c6f3fec32daacd0e3f4c51210dc317989b",
+      "source": "/home/zhangqingtian/project/itu/build/localvqe-opt-20261117/sgemm-root-v2/ggml-cpu.c"
+    },
+    {
+      "path": "sgemm-root-v2/dispatch_audit.h",
+      "sha256": "c15c3e76a093f02e3cb1aaa6f81bb8db4e68f07c85e1ceb81717b89607903269",
+      "source": "/home/zhangqingtian/project/itu/build/localvqe-opt-20261117/sgemm-root-v2/dispatch_audit.h"
+    },
+    {
+      "path": "daf-root-v2/daf_frontend.cpp",
+      "sha256": "f7a1ccb19a90f847de0172ef7621a4e069cb7b5c70422c87f530ac00820d38e1",
+      "source": "/home/zhangqingtian/project/itu/build/localvqe-opt-20261117/daf-root-v2/daf_frontend.cpp"
+    },
+    {
+      "path": "daf/gru_batch.hpp",
+      "sha256": "5d470043ed5401adf5ed25af27b820467f6721544bfbdbd547609aeb8af24df8",
+      "source": "/home/zhangqingtian/project/itu/build/localvqe-opt-20261117/daf/gru_batch.hpp"
+    },
+    {
+      "path": "validation-root/probe_api.cpp",
+      "sha256": "2976b7d01a2dbc77892f74edc80b8c1e126b1dbd05359daf650ae5d0abfe3ff4",
+      "source": "/home/zhangqingtian/project/itu/build/localvqe-opt-20261117/validation-root/probe_api.cpp"
+    },
+    {
+      "path": "validation-root/probe_exports.hpp",
+      "sha256": "4ac767506b2812e30299509553bd0940db6249e34cbab9d429aadb72bb436e73",
+      "source": "/home/zhangqingtian/project/itu/build/localvqe-opt-20261117/validation-root/probe_exports.hpp"
+    },
+    {
+      "path": "validation-root/probe.cpp",
+      "sha256": "e732ae70565a130dabae9d5fcd03b73c2923052a01c0cd0006bda5a499c7b37c",
+      "source": "/home/zhangqingtian/project/itu/build/localvqe-opt-20261117/validation-root/probe.cpp"
+    },
+    {
+      "path": "validation-root/compare.py",
+      "sha256": "7e30cb322946b285314813afce839ca48838be640f826e833db4ab39e2a2a64e",
+      "source": "/home/zhangqingtian/project/itu/build/localvqe-opt-20261117/validation-root/compare.py"
+    },
+    {
+      "path": "validation-root/original-lifetime-graph.cpp",
+      "sha256": "e2e20378662dabff0e600140e7820db824883bed151df73087614ab7f6bac03a",
+      "source": "/home/zhangqingtian/project/itu/build/localvqe-opt-20261117/validation-root/original-lifetime-graph.cpp"
+    },
+    {
+      "path": "validation-root/layout-lifetime-graph.cpp",
+      "sha256": "fb0caf8345f25a68714d07ac11f51b564b9dbfd5a800feab41613ba80d30a684",
+      "source": "/home/zhangqingtian/project/itu/build/localvqe-opt-20261117/validation-root/layout-lifetime-graph.cpp"
+    },
+    {
+      "path": "build.py",
+      "sha256": "edc39d2e9310e25f9653e5712fa690cd7af4ce2a81f5a747166fad687a5f5147"
+    },
+    {
+      "path": "run.py",
+      "sha256": "3d92b8f922bdd499e2944454202b42a2973eebf03451d746b5141e5fb2db8073"
+    },
+    {
+      "path": "analyze_run.py",
+      "sha256": "e0d40786f9522ba1ac491de3f33276b11e7e0ad071220c704119a5fb5b487c19"
+    }
+  ],
+  "preservation": "New sources only, no model/production source or previous artifact overwritten",
+  "original_source": "LocalAI-io/LocalVQE f53063c9eb2a85f96479867d1dd911dc3bf6319b with pinned GGML source c044a8eeae2591faa0950c8b5e514cbc4bbfc4ca; original license notices retained in source/dependency tree"
+}

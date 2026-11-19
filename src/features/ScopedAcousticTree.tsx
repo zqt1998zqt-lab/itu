@@ -1,6 +1,9 @@
 import { useId, useState } from "react";
 import { ArrowRight, GitBranch, Layers3 } from "lucide-react";
-import { chainPresets, chainStages } from "./enhancement-chain-model";
+import {
+  algorithmClusterById,
+  isAlgorithmClusterSupportedForMode,
+} from "./rate-algorithm-clusters";
 import type { FiveSignalMode } from "./five-signal-flow-model";
 import {
   BACKGROUND_NOISE_SCENES,
@@ -123,8 +126,8 @@ export default function ScopedAcousticTree({
     ] : [{ id: "measurement", center, indices }];
     return { id: `analysis-${resolvedScene}`, indices, center, scene: resolvedScene, branches };
   });
-  const preset = chainPresets.find(item => item.id === algorithmClusterId);
-  const supported = Boolean(preset?.profile.startsWith("vcp"));
+  const cluster = algorithmClusterById(algorithmClusterId);
+  const supported = isAlgorithmClusterSupportedForMode(algorithmClusterId, mode, { vcpOnly: true });
   const report = supported
     ? matchingScopedSnapshot(
         snapshot,
@@ -203,7 +206,7 @@ export default function ScopedAcousticTree({
         <section className={`scoped-tree-node scoped-tree-processing${downlink ? " is-receive" : ""}${echo && active ? " is-muted" : ""}`} style={{ top: centerY - (downlink ? 230 : 284) }} aria-label={supported ? `VCP ${OUTPUT_KIND_LABELS[definition.outputKind]} 配置的处理链` : "算法簇不支持此测试"}>
           <span className="scoped-tree-node-label"><Layers3 size={14} aria-hidden="true" />{supported ? `VCP ${OUTPUT_KIND_LABELS[definition.outputKind]}` : "待选择 VCP"}</span>
           <h4>{supported ? downlink ? "下行接收处理" : "上行语音处理" : "当前算法不可执行"}</h4>
-          <p className="scoped-tree-preset" title={preset?.label}>{preset?.label ?? algorithmClusterId}</p>
+          <p className="scoped-tree-preset" title={cluster?.label}>{cluster?.label ?? algorithmClusterId}</p>
           {supported ? <>
             <ol className="scoped-tree-stages" aria-label={downlink ? "下行接收配置的阶段" : "所选算法簇的阶段配置"}>
               {downlink ? [
@@ -211,10 +214,9 @@ export default function ScopedAcousticTree({
                 { label: "EQ 配置槽 · 当前旁路", detail: "默认平直，不沿用上行 EQ 选项", bypassed: true },
                 { label: "DRC · 内嵌软限幅", detail: "4:1 压缩 · −0.5 dBFS 输出约束" },
                 { label: "扬声器数字输出", detail: "接收处理输出（RX）WAV → 后续虚拟双耳" },
-              ].map((stage, index) => <li key={stage.label} className={stage.bypassed ? "is-bypassed" : ""}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{stage.label}</strong><p>{stage.detail}</p></div></li>) : chainStages.map((stage, index) => {
-                const option = stage.options.find(entry => entry.id === preset?.selection[stage.id]);
-                return <li key={stage.id} className={option?.id === "off" ? "is-bypassed" : ""}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{stage.label}</strong><p title={option?.note}>{option?.label ?? "配置不可用"}</p></div></li>;
-              })}
+              ].map((stage, index) => <li key={stage.label} className={stage.bypassed ? "is-bypassed" : ""}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{stage.label}</strong><p>{stage.detail}</p></div></li>) : (cluster?.stages ?? []).map((stage) => (
+                <li key={stage.stageId} className={stage.bypassed ? "is-bypassed" : ""}><span>{String(stage.ordinal).padStart(2, "0")}</span><div><strong>{stage.stageLabel}</strong><p title={stage.note}>{stage.optionLabel}</p></div></li>
+              ))}
             </ol>
             <p className="scoped-tree-chain-note">{downlink ? "所选 profile 加载接收处理（RX）内部配置；发送处理（TX）的 BF / AEC / AGC 选项不进入接收链，实际执行以报告为准。" : "展示所选算法簇的配置；单麦 BF 自动旁路，实际执行以条件组报告为准。"}{echo ? "当前执行器仍生成发送处理输出（TX）；右侧公式读取原始输入。" : background ? "每个绑定条件组各自运行一次，不跨场景共用输出。" : ""}</p>
             <div className="scoped-tree-output"><span>{echo ? "发送处理输出（TX）· 仅供补充诊断" : `${OUTPUT_KIND_LABELS[definition.outputKind]} + 所需参考`}</span>{!echo ? <ArrowRight size={16} aria-hidden="true" /> : null}</div>

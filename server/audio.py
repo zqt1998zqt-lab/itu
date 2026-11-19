@@ -16,7 +16,12 @@ import soundfile as sf
 from pydantic import BaseModel, Field, model_validator
 from scipy import signal
 
-ROLES = {"reference": "干净参考", "before": "麦克风处理前", "after": "麦克风处理后", "echo": "扬声器回声参考"}
+ROLES = {
+    "reference": "干净近端参考",
+    "before": "麦克风混合输入",
+    "after": "处理后发送输出",
+    "echo": "远端播放信号 / 回声参考",
+}
 MAX_BYTES = 32 * 1024 * 1024
 MAX_SECONDS = 120
 EXTENSIONS = {".wav", ".flac", ".mp3", ".ogg", ".m4a", ".aac", ".aif", ".aiff"}
@@ -216,7 +221,7 @@ def compare(reference, target, rate, options: Options, role, bounds=None, fixed_
         # Whole-window means differ when leading/trailing samples are removed.
         x = x - x.mean()
         y = y - y.mean()
-    metrics = [metric(f"delay_{role}", f"{label}相对时延", alignment["delay_ms"] if alignment["reliable"] else None, "ms", "ok" if alignment["reliable"] else "unavailable", alignment["note"] or "正值表示待测晚于干净参考；不是往返 RTD", role, "归一化跨相关 / FFT / 去直流 / 多峰与边界检查")]
+    metrics = [metric(f"delay_{role}", f"{label}相对时延", alignment["delay_ms"] if alignment["reliable"] else None, "ms", "ok" if alignment["reliable"] else "unavailable", alignment["note"] or "正值表示待测晚于干净近端参考；不是往返 RTD", role, "归一化跨相关 / FFT / 去直流 / 多峰与边界检查")]
     if not alignment["reliable"]:
         for id, name, unit in [("sisdr", "SI-SDR", "dB"), ("gain", "相对增益", "dB"), ("stoi", "STOI", "")]:
             metrics.append(metric(f"{id}_{role}", f"{label} {name}", unit=unit, note="可靠对齐后才计算。" + alignment["note"], role=role))
@@ -276,7 +281,7 @@ STANDARD_REQUIREMENTS = [
 
 def analyze(audios: dict[str, Audio], options: Options):
     if "after" not in audios:
-        raise AudioError("请上传麦克风处理后音频")
+        raise AudioError("请上传处理后发送输出音频")
     rate = options.sample_rate
     samples = {role: resample(audio, rate) for role, audio in audios.items()}
     descriptions = [describe(audio) for audio in audios.values()]
@@ -306,7 +311,7 @@ def analyze(audios: dict[str, Audio], options: Options):
                 for id, name, unit in [("delay", "相对时延", "ms"), ("sisdr", "SI-SDR", "dB"), ("gain", "相对增益", "dB"), ("stoi", "STOI", "")]:
                     metrics.append(metric(f"{id}_{role}", f"{ROLES[role]} {name}", unit=unit, note=str(error), role=role))
     else:
-        metrics.append(metric("reference_missing", "相对时延 / SI-SDR / STOI / 传递函数", note="缺少干净参考音频；可以查看单文件数字电平和频谱"))
+        metrics.append(metric("reference_missing", "相对时延 / SI-SDR / STOI / 传递函数", note="缺少干净近端参考；可以查看单文件数字电平和频谱"))
 
     # Front/back quality changes must use the identical reference sample support.
     common_support = False
@@ -322,28 +327,28 @@ def analyze(audios: dict[str, Audio], options: Options):
                 metrics.extend(pair["metrics"])
             notices.append(f"前后保真对比使用相同参考样本：{options.speech.start + start / rate:.4f}–{options.speech.start + end / rate:.4f} s。")
         else:
-            notices.append("前后共有参考片段不足 0.25 秒，不计算质量改善量；请扩大参考比较片段。")
+            notices.append("麦克风混合输入与处理后发送输出共有的干净近端参考片段不足 0.25 秒，不计算质量改善量；请扩大参考比较片段。")
 
     noise_values = {}
     for role in ("before", "after"):
         if role not in samples:
             continue
-        result = metric(f"noise_{role}", f"{ROLES[role]}噪声片段 RMS", unit="dBFS", note="请填写无语音、无回声的噪声片段")
+        result = metric(f"noise_{role}", f"{ROLES[role]}独立噪声输入片段 RMS", unit="dBFS", note="请填写独立噪声输入中无语音、无回声的片段")
         if options.noise is not None:
             try:
                 offset = options.after_offset_ms / 1000 if role == "after" else 0
                 noise = segment(samples[role], rate, options.noise, offset)
                 noise_values[role] = power(noise)
-                result = metric(f"noise_{role}", f"{ROLES[role]}噪声片段 RMS", db(power(noise)), "dBFS", "warning" if power(noise) < 1e-12 else "ok", "在重采样后所选噪声片段计算；需确认无语音、无回声", role)
+                result = metric(f"noise_{role}", f"{ROLES[role]}独立噪声输入片段 RMS", db(power(noise)), "dBFS", "warning" if power(noise) < 1e-12 else "ok", "在重采样后所选独立噪声输入片段计算；需确认无语音、无回声", role)
             except AudioError as error:
                 result["note"] = str(error)
         metrics.append(result)
-    attenuation = metric("noise_attenuation", "噪声衰减", unit="dB", note="需处理前/后、噪声片段及共享时钟/电平确认")
+    attenuation = metric("noise_attenuation", "独立噪声输入衰减", unit="dB", note="需麦克风混合输入/处理后发送输出、独立噪声输入片段及共享时钟/电平确认")
     if {"before", "after"} <= noise_values.keys() and options.common_clock:
         if min(noise_values.values()) < 1e-12:
-            attenuation["note"] = "噪声片段静音或低于有效电平，无法给出有效衰减量"
+            attenuation["note"] = "独立噪声输入片段静音或低于有效电平，无法给出有效衰减量"
         else:
-            attenuation = metric("noise_attenuation", "噪声衰减", db(noise_values["before"] / noise_values["after"]), "dB", "ok", "正值表示处理后更安静；整体增益降低也会提高此值，需联合相对增益/SI-SDR观察", method="10log10(Pnoise_before/Pnoise_after)")
+            attenuation = metric("noise_attenuation", "独立噪声输入衰减", db(noise_values["before"] / noise_values["after"]), "dB", "ok", "正值表示处理后发送输出更安静；整体增益降低也会提高此值，需联合相对增益/SI-SDR观察", method="10log10(Pnoise_before/Pnoise_after)")
     metrics.append(attenuation)
     for role, pn in noise_values.items():
         result = metric(f"snr_{role}", f"{ROLES[role]}片段估计 SNR", unit="dB", note="需确认噪声平稳且参考比较片段包含语音与同一噪声")
@@ -358,7 +363,7 @@ def analyze(audios: dict[str, Audio], options: Options):
                 result["note"] = str(error)
         metrics.append(result)
 
-    echo_attenuation = metric("echo_attenuation", "远端单讲回声片段衰减", unit="dB", note="需处理前/后、回声参考、远端单讲片段及共享时钟/电平确认")
+    echo_attenuation = metric("echo_attenuation", "远端播放信号 / 远端播放信号（回声参考）单讲片段衰减", unit="dB", note="需麦克风混合输入/处理后发送输出、远端播放信号 / 回声参考、远端单讲片段及共享时钟/电平确认")
     if options.far_end is not None and options.far_end_only and options.common_clock and {"before", "after", "echo"} <= samples.keys():
         try:
             pre = segment(samples["before"], rate, options.far_end, min_seconds=0.25)
@@ -366,14 +371,14 @@ def analyze(audios: dict[str, Audio], options: Options):
             echo = segment(samples["echo"], rate, options.far_end, min_seconds=0.25)
             _, _, check = align(echo, pre, rate, options.max_delay_ms)
             if not check["reliable"]:
-                raise AudioError("处理前与回声参考未通过相关性检查：" + check["note"])
+                raise AudioError("麦克风混合输入与远端播放信号 / 回声参考未通过相关性检查：" + check["note"])
             if min(power(pre), power(post), power(echo)) < 1e-12:
                 raise AudioError("片段静音或低于有效电平，无法给出有效回声片段衰减")
-            echo_attenuation = metric("echo_attenuation", "远端单讲回声片段衰减", db(power(pre) / power(post)), "dB", "ok", f"处理前/回声参考相关 {check['correlation']:.3f}；处理后补偿 {options.after_offset_ms:g} ms。功率比可能含后级抑制/降噪/增益影响，含底噪，不是标准 TCL 或滤波器 ERLE", method="10log10(Pmic_before/Pmic_after)，所选片段总功率衰减")
+            echo_attenuation = metric("echo_attenuation", "远端播放信号 / 远端播放信号（回声参考）单讲片段衰减", db(power(pre) / power(post)), "dB", "ok", f"麦克风混合输入/远端播放信号 / 回声参考相关 {check['correlation']:.3f}；处理后发送输出补偿 {options.after_offset_ms:g} ms。功率比可能含后级抑制/降噪/增益影响，含底噪，不是标准 TCL 或滤波器 ERLE", method="10log10(Pmic_before/Pmic_after)，所选片段总功率衰减")
         except AudioError as error:
             echo_attenuation["note"] = str(error)
     metrics.append(echo_attenuation)
-    erle = metric("erle", "AEC ERLE 工程估计", unit="dB", note="需有效远端单讲结果，并确认处理前/后为 AEC 滤波器测量点，排除 NLP、降噪和 AGC 附加衰减")
+    erle = metric("erle", "AEC ERLE 工程估计", unit="dB", note="需有效远端单讲结果，并确认麦克风混合输入/处理后发送输出为 AEC 滤波器测量点，排除 NLP、降噪和 AGC 附加衰减")
     if options.aec_only and echo_attenuation["status"] == "ok":
         erle = metric("erle", "AEC ERLE 工程估计", echo_attenuation["value"], "dB", "ok", "用户已确认 AEC 滤波器前/后测量点且排除后级处理。片段平均功率比含底噪；未执行 G.168 全套测试及 125 ms 时域测量", method="10log10(Pecho_before/Presidual)，排除后级 NLP；不是 TCL/TCLw")
     metrics.append(erle)
@@ -381,7 +386,7 @@ def analyze(audios: dict[str, Audio], options: Options):
         previous = next((m for m in metrics if m["id"] == a), None)
         current = next((m for m in metrics if m["id"] == b), None)
         comparable = previous and current and previous["status"] == current["status"] == "ok" and options.common_clock and common_support
-        metrics.append(metric(id, name, current["value"] - previous["value"] if comparable else None, unit, "ok" if comparable else "unavailable", "处理后 − 处理前；同一参考、片段和电平条件" if comparable else "需前后有效结果、足够的共同参考样本范围与共享时钟/电平确认"))
+        metrics.append(metric(id, name, current["value"] - previous["value"] if comparable else None, unit, "ok" if comparable else "unavailable", "处理后发送输出 − 麦克风混合输入；同一干净近端参考、片段和电平条件" if comparable else "需前后有效结果、足够的共同参考样本范围与共享时钟/电平确认"))
     return {"schema_version": 2, "engine": "itu-engineering-dsp/2.0", "files": descriptions, "options": options.model_dump(), "metrics": metrics, "pairs": pairs, "notices": notices, "standards": [{"symbol": symbol, "name": name, "status": "unavailable", "requirement": requirement} for symbol, name, requirement in STANDARD_REQUIREMENTS]}
 
 

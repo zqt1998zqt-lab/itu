@@ -62,27 +62,36 @@ class DownlinkPipeline {
   // - out_speaker: audio to send to vehicle amplifier/loudspeaker
   // - out_aec_ref: audio tapped to feed into Acoustic Echo Canceller
   // Note: out_speaker and out_aec_ref can point to the same buffer or in-place with in.
-  void process(const float* in, float* out_speaker, float* out_aec_ref, std::size_t n) noexcept {
+  void process(const float* in, float* out_speaker, float* out_aec_ref, std::size_t n,
+               float* nr_tap = nullptr, float* eq_tap = nullptr,
+               float* drc_tap = nullptr) noexcept {
     if (!in || !out_speaker || n == 0) return;
 
     temp_buf_.resize(n);
     std::copy_n(in, n, temp_buf_.data());
 
-    if (config_.enabled) {
-      // 1. Downlink Noise Reduction (NR)
-      if (config_.enable_nr) {
-        process_downlink_nr(temp_buf_.data(), n);
-      }
+    // 1. Downlink Noise Reduction (NR)
+    if (config_.enabled && config_.enable_nr) {
+      process_downlink_nr(temp_buf_.data(), n);
+    }
+    if (nr_tap) {
+      std::copy_n(temp_buf_.data(), n, nr_tap);
+    }
 
-      // 2. Downlink Loudspeaker Frequency Response Equalization (EQ)
-      if (eq_) {
-        eq_->process(temp_buf_.data(), static_cast<unsigned>(n));
-      }
+    // 2. Downlink Loudspeaker Frequency Response Equalization (EQ)
+    if (config_.enabled && eq_) {
+      eq_->process(temp_buf_.data(), static_cast<unsigned>(n));
+    }
+    if (eq_tap) {
+      std::copy_n(temp_buf_.data(), n, eq_tap);
+    }
 
-      // 3. Downlink Dynamic Range Compression & Soft Limiting (AGC / DRC)
-      if (config_.drc.enabled) {
-        drc_.process(temp_buf_.data(), n);
-      }
+    // 3. Downlink Dynamic Range Compression & Soft Limiting (AGC / DRC)
+    if (config_.enabled && config_.drc.enabled) {
+      drc_.process(temp_buf_.data(), n);
+    }
+    if (drc_tap) {
+      std::copy_n(temp_buf_.data(), n, drc_tap);
     }
 
     std::copy_n(temp_buf_.data(), n, out_speaker);
@@ -93,6 +102,10 @@ class DownlinkPipeline {
   }
 
   const DrcConfig& drc_config() const noexcept { return config_.drc; }
+  unsigned delay_samples() const noexcept {
+    return config_.enabled && config_.drc.enabled
+        ? static_cast<unsigned>(drc_.delay_samples()) : 0;
+  }
   float current_drc_gain_db() const noexcept { return drc_.current_gain_db(); }
   // Includes inline DRC state; opaque WebRTC biquad storage is excluded.
   std::size_t wrapper_memory_bytes() const noexcept {

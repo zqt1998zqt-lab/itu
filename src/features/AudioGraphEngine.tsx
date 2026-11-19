@@ -23,7 +23,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   all: "全部图形",
   dynamics: "动态与波形",
   "time-frequency": "时频结构",
-  comparison: "前后对比",
+  comparison: "麦克风混合输入与处理后发送输出",
   bands: "频带与感知",
   transient: "瞬态细节",
 };
@@ -149,7 +149,7 @@ export default function AudioGraphEngine() {
 
   const analyze = async () => {
     if (!afterFile) {
-      setError("请先选择处理后音频；处理前音频可用于前后差分。");
+      setError("请先选择处理后发送输出；麦克风混合输入可用于差分分析。");
       return;
     }
     setBusy(true);
@@ -186,7 +186,7 @@ export default function AudioGraphEngine() {
         <div>
           <span>AUDIO GRAPHICS ENGINE · PAIR OR SINGLE FILE</span>
           <h2>把波形、频谱和增强变化拆成可审计的图</h2>
-          <p>上传处理后音频，可选上传处理前音频。引擎自动对齐、统一色标并生成对数 STFT、差分频谱、LTAS、ERB、短时能量和瞬态视图。</p>
+          <p>上传处理后发送输出，可选上传麦克风混合输入。引擎自动对齐、统一色标并生成对数 STFT、差分频谱、LTAS、ERB、短时能量和瞬态视图。</p>
         </div>
         <div className="graph-summary">
           <div><strong>{report?.source.length ?? "—"}</strong><span>分析音频</span></div>
@@ -198,16 +198,16 @@ export default function AudioGraphEngine() {
 
       <section className="graph-config">
         <div className="graph-section-head">
-          <div><span>INPUT</span><h2>音频与计算条件</h2><p>单文件可直接生成频谱；处理前/处理后配对时会生成差分和三联图。文件最大 32 MB、时长 0.1–120 秒。</p></div>
+          <div><span>INPUT</span><h2>音频与计算条件</h2><p>单文件可直接生成频谱；麦克风混合输入与处理后发送输出配对时会生成差分和三联图。文件最大 32 MB、时长 0.1–120 秒。</p></div>
           <button type="button" className="button secondary" onClick={loadDemo} disabled={busy || loadingDemo}>
             {loadingDemo ? <LoaderCircle className="spin" size={15} /> : <FlaskConical size={15} />}
             载入配对示例
           </button>
         </div>
         <div className="graph-file-grid">
-          <FileSlot id="graph-before-file" label="处理前音频" hint="可选；用于差分、LTAS 和前后共享标尺" file={beforeFile}
+          <FileSlot id="graph-before-file" label="麦克风混合输入" hint="可选；用于差分、LTAS 和输入 / 发送输出共享标尺" file={beforeFile}
             onFile={(file) => { setBeforeFile(file); reset(); }} />
-          <FileSlot id="graph-after-file" label="处理后音频" hint="必需；单文件也可生成频谱" file={afterFile} required
+          <FileSlot id="graph-after-file" label="处理后发送输出" hint="必需；单文件也可生成频谱" file={afterFile} required
             onFile={(file) => { setAfterFile(file); reset(); }} />
         </div>
         <div className="graph-controls">
@@ -215,12 +215,12 @@ export default function AudioGraphEngine() {
             <option value="8000">8 kHz</option><option value="16000">16 kHz</option><option value="24000">24 kHz</option>
             <option value="32000">32 kHz</option><option value="48000">48 kHz</option>
           </select></label>
-          <label><span>处理前声道</span><input type="number" min="1" max="8" value={beforeChannel} onChange={(event) => setBeforeChannel(event.target.value)} /></label>
-          <label><span>处理后声道</span><input type="number" min="1" max="8" value={afterChannel} onChange={(event) => setAfterChannel(event.target.value)} /></label>
+          <label><span>麦克风混合输入声道</span><input type="number" min="1" max="8" value={beforeChannel} onChange={(event) => setBeforeChannel(event.target.value)} /></label>
+          <label><span>处理后发送输出声道</span><input type="number" min="1" max="8" value={afterChannel} onChange={(event) => setAfterChannel(event.target.value)} /></label>
           <label className="graph-switch"><input type="checkbox" checked={autoAlign} onChange={(event) => setAutoAlign(event.target.checked)} /><span><strong>自动对齐</strong><small>归一化跨相关，最多 1000 ms；不可靠时不伪造对齐。</small></span></label>
         </div>
         <div className="graph-actions">
-          <div>{afterFile ? <><AudioLines size={16} /><span>已选择 {beforeFile ? "配对音频" : "单文件"}</span></> : <><Layers3 size={16} /><span>等待处理后音频</span></>}</div>
+          <div>{afterFile ? <><AudioLines size={16} /><span>已选择 {beforeFile ? "配对音频" : "单文件"}</span></> : <><Layers3 size={16} /><span>等待处理后发送输出</span></>}</div>
           <button type="button" className="button primary" disabled={busy || !afterFile} onClick={analyze}>
             {busy ? <LoaderCircle className="spin" size={17} /> : <ScanSearch size={17} />}
             {busy ? "正在生成图形…" : "生成图形与分析"}
@@ -248,7 +248,7 @@ export default function AudioGraphEngine() {
               <div><dt>瞬态视图</dt><dd>{report.figure_scope.high_time_fft_size} FFT / {report.figure_scope.high_time_hop} hop</dd></div>
             </dl>
           </div>
-          {report.bands.length ? <div className="graph-band-wrap"><table className="graph-band-table"><thead><tr><th>频带</th><th>处理前</th><th>处理后</th><th>变化</th></tr></thead><tbody>
+          {report.bands.length ? <div className="graph-band-wrap"><table className="graph-band-table"><thead><tr><th>频带</th><th>麦克风混合输入</th><th>处理后发送输出</th><th>变化</th></tr></thead><tbody>
             {report.bands.map((band) => <tr key={band.id}><th>{band.label}</th><td>{band.before_db.toFixed(2)} dB</td><td>{band.after_db.toFixed(2)} dB</td><td className={band.delta_db < 0 ? "is-reduced" : "is-boosted"}>{band.delta_db > 0 ? "+" : ""}{band.delta_db.toFixed(2)} dB</td></tr>)}
           </tbody></table></div> : null}
         </section>

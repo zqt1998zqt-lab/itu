@@ -9,18 +9,20 @@
     "dev:all": "node scripts/dev.mjs",
     "build": "node --experimental-strip-types scripts/build-flow-diagrams.mjs && \"$HOME/.venv/bin/python\" scripts/build-pipeline-case-visuals.py && tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5173 --strictPort",
-    "test": "node --test --experimental-strip-types tests/model.test.ts tests/ecnr-evaluation.test.ts tests/enhancement-chain.test.ts tests/synthesize-model.test.ts tests/audio-graphics.test.ts tests/web-assets.test.ts tests/pipeline-case-evidence.test.ts tests/joint-next-model.test.ts tests/five-signal-flow-model.test.ts tests/scoped-acoustic-model.test.ts tests/scene-condition-test-model.test.ts",
+    "test": "node --test --experimental-strip-types tests/model.test.ts tests/ecnr-evaluation.test.ts tests/enhancement-chain.test.ts tests/aec-route-capability.test.ts tests/synthesize-model.test.ts tests/audio-graphics.test.ts tests/web-assets.test.ts tests/pipeline-case-evidence.test.ts tests/joint-next-model.test.ts tests/five-signal-flow-model.test.ts tests/scoped-acoustic-model.test.ts tests/scene-condition-test-model.test.ts tests/acoustic-stress-model.test.ts tests/dataset-case-runs-model.test.ts tests/scoped-case-pagination.test.ts tests/scoped-waveform-preview.test.ts tests/nv200-limits.test.ts",
     "serve": "node --experimental-strip-types scripts/serve.ts",
     "assets:publish": "node --experimental-strip-types scripts/publish-evaluation-assets.ts",
     "assets:verify": "node --experimental-strip-types scripts/publish-evaluation-assets.ts --verify"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.15",
+    "compression": "^1.8.2",
     "lucide-react": "0.468.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@types/compression": "^1.8.1",
     "@types/node": "24.10.0",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",

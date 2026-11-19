@@ -15,7 +15,7 @@ type FrontendReport = {
   };
 };
 const BASE = "/evaluation/vehicle-frontend-current";
-const VARIANTS: Record<string, string> = { baseline: "WebRTC 基线", control: "冷启动 / 突变控制", spatial: "控制 + MVDR / 风噪", rnnoise: "控制 + RNNoise", ulunas: "控制 + UL-UNAS", single_render_negative: "仅第一播放参考 · 负控" };
+const VARIANTS: Record<string, string> = { baseline: "WebRTC 基线", control: "冷启动 / 突变控制", spatial: "控制 + MVDR / 风噪", rnnoise: "控制 + RNNoise", ulunas: "控制 + UL-UNAS", single_render_negative: "仅第一路远端播放信号 / 回声参考 · 负控" };
 const METHODS: Record<string, string> = { near_noise: "近端背景连续性", far_noise: "远端背景连续性", double_talk: "双讲投影衰减", cng: "舒适噪声" };
 
 export default function VehicleFrontend() {

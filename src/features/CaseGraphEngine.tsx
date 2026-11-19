@@ -22,7 +22,7 @@ import "./case-graph-engine.css";
 const CATEGORY_LABELS: Record<GraphicFigure["category"], string> = {
   dynamics: "动态与波形",
   "time-frequency": "时频结构",
-  comparison: "前后对比",
+  comparison: "输入与发送输出对比",
   bands: "频带与感知",
   transient: "瞬态细节",
 };

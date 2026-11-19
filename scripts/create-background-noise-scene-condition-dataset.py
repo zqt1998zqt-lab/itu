@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create the 20-group Sce1 background-noise engineering preview sidecar.
+"""Create a 20-group background-noise engineering preview sidecar.
 
 This is deliberately separate from the formal 336-item acceptance dataset. It
 uses clean speech and controlled noise sources, writes exclusively to the
@@ -8,6 +8,7 @@ scene-condition preview store, and never claims ITU-T compliance.
 from __future__ import annotations
 
 from collections import Counter
+import argparse
 from datetime import datetime, timezone
 import hashlib
 import importlib.util
@@ -39,6 +40,8 @@ SOURCE_PATHS = {
     "legacy_generator_sha256": SCRIPTS / "create-acceptance-measurement-dataset.py",
     "signal_design_sha256": SCRIPTS / "acceptance_signal_design.py",
     "scene_contract_sha256": PROJECT / "server/acoustic/acceptance_scene_conditions.py",
+    "scene_profiles_sha256": PROJECT / "server/acoustic/scene_condition_profiles.py",
+    "acceptance_scope_sha256": PROJECT / "server/acoustic/acceptance_scope.py",
 }
 IMPORTED_SOURCE_HASHES = {
     key: hashlib.sha256(path.read_bytes()).hexdigest()
@@ -47,19 +50,22 @@ IMPORTED_SOURCE_HASHES = {
 
 from acceptance_signal_design import render_signals
 from server.acoustic import acceptance_scene_conditions as scene_contract
+from server.acoustic.scene_condition_profiles import profile_for_scene
 from server.acoustic.acceptance_visualization import (
     cache_root as visualization_cache_root,
     precompute_visualizations,
 )
 
 
-DATASET_ID = scene_contract.DATASET_ID
-DATASET_NAME = scene_contract.DATASET_NAME
+SCENE_PROFILE = profile_for_scene(scene_contract.SCENE)
+DATASET_ID = SCENE_PROFILE.dataset_id
+DATASET_NAME = SCENE_PROFILE.dataset_name
+DATASET_KIND = SCENE_PROFILE.dataset_kind
 SCHEMA_VERSION = scene_contract.SCHEMA_VERSION
 MODE = scene_contract.MODE
-SCENE = scene_contract.SCENE
+SCENE = SCENE_PROFILE.scene
 ROLES = scene_contract.ROLES
-CONDITIONS = dict(scene_contract.CONDITIONS)
+CONDITIONS = dict(SCENE_PROFILE.conditions)
 OUTPUT_ROOT = scene_contract.dataset_root(DATASET_ID)
 MANIFEST_PATH = OUTPUT_ROOT / "manifest.json"
 ASSETS_PATH = OUTPUT_ROOT / "assets.json"
@@ -72,7 +78,7 @@ FRAMES = int(round(RATE * DURATION_S))
 BASE_SEED = 20261109
 SPEECH_GROUPS = 10
 CNG_GROUPS = 10
-SNR_DB = 15.0
+SNR_DB = SCENE_PROFILE.snr_db
 NEAR_CONDITIONED_PEAK = 0.12
 MAX_SOURCE_SEGMENT_S = 4.2
 MIN_NON_SILENT_SECONDS = 9.01
@@ -80,10 +86,35 @@ NON_SILENT_FRAME_RMS = 1e-5
 MIN_FREE_BYTES = 100 * 1024**3
 MIN_MEM_AVAILABLE_BYTES = 5 * 1024**3
 
-SPEECH_ITEM_IDS = ["WB-wired:B24", "WB-wired:B25", "WB-wired:B26"]
+SPEECH_ITEM_IDS = list(SCENE_PROFILE.contract_item_ids[:3])
 SPEECH_FAMILIES = ["g_mos", "n_mos", "s_mos"]
-CNG_ITEM_IDS = ["WB-wired:B27", "WB-wired:B28"]
+CNG_ITEM_IDS = list(SCENE_PROFILE.contract_item_ids[3:])
 CNG_FAMILIES = ["cng_level", "cng_spectrum"]
+
+
+def configure_scene(scene: str) -> None:
+    """Bind this single-process generator to one registered scene."""
+    global SCENE_PROFILE
+    global DATASET_ID, DATASET_NAME, DATASET_KIND, SCENE
+    global CONDITIONS, OUTPUT_ROOT, MANIFEST_PATH, ASSETS_PATH
+    global SUMMARY_PATH, QUALITY_PATH, SNR_DB
+    global SPEECH_ITEM_IDS, CNG_ITEM_IDS
+
+    profile = profile_for_scene(scene)
+    SCENE_PROFILE = profile
+    DATASET_ID = profile.dataset_id
+    DATASET_NAME = profile.dataset_name
+    DATASET_KIND = profile.dataset_kind
+    SCENE = profile.scene
+    CONDITIONS = dict(profile.conditions)
+    OUTPUT_ROOT = scene_contract.dataset_root(DATASET_ID)
+    MANIFEST_PATH = OUTPUT_ROOT / "manifest.json"
+    ASSETS_PATH = OUTPUT_ROOT / "assets.json"
+    SUMMARY_PATH = OUTPUT_ROOT / "summary.json"
+    QUALITY_PATH = OUTPUT_ROOT / "quality.json"
+    SNR_DB = profile.snr_db
+    SPEECH_ITEM_IDS = list(profile.contract_item_ids[:3])
+    CNG_ITEM_IDS = list(profile.contract_item_ids[3:])
 
 
 class ResourceSafetyStop(RuntimeError):
@@ -370,7 +401,9 @@ def _build_cases(bank: SourceBank) -> tuple[list[dict[str, Any]], dict[str, byte
             analysis_start_s = 4.0
 
         kind_index = group_id if kind == "speech" else group_id - SPEECH_GROUPS
-        case_id = f"sce1-wb-wired-{kind}-{kind_index:02d}-engineering-preview"
+        case_id = (
+            f"{SCENE}-wb-wired-{kind}-{kind_index:02d}-engineering-preview"
+        )
         case_seed = stable_seed(f"{DATASET_ID}:{group_id}:{kind}", BASE_SEED)
         if case_seed in case_seeds:
             raise ValueError(f"duplicate case seed for group {group_id}")
@@ -474,9 +507,11 @@ def _build_cases(bank: SourceBank) -> tuple[list[dict[str, Any]], dict[str, byte
 
         provenance = {
             "group_id": group_id,
-            "group_key": f"sce1-wb-wired-preview-{group_id:02d}",
+            "group_key": f"{SCENE}-wb-wired-preview-{group_id:02d}",
             "seed": case_seed,
             "base_seed": BASE_SEED,
+            "scene": SCENE,
+            "snr_db": SNR_DB,
             "engineering_preview": True,
             "signal_kind": kind,
             "analysis_start_s": analysis_start_s,
@@ -597,7 +632,7 @@ def _build_manifest(cases: list[dict[str, Any]]) -> dict[str, Any]:
         "schema_version": SCHEMA_VERSION,
         "dataset_id": DATASET_ID,
         "dataset_name": DATASET_NAME,
-        "dataset_kind": scene_contract.DATASET_KIND,
+        "dataset_kind": DATASET_KIND,
         "test_scope": scene_contract.TEST_SCOPE,
         "mode": MODE,
         "scene": SCENE,
@@ -671,6 +706,9 @@ def build() -> dict[str, Any]:
         "schema_version": "scene-condition-preview-quality-v1",
         "dataset_id": DATASET_ID,
         "dataset_name": DATASET_NAME,
+        "scene": SCENE,
+        "mode": MODE,
+        "snr_db": SNR_DB,
         "generated_at": completed_at,
         "generation_started_at": started_at,
         "generation_elapsed_seconds": round(time.monotonic() - started, 6),
@@ -740,7 +778,7 @@ def build() -> dict[str, Any]:
         "quality_sha256": quality_sha,
         "source_hashes": source_hashes,
         "scope": (
-            "20 independent engineering condition groups for the idle-page "
+            f"20 independent engineering condition groups for the {SCENE} "
             "background-noise preview; not formal certification evidence"
         ),
     }
@@ -774,7 +812,11 @@ def build() -> dict[str, Any]:
     )
     _exclusive_create_or_verify(MANIFEST_PATH, manifest_blob)
 
-    loaded = scene_contract.load_scene_condition_dataset(DATASET_ID)
+    from server.acoustic.acceptance_scene_condition_store import (
+        load_scene_condition_dataset,
+    )
+
+    loaded = load_scene_condition_dataset(DATASET_ID)
     if (
         loaded["contract_item_count"] != scene_contract.CONTRACT_ITEM_COUNT
         or loaded["preview_condition_group_count"] != len(cases)
@@ -804,7 +846,21 @@ def build() -> dict[str, Any]:
     }
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Create or verify one registered background-noise "
+            "20-condition engineering-preview dataset."
+        )
+    )
+    parser.add_argument(
+        "--scene",
+        choices=("sce1", "sce2", "sce3", "sce4"),
+        default="sce1",
+        help="registered background-noise scene to build",
+    )
+    args = parser.parse_args(argv)
+    configure_scene(args.scene)
     try:
         result = build()
     except ResourceSafetyStop as error:

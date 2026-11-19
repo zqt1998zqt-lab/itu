@@ -1,0 +1,26 @@
+.ns-quality-metrics {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border, #dce7f3);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: inherit;
+  min-width: 0;
+}
+.ns-quality-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ns-quality-heading p, .ns-quality-metrics > p, .ns-quality-metrics details p { margin: 4px 0 8px; font-size: .76rem; line-height: 1.6; }
+.ns-quality-heading button { flex-shrink: 0; border: 1px solid var(--border, #dce7f3); border-radius: 6px; background: transparent; color: inherit; padding: 6px 10px; cursor: pointer; }
+.ns-quality-heading button:disabled { opacity: .65; cursor: progress; }
+.ns-quality-heading button:focus-visible, .ns-quality-metrics [tabindex]:focus-visible, .ns-quality-metrics summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.ns-quality-table { margin-top: 8px; font-size: .76rem; width: 100%; }
+.ns-quality-table th, .ns-quality-table td { padding: 7px 10px; text-align: left; vertical-align: top; }
+.ns-quality-table td:nth-child(2), .ns-quality-table td:nth-child(3), .ns-quality-table td:nth-child(4) { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ns-quality-table th:first-child { min-width: 145px; }
+.ns-quality-metrics details { margin-top: 8px; font-size: .76rem; }
+.ns-quality-metrics summary { cursor: pointer; }
+.ns-quality-error { color: #9c352d; }
+.ns-quality-scope { font-weight: 600; }
+@media (max-width: 640px) {
+  .ns-quality-heading { flex-direction: column; gap: 4px; }
+  .ns-quality-table { min-width: 620px; }
+}

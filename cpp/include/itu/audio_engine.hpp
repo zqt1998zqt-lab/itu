@@ -2,8 +2,10 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 #include "itu/vehicle_ns.hpp"
 
 namespace itu {
@@ -14,7 +16,25 @@ constexpr unsigned kAecOutputDelaySamples=128, kLinearAecDelaySamples=64, kNsDel
 // offset to stream alignment. Keep this constant for ABI/source compatibility.
 constexpr unsigned kLowCutDelaySamples=0;
 enum class NoiseBackend { webrtc, rnnoise, speex, ulunas, omlsa_imcra, super_gaussian, unified };
-enum class AecBackend { webrtc, speex, speex_fused };
+enum class AecBackend { webrtc, speex, speex_fused_cpu, speex_fused_dsp, computer_pf_cpu, localvqe_aec200k };
+const char* aec_backend_id(AecBackend backend);
+const char* aec_backend_report_name(AecBackend backend);
+struct AecBackendCapability {
+  std::string id, architecture, reason;
+  bool available=false;
+  std::string execution_provider, device_id, model_id;
+  std::string model_sha256, frontend_sha256, provider_sha256;
+  unsigned delay_samples=0;
+};
+AecBackendCapability aec_backend_capability(AecBackend backend,
+    const std::string& model_id="complex_pf_stream_v1");
+struct AecRouteDiagnostics {
+  std::string execution_provider="cpu", device_id="host_cpu", model_id;
+  std::string model_sha256, frontend_sha256, provider_sha256;
+  std::uint64_t processed_frames=0, inferences=0, cycles=0, fallback_frames=0;
+  unsigned neural_delay_samples=0;
+  unsigned hop_adapter_delay_samples=0;
+};
 enum class GainFault { none, previous_frame, inverted, always_boost };
 // The caller selects the operating envelope. Runtime adaptation is bounded by
 // this mode; it never infers a product mode from PCM alone.
@@ -71,8 +91,23 @@ struct DownlinkConfig {
 struct DiagnosticStageTaps {
   std::array<float,480> nr_selected{},nr_protected{},post_agc{},pre_eq{},post_eq{};
   unsigned core_sample_rate=0,core_frame_size=0,core_delay_samples=0;
-  unsigned eq_sample_rate=0,eq_frame_size=0,eq_delay_samples=0;
+  unsigned eq_sample_rate=0,eq_frame_size=0;
+  unsigned eq_delay_samples=0; // Compatibility alias for post_eq_delay_samples.
   bool nr_selected_available=false;
+  // Appended diagnostics preserve the original five PCM arrays and fields.
+  // Stage delays are cumulative from stream input to that stage. NR/AGC/DRC
+  // delays use core_sample_rate; EQ delays use eq_sample_rate.
+  std::array<float,480> post_drc{};
+  std::array<float,480> experiment_ns_input{}; // Actual PCM consumed by NS.
+  unsigned experiment_ns_input_delay_samples=0;
+  unsigned agc_delay_samples=0;      // Cumulative AGC-stage delay, core rate.
+  unsigned pre_eq_delay_samples=0;   // Cumulative EQ-input delay, EQ rate.
+  unsigned post_eq_delay_samples=0;  // Cumulative EQ-output delay, EQ rate.
+  unsigned drc_delay_samples=0;      // Cumulative DRC-stage delay, core rate.
+  // RX taps are planar: channel*480+i, with up to kMaxMicrophones channels.
+  std::array<float,480*kMaxMicrophones> rx_nr{},rx_eq{},rx_drc{};
+  unsigned rx_sample_rate=0,rx_frame_size=0,rx_channels=0,rx_drc_delay_samples=0;
+  bool rx_available=false;
 };
 struct Config {
   ProcessingMode mode = ProcessingMode::general;
@@ -98,6 +133,22 @@ struct Config {
   bool spatial_continuous_covariance = false; // Experimental fixed-steering MPDR; train from causal mixture even during speech.
   bool wind_noise_control = false; // Low-frequency (<600 Hz) spatial weighting.
   NoiseBackend noise_backend = NoiseBackend::webrtc;
+  // Offline external NS replay at the innermost post-AEC NS boundary. The
+  // FLOAT stream must use the input sample rate and complete 10 ms callbacks;
+  // it already includes post_ns_delay_samples of physical leading delay. The
+  // runtime must not delay or condition it a second time.
+  std::shared_ptr<const std::vector<float>> post_ns_pcm;
+  unsigned post_ns_delay_samples = 0;
+  // Online external NS callback at the same innermost post-AEC boundary.
+  // Each call exchanges one native 10 ms frame (160/240/480 samples at
+  // 16/24/48 kHz). The callback owns all state; the engine never falls back to
+  // a native NS implementation.
+  std::function<bool(const float* input, float* output, unsigned samples)>
+      ns_stream_process;
+  unsigned ns_stream_delay_samples = 0;
+  // File callers can declare the exact capture extent so the AEC finishes its
+  // own causal tail once; zero keeps an open-ended real-time stream.
+  std::uint64_t localvqe_source_samples = 0;
   std::string neural_model_path; // Optional ULUNAS stream_simple model; loaded on control thread.
   bool native_fullband = false; // Compatibility option; all rates use the shared protection policy.
   int speex_suppression_db = -12;
@@ -117,8 +168,17 @@ struct Config {
   bool speex_coherence_residual_suppression = false; // Opt-in coherence-gated MDF residual postfilter.
   int speex_active_echo_suppression_db = -3;
   // Opt-in short-tail NLMS shadow branch for Speex MDF residual fusion.
-  float speex_fused_learning_rate = .12f;
-  unsigned speex_fused_shadow_taps_ms = 32;
+  float speex_fused_cpu_learning_rate = .12f;
+  unsigned speex_fused_cpu_shadow_taps_ms = 32;
+  std::string speex_fused_dsp_model_id="complex_pf_stream_v1";
+  unsigned speex_fused_dsp_deadline_us=10000;
+  // CLI-owned, offline whole-file Complex_PF result for the native CPU route.
+  // It must be 16 kHz mono PCM, one 160-sample block per processed MDF frame.
+  std::shared_ptr<const std::vector<float>> complex_pf_cpu_pcm;
+  // Diagnostic-only captures after MDF and before fusion/Coherence/RES/dry mix.
+  // The normal runtime leaves both null and never records PCM.
+  std::vector<float>* complex_pf_residual_capture=nullptr;
+  std::vector<float>* complex_pf_reference_capture=nullptr;
   bool beamforming = false;
   bool noise_suppression = true;
   bool vehicle_ns_control = false; // Opt-in shared streaming NS; replaces legacy NS-local blends.
@@ -177,8 +237,26 @@ struct Config {
   // NativePipeline keeps this outer I/O rate when its core runs at 48 kHz.
   // Zero means the configuration is already at its processing rate.
   unsigned policy_sample_rate = 0;
+  // Opt-in bounded utterance envelope. Disabled preserves legacy output.
+  bool bounded_speech_gain = false;
+  float bounded_gain_max_db = 3.f;
+  float bounded_gain_rise_db_per_second = 3.f;
+  float bounded_gain_fall_db_per_second = 6.f;
+  unsigned bounded_gain_hold_ms = 120;
+  // Configure the optimized statistical NS only without AEC. With AEC the
+  // established NS route is retained; selection happens before construction.
+  bool mild_near_only_ns = false;
 };
 Config barrot_vcp_config();
+// Evaluated mild-NS / bounded-AGC candidate; explicit opt-in.
+Config barrot_vcp_mild_config();
+// Adaptive OM-LSA candidate derived from vcp_mild; explicit opt-in.
+Config barrot_vcp_adaptive_config();
+// Native 16 kHz single-head VCP frontend. The residual model remains optional.
+Config barrot_vcp_c64_config();
+// Native OM-LSA plus the explicit ITUNSR02 gain controller and/or causal pitch
+// post-filter. The weight path is intentionally not hard-coded.
+Config barrot_vcp_hybrid_v2_config();
 // Explicit joint-control candidate; the established VCP preset is unchanged.
 Config barrot_vcp_joint_config();
 // Experimental VCP preset using causal unsupervised shared-spectrum NS fusion.
@@ -216,6 +294,18 @@ struct FrameInfo {
   unsigned hybrid_ns_state = 0; // 0 disabled, 1 ready, 2..5 explicit statistical fallback.
   std::size_t hybrid_ns_inferences = 0, hybrid_ns_fallback_frames = 0;
   bool hybrid_ns_applied = false;
+  unsigned residual_model_state = 0; // 0 disabled, 1 ready.
+  std::size_t residual_model_inferences = 0, residual_model_fallback_frames = 0;
+  std::size_t residual_model_applied_frames = 0, residual_model_parameters = 0;
+  unsigned hybrid_v2_state = 0; // 0 disabled, 1 ITUNSR02 ready, 2 pitch DSP only.
+  std::size_t hybrid_v2_inferences = 0, hybrid_v2_fallback_frames = 0;
+  std::size_t hybrid_v2_applied_frames = 0, hybrid_v2_parameters = 0;
+  unsigned hybrid_v2_input_dim = 0;
+  bool hybrid_v2_applied = false, hybrid_v2_pitch_active = false;
+  std::uint64_t hybrid_v2_pitch_active_frames = 0;
+  std::uint64_t hybrid_v2_pitch_fallback_frames = 0;
+  unsigned hybrid_v2_pitch_lag_samples = 0;
+  float hybrid_v2_pitch_periodicity = 0, hybrid_v2_raw_mix = 0;
   float gain_input_level = 0; // Raw input-domain level handed to the low-level gate.
   float gain_limit_db = 0; // controller_gain_limit applied to this frame.
   unsigned gain_votes = 0;
@@ -301,6 +391,14 @@ struct FrameInfo {
   unsigned aec_input_delay_samples = 0;
   unsigned tx_drc_delay_samples = 0;
   unsigned ns_delay_samples = 0;
+  bool ns_external_stream_enabled = false;
+  float localvqe_process_ms = 0;
+  float localvqe_post_ms = 0;
+  float ns_stream_roundtrip_ms = 0;
+  bool ns_external_pcm_enabled = false;
+  std::uint64_t ns_external_applied_frames = 0;
+  unsigned ns_external_delay_samples = 0;
+  std::uint64_t ns_external_fallback_frames = 0;
   unsigned linear_aec_sample_rate = 16000;
   unsigned spatial_delay_samples = 0;
   unsigned spatial_noise_updates = 0;
@@ -378,6 +476,7 @@ class AudioEngine {
                  float* linear_aec_tap = nullptr, float* aec_input_tap = nullptr) noexcept;
   // Wrapper-owned buffers only; opaque WebRTC/Speex allocations are excluded.
   std::size_t working_memory_bytes() const noexcept;
+  AecRouteDiagnostics aec_route_diagnostics() const;
   // Barrot VCP Downlink processing (Downlink In -> NR -> EQ -> DRC -> Speaker & AEC Reference)
   Status process_downlink(const float* rx_input, std::size_t rx_samples,
                           float* rx_speaker_output, float* aec_reference_output) noexcept;
@@ -385,6 +484,7 @@ class AudioEngine {
   friend class NativePipeline;
   friend class PreAecPipeline;
   friend class SpeexAecPipeline;
+  friend class LocalVqeAecPipeline;
   AudioEngine(const Config& config,unsigned maximum_beam_samples,bool internal_pcm=false);
   Status process_impl(const float* mic, std::size_t mic_n, const float* ref, std::size_t ref_n,
                       float* out, std::size_t out_n, FrameInfo& info, float* aec_tap,

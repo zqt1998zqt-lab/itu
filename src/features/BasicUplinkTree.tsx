@@ -1,6 +1,9 @@
 import { useId, useState } from "react";
 import { ArrowRight, GitBranch, Layers3 } from "lucide-react";
-import { chainPresets, chainStages } from "./enhancement-chain-model";
+import {
+  algorithmClusterById,
+  isAlgorithmClusterSupportedForMode,
+} from "./rate-algorithm-clusters";
 import type { FiveSignalMode } from "./five-signal-flow-model";
 import type {
   BasicBatchSnapshot,
@@ -95,8 +98,8 @@ export default function BasicUplinkTree({
   const [hovered, setHovered] = useState<string | null>(null);
   const [locked, setLocked] = useState<string | null>(null);
   const items = catalog?.mode === mode ? catalog.items : [];
-  const preset = chainPresets.find((item) => item.id === algorithmClusterId);
-  const vcpSupported = Boolean(preset?.profile.startsWith("vcp"));
+  const cluster = algorithmClusterById(algorithmClusterId);
+  const vcpSupported = isAlgorithmClusterSupportedForMode(algorithmClusterId, mode, { vcpOnly: true });
   const matchingReport = vcpSupported && snapshot?.selected_mode === mode
     && snapshot.algorithm_cluster_id === algorithmClusterId
     && snapshot.dataset_id === datasetId ? snapshot : null;
@@ -171,15 +174,14 @@ export default function BasicUplinkTree({
           <section className="basic-uplink-tree-node basic-uplink-tree-vcp" aria-label={vcpSupported ? "VCP 配置的上行处理链" : "算法簇不支持基础上行测试"}>
             <span className="basic-uplink-tree-node-label"><Layers3 size={14} aria-hidden="true" />{vcpSupported ? "VCP 发送处理（TX）" : "待选择 VCP"}</span>
             <h4>{vcpSupported ? "上行语音处理" : "当前算法不可执行"}</h4>
-            <p className="basic-uplink-tree-preset">{preset?.label ?? algorithmClusterId}</p>
+            <p className="basic-uplink-tree-preset">{cluster?.label ?? algorithmClusterId}</p>
             {vcpSupported ? <><ol className="basic-uplink-tree-stages" aria-label="所选算法簇的阶段配置">
-              {chainStages.map((stage, index) => {
-                const option = stage.options.find((entry) => entry.id === preset?.selection[stage.id]);
-                return <li key={stage.id} className={option?.id === "off" ? "is-bypassed" : ""}>
-                  <span className="basic-uplink-tree-stage-index">{String(index + 1).padStart(2, "0")}</span>
-                  <div><strong>{stage.label}</strong><span>{option?.label ?? "配置不可用"}</span></div>
-                </li>;
-              })}
+              {(cluster?.stages ?? []).map((stage) => (
+                <li key={stage.stageId} className={stage.bypassed ? "is-bypassed" : ""}>
+                  <span className="basic-uplink-tree-stage-index">{String(stage.ordinal).padStart(2, "0")}</span>
+                  <div><strong>{stage.stageLabel}</strong><span>{stage.optionLabel}</span></div>
+                </li>
+              ))}
             </ol>
             <p className="basic-uplink-tree-chain-note">展示所选算法簇的配置；单麦 BF 自动旁路，实际执行以条件组报告为准。</p>
             <div className="basic-uplink-tree-output"><span>发送处理输出（TX）+ 干净近端参考 / 独立噪声输入</span><ArrowRight size={16} aria-hidden="true" /></div>

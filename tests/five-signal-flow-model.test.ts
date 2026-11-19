@@ -631,6 +631,47 @@ test("detail validation binds an execution report to the selected algorithm clus
   assert.throws(() => parseFiveSignalDetail(fixture, "detail-a", "NB-wired", "vcp_default"), /实际输出/);
 });
 
+test("native rate-path detail keeps requested and effective clusters separate", () => {
+  const fixture = detailFixture();
+  (fixture as any).execution = {
+    source: "native_rate_path",
+    algorithm_cluster_id: "speex_dpdfnet2_8khz",
+    requested_algorithm_cluster_id: "vcp_unified",
+    output_sha256: {
+      rx: "d".repeat(64),
+      tx: fixture.inputs.near_end.sha256,
+    },
+    cli_sha256: "b".repeat(64),
+    catalog_sha256: "c".repeat(64),
+    configuration: {
+      profile: "native_rate_path",
+      selection: {
+        aec: "speex_mdf_nb8",
+        ns: "dpdfnet2_8khz",
+      },
+    },
+    rate_path: {
+      sample_rate_hz: 8000,
+      cluster_id: "speex_dpdfnet2_8khz",
+      aec_backend: "speex_mdf_nb8",
+      ns_backend: "dpdfnet2_8khz",
+      rate_policy: "native",
+    },
+  };
+  assert.doesNotThrow(() => parseFiveSignalDetail(
+    fixture,
+    "detail-a",
+    "NB-wired",
+    "vcp_unified",
+  ));
+  assert.throws(() => parseFiveSignalDetail(
+    fixture,
+    "detail-a",
+    "NB-wired",
+    "speex_dpdfnet2_8khz",
+  ), /算法簇/);
+});
+
 test("missing, null and non-finite metric values never display complete availability", () => {
   const fixture = detailFixture();
   delete fixture.analysis.values.output_stoi;

@@ -22,7 +22,7 @@ function nsCase(
     sampleRate: 16000,
     windowSeconds: [13, 21] as [number, number],
     delaySamples,
-    beforeLabel: "输入 · 带噪麦克风",
+    beforeLabel: "麦克风混合输入 · 带噪",
     afterLabel,
     beforeFile: NS_BEFORE,
     afterFile,
@@ -67,9 +67,9 @@ function nsCaseGroups(
       sampleRate: 16000,
       windowSeconds: item.windowSeconds ?? ([13, 21] as [number, number]),
       delaySamples: item.delaySamples,
-      beforeLabel: "输入 · 带噪麦克风",
+      beforeLabel: "麦克风混合输入 · 带噪",
       afterLabel:
-        status === "pass" ? "输出 · 通过案例" : "输出 · 失败案例",
+        status === "pass" ? "发送处理输出（TX） · 通过案例" : "发送处理输出（TX） · 失败案例",
       beforeFile: `build/controlled-cavemove-20261017/cases/${item.id}/before.wav`,
       afterFile: item.afterFile,
       waveformSrc: `/evaluation/pipeline-cases/${assetId}-${status}-waveform.svg`,
@@ -98,7 +98,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
     caseAudio: nsCase(
       "ns-webrtc",
       "build/ns-all-family-comparison-20261019/runtime-serial-complete/webrtc_v5_bounded09-0.after.wav",
-      "输出 · WebRTC NS",
+      "发送处理输出（TX） · WebRTC NS",
       416,
       "语音窗；用于观察谱增益与语音保真",
     ),
@@ -110,7 +110,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
         afterFile:
           "build/ns-case-replay-20261020/webrtc_v5_bounded09/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
         delaySamples: 416,
-        note: "同输入哈希、同冻结门限；所有工程门通过。",
+        note: "同麦克风混合输入哈希、同冻结门限；所有工程门通过。",
         analysis: "通过案例；观察语音窗内的谱增益与保真",
       },
       {
@@ -140,9 +140,9 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
     caseAudio: nsCase(
       "ns-speex",
       "build/ns-all-family-comparison-20261019/runtime-serial-complete/speex_v5_steadydual-0.after.wav",
-      "输出 · Speex steady-dual",
+      "发送处理输出（TX） · Speex steady-dual",
       480,
-      "同输入、同时间窗；扣除 480 样本固定延迟",
+      "同麦克风混合输入、同时间窗；扣除 480 样本固定延迟",
     ),
     caseGroups: nsCaseGroups(
       "ns-speex",
@@ -152,8 +152,8 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
         afterFile:
           "build/ns-case-replay-20261020/speex_v5_steadydual/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
         delaySamples: 480,
-        note: "同输入哈希、同冻结门限；所有工程门通过。",
-        analysis: "通过案例；稳态双分支输出",
+        note: "同麦克风混合输入哈希、同冻结门限；所有工程门通过。",
+        analysis: "通过案例；稳态双分支发送处理输出（TX）",
       },
       {
         id: "noise-step-16000-validation-m1-snr+20",
@@ -178,7 +178,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
     metrics: [
       { label: "场景全通过", value: "6 / 15", detail: "代表性样本" },
       { label: "失败场景", value: "9", detail: "未达完整工程门限" },
-      { label: "输出变化", value: "15 / 15", detail: "均不同于原输出" },
+      { label: "发送处理输出（TX）变化", value: "15 / 15", detail: "均不同于原发送处理输出（TX）" },
     ],
     caseAudio: {
       id: "vehicle-16000-development-m1-10",
@@ -187,8 +187,8 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
       sampleRate: 16000,
       windowSeconds: [13, 21],
       delaySamples: 480,
-      beforeLabel: "输入 · 带噪麦克风",
-      afterLabel: "输出 · RNNoise",
+    beforeLabel: "麦克风混合输入 · 带噪",
+    afterLabel: "发送处理输出（TX） · RNNoise",
       beforeFile:
         "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/before.wav",
       afterFile:
@@ -196,7 +196,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
       waveformSrc:
         "/evaluation/pipeline-cases/ns-rnnoise-waveform.svg",
       melSrc: "/evaluation/pipeline-cases/ns-rnnoise-mel.svg",
-      analysis: "代表性回放；网络输出经同一后级保护",
+      analysis: "代表性回放；网络发送处理输出（TX）经同一后级保护",
     },
     caseGroups: [
       {
@@ -210,8 +210,8 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
           sampleRate: 16000,
           windowSeconds: [13, 21],
           delaySamples: 480,
-          beforeLabel: "输入 · 带噪麦克风",
-          afterLabel: "输出 · RNNoise",
+          beforeLabel: "麦克风混合输入 · 带噪",
+          afterLabel: "发送处理输出（TX） · RNNoise",
           beforeFile:
             "build/repair-sequential-20261017/ns-r10-rnnoise/controlled-cavemove-20261017/cases/vehicle-16000-development-m1-10/before.wav",
           afterFile:
@@ -219,7 +219,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
           waveformSrc:
             "/evaluation/pipeline-cases/ns-rnnoise-pass-waveform.svg",
           melSrc: "/evaluation/pipeline-cases/ns-rnnoise-pass-mel.svg",
-          analysis: "通过案例；网络输出经同一后级保护",
+          analysis: "通过案例；网络发送处理输出（TX）经同一后级保护",
         },
       },
       {
@@ -233,8 +233,8 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
           sampleRate: 16000,
           windowSeconds: [13, 21],
           delaySamples: 480,
-          beforeLabel: "输入 · 带噪麦克风",
-          afterLabel: "输出 · RNNoise",
+          beforeLabel: "麦克风混合输入 · 带噪",
+          afterLabel: "发送处理输出（TX） · RNNoise",
           beforeFile:
             "build/controlled-native-full-20261017/cases/vehicle-16000-holdout-m1-02/before.wav",
           afterFile:
@@ -263,9 +263,9 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
     caseAudio: nsCase(
       "ns-ulunas",
       "build/ns-all-family-comparison-20261019/runtime-serial-complete/ulunas_direct-0.after.wav",
-      "输出 · UL-UNAS",
+      "发送处理输出（TX） · UL-UNAS",
       480,
-      "ONNX 四缓存流式输出；同 692 场景集",
+      "ONNX 四缓存流式发送处理输出（TX）；同 692 场景集",
     ),
     caseGroups: nsCaseGroups(
       "ns-ulunas",
@@ -275,7 +275,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
         afterFile:
           "build/ns-case-replay-20261020/ulunas_direct/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
         delaySamples: 480,
-        note: "同输入哈希、同冻结门限；所有工程门通过。",
+        note: "同麦克风混合输入哈希、同冻结门限；所有工程门通过。",
         analysis: "通过案例；四缓存流式推理",
       },
       {
@@ -305,7 +305,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
     caseAudio: nsCase(
       "ns-omlsa",
       "build/ns-all-family-comparison-20261019/runtime-serial-complete/omlsa_imcra_v2_mild-0.after.wav",
-      "输出 · OM-LSA + IMCRA",
+      "发送处理输出（TX） · OM-LSA + IMCRA",
       480,
       "统计噪声估计与 OM-LSA 软增益",
     ),
@@ -317,7 +317,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
         afterFile:
           "build/ns-case-replay-20261020/omlsa_imcra_v2_mild/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
         delaySamples: 480,
-        note: "同输入哈希、同冻结门限；所有工程门通过。",
+        note: "同麦克风混合输入哈希、同冻结门限；所有工程门通过。",
         analysis: "通过案例；统计噪声估计与软增益",
       },
       {
@@ -348,7 +348,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
     caseAudio: nsCase(
       "ns-super-gaussian",
       "build/ns-all-family-comparison-20261019/runtime-serial-complete/super_gaussian_balanced-0.after.wav",
-      "输出 · Super-Gaussian",
+      "发送处理输出（TX） · Super-Gaussian",
       480,
       "共享 IMCRA；仅替换 H1 条件增益",
     ),
@@ -360,7 +360,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
         afterFile:
           "build/ns-case-replay-20261020/super_gaussian_balanced/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
         delaySamples: 480,
-        note: "同输入哈希、同冻结门限；所有工程门通过。",
+        note: "同麦克风混合输入哈希、同冻结门限；所有工程门通过。",
         analysis: "通过案例；共享 IMCRA 的条件增益",
       },
       {
@@ -391,7 +391,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
     caseAudio: nsCase(
       "ns-hybrid-gru",
       "build/ns-all-family-comparison-20261019/runtime-serial-complete/conv_gain_gru32-0.after.wav",
-      "输出 · Conv-Gain GRU32",
+      "发送处理输出（TX） · Conv-Gain GRU32",
       160,
       "OM-LSA 生成音频；GRU 只修正控制量",
     ),
@@ -403,7 +403,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
         afterFile:
           "build/ns-case-replay-20261020/conv_gain_gru32/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
         delaySamples: 160,
-        note: "同输入哈希、同冻结门限；所有工程门通过。",
+        note: "同麦克风混合输入哈希、同冻结门限；所有工程门通过。",
         analysis: "通过案例；GRU 控制量修正",
       },
       {
@@ -465,8 +465,8 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
       sampleRate: 16000,
       windowSeconds: [13, 21],
       delaySamples: 480,
-      beforeLabel: "输入 · 带噪麦克风",
-      afterLabel: "输出 · OM-LSA + 残噪门控",
+      beforeLabel: "麦克风混合输入 · 带噪",
+      afterLabel: "发送处理输出（TX） · OM-LSA + 残噪门控",
       beforeFile:
         "build/controlled-native-full-20261017/cases/coverage-16000-development-9c7b62f0-snr+30/before.wav",
       afterFile:
@@ -493,7 +493,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
     caseAudio: nsCase(
       "ns-gtcrn",
       "build/ns-all-family-comparison-20261019/runtime-serial-complete/gtcrn_dns3_direct-0.after.wav",
-      "输出 · GTCRN DNS3",
+      "发送处理输出（TX） · GTCRN DNS3",
       480,
       "512/256 流式直接探针；30 ms 信号时延",
     ),
@@ -505,7 +505,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
         afterFile:
           "build/ns-case-replay-20261020/gtcrn_dns3_direct/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
         delaySamples: 480,
-        note: "同输入哈希、同冻结门限；所有工程门通过。",
+        note: "同麦克风混合输入哈希、同冻结门限；所有工程门通过。",
         analysis: "通过案例；官方 DNS3 流式模型",
       },
       {
@@ -535,7 +535,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
     caseAudio: nsCase(
       "ns-dpcrn",
       "build/ns-all-family-comparison-20261019/runtime-serial-complete/dpcrn_direct-0.after.wav",
-      "输出 · DPCRN small",
+      "发送处理输出（TX） · DPCRN small",
       480,
       "作者 stateful TFLite；512/256 流式探针",
     ),
@@ -547,7 +547,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
         afterFile:
           "build/ns-case-replay-20261020/dpcrn_direct/coverage-16000-validation-2303b3f5-snr+10/result.after.wav",
         delaySamples: 480,
-        note: "同输入哈希、同冻结门限；所有工程门通过。",
+        note: "同麦克风混合输入哈希、同冻结门限；所有工程门通过。",
         analysis: "通过案例；stateful TFLite 模型",
       },
       {
@@ -599,7 +599,7 @@ export const nsEvaluations: Record<string, PipelineEvaluationData> = {
       "官方算法的延迟和性能数字不属于本项目目标 CPU；当前没有 C++/Android 流式前端、首帧状态或统一质量门槛结果。",
     metrics: [
       { label: "C++ 流式路径", value: "0", detail: "尚未接入" },
-      { label: "统一质量门槛", value: "未运行", detail: "无项目输出" },
+      { label: "统一质量门槛", value: "未运行", detail: "无项目发送处理输出（TX）" },
       { label: "目标设备实时", value: "未验证", detail: "不引用论文 RTF" },
     ],
   },

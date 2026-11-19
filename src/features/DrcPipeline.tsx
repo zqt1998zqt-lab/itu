@@ -163,7 +163,7 @@ export default function DrcPipeline() {
           </p>
         </div>
         <div className="nsp-legend-inline" aria-label="连线图例">
-          <span><i className="line audio" />TX PCM</span>
+          <span><i className="line audio" />发送处理输出（TX） PCM</span>
           <span><i className="line control" />包络 / 增益</span>
           <span><i className="line optional" />未覆盖 / 候选</span>
         </div>
@@ -458,7 +458,7 @@ export default function DrcPipeline() {
           />
         </div>
         <div className="nsp-legend">
-          <span><i className="line audio" />TX 音频</span>
+          <span><i className="line audio" />发送处理输出（TX）</span>
           <span><i className="line control" />包络 / 增益</span>
           <span><i className="line optional" />终级保护 / 候选</span>
           <span><i className="box" />当前节点</span>

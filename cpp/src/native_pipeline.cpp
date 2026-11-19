@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <stdexcept>
 #include <vector>
 
 namespace itu {
@@ -21,6 +22,11 @@ struct NativePipeline::State {
   std::vector<std::unique_ptr<RateConverter>> up,aec_down,input_down,render_up;
   RateConverter output_down,beam_down;
   static Config core_config(Config c) {
+    // The callback contract is native 16 kHz / 160 samples. Never silently
+    // carry it across the legacy 48 kHz bridge or rescale its delay.
+    if(c.ns_stream_process)
+      throw std::invalid_argument(
+          "external streaming NS cannot use the native 48 kHz bridge");
     const unsigned io_rate=c.sample_rate;
     // Freeze the FIR geometry before the internal 48 kHz rate is selected.
     // The taps and their physical duration belong to the configured I/O EQ,
@@ -109,7 +115,8 @@ Status NativePipeline::process(const float* mic,const float* ref,float* out,Fram
       f.near_protection_hold_frames==0 && f.input_excess_score<.05f &&
       f.speech_probability<.05f && f.linear_speech_probability<.05f &&
       f.nonlinear_speech_probability<.05f;
-  if(quiet_boundary && !s.c.vehicle_ns_control) {
+  if(quiet_boundary && !s.c.vehicle_ns_control &&
+     !s.c.ns_stream_process && !s.c.post_ns_pcm) {
     float quiet_peak=0;
     for(unsigned i=0;i<s.h;++i) quiet_peak=std::max(quiet_peak,std::abs(out[i]));
     if(quiet_peak<5e-4f) std::fill_n(out,s.h,0.f);
@@ -143,12 +150,20 @@ Status NativePipeline::process(const float* mic,const float* ref,float* out,Fram
   if(s.c.diagnostic_stages) {
     auto& taps=*s.c.diagnostic_stages;
     // The core taps also include the causal input-upsample delay.
-    taps.core_delay_samples+=s.up[0]->output_delay();
-    if(s.c.eq_before_agc) taps.eq_delay_samples+=s.up[0]->output_delay();
+    const unsigned input_delay=s.up[0]->output_delay();
+    taps.core_delay_samples+=input_delay;
+    taps.agc_delay_samples+=input_delay;
+    taps.drc_delay_samples+=input_delay;
+    if(s.c.eq_before_agc) {
+      taps.pre_eq_delay_samples+=input_delay;
+      taps.post_eq_delay_samples+=input_delay;
+    }
     else {
       taps.eq_sample_rate=s.c.sample_rate; taps.eq_frame_size=s.h;
-      taps.eq_delay_samples=f.latency_samples;
+      taps.pre_eq_delay_samples=f.latency_samples-legacy_eq_delay;
+      taps.post_eq_delay_samples=f.latency_samples;
     }
+    taps.eq_delay_samples=taps.post_eq_delay_samples;
   }
   double p=0; for(unsigned i=0;i<s.h;++i) p+=double(out[i])*out[i];
   f.output_rms=float(std::sqrt(p/s.h));

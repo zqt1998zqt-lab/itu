@@ -76,7 +76,7 @@ const bfFlow = (
         "capture",
         0,
         0,
-        "多麦 PCM",
+        "麦克风混合输入",
         "2 / 4 channel · 10 ms",
         "input",
         "CAPTURE",
@@ -303,7 +303,7 @@ const bfCase = (
     sampleRate: 16000,
     windowSeconds: sceneId.includes("multirender") ? [12, 15] : [13, 21],
     delaySamples,
-    beforeLabel: "配对控制 · BF 关闭 / 通道 0",
+    beforeLabel: "麦克风混合输入 · BF 关闭 / 通道 0",
     afterLabel,
     beforeFile: resultWav("no_bf", sceneId),
     afterFile: resultWav(variant, sceneId),
@@ -322,7 +322,7 @@ const dasCases = [
     "SNR +15 dB；4 麦；Corcos 风场；near_late 窗",
     "通过：ΔSI-SDR +2.0139 dB；ΔSTOI +0.000179",
     5,
-    "输出 · DAS 延迟求和",
+    "处理后发送输出 · DAS 延迟求和",
   ),
   bfCase(
     "fail",
@@ -334,7 +334,7 @@ const dasCases = [
     "SNR 0 dB；4 麦；spherical；near_only 窗",
     "失败：ΔSI-SDR −1.0096 dB；目标导向不能消除另一路相干声源",
     5,
-    "输出 · DAS 延迟求和",
+    "处理后发送输出 · DAS 延迟求和",
   ),
 ];
 
@@ -349,7 +349,7 @@ const observedMvdrCases = [
     "SNR 0 dB；4 麦；观测协方差；near_late 窗",
     "通过：ΔSI-SDR +7.2895 dB；ΔSTOI +0.002041",
     357,
-    "输出 · observed-covariance MVDR",
+    "处理后发送输出 · observed-covariance MVDR",
   ),
   bfCase(
     "fail",
@@ -361,7 +361,7 @@ const observedMvdrCases = [
     "SNR +30 dB；4 麦；spherical；near_only 窗",
     "失败：ΔSI-SDR −10.7618 dB；ΔSTOI −0.016834",
     357,
-    "输出 · observed-covariance MVDR",
+    "处理后发送输出 · observed-covariance MVDR",
   ),
 ];
 
@@ -376,7 +376,7 @@ const fixedMvdrCases = [
     "SNR 0 dB；4 麦；固定导向；near_late 窗",
     "通过：ΔSI-SDR +7.2637 dB；ΔSTOI +0.001979",
     357,
-    "输出 · fixed-steering MVDR",
+    "处理后发送输出 · fixed-steering MVDR",
   ),
   bfCase(
     "fail",
@@ -388,7 +388,7 @@ const fixedMvdrCases = [
     "SNR +30 dB；2 麦；spherical；near_only 窗",
     "失败：ΔSI-SDR −19.5974 dB；ΔSTOI −0.002904",
     354,
-    "输出 · fixed-steering MVDR",
+    "处理后发送输出 · fixed-steering MVDR",
   ),
 ];
 
@@ -403,7 +403,7 @@ const mpdrCases = [
     "SNR +15 dB；4 麦；连续混合协方差；near_late 窗",
     "通过：ΔSI-SDR +7.2573 dB；ΔSTOI +0.000092",
     357,
-    "输出 · continuous-covariance MPDR",
+    "处理后发送输出 · continuous-covariance MPDR",
   ),
   bfCase(
     "fail",
@@ -415,7 +415,7 @@ const mpdrCases = [
     "SNR +30 dB；2 麦；spherical；near_only 窗",
     "失败：ΔSI-SDR −19.6168 dB；ΔSTOI −0.003664",
     354,
-    "输出 · continuous-covariance MPDR",
+    "处理后发送输出 · continuous-covariance MPDR",
   ),
 ];
 
@@ -430,7 +430,7 @@ const dasWindCases = [
     "SNR +15 dB；4 麦；Corcos；风压权重",
     "通过：ΔSI-SDR +2.0251 dB；ΔSTOI +0.000179",
     357,
-    "输出 · DAS + 风压权重",
+    "处理后发送输出 · DAS + 风压权重",
   ),
   bfCase(
     "fail",
@@ -442,7 +442,7 @@ const dasWindCases = [
     "SNR 0 dB；4 麦；spherical；near_only 窗",
     "失败：ΔSI-SDR −1.0097 dB；相对 DAS 只改善 0.00014 dB",
     357,
-    "输出 · DAS + 风压权重",
+    "处理后发送输出 · DAS + 风压权重",
   ),
 ];
 
@@ -457,7 +457,7 @@ const mvdrWindCases = [
     "SNR 0 dB；4 麦；Corcos；MVDR + 风压",
     "通过：ΔSI-SDR +6.7845 dB；ΔSTOI +0.002103",
     357,
-    "输出 · MVDR + 风压权重",
+    "处理后发送输出 · MVDR + 风压权重",
   ),
   bfCase(
     "fail",
@@ -469,7 +469,7 @@ const mvdrWindCases = [
     "SNR +30 dB；4 麦；spherical；near_only 窗",
     "失败：ΔSI-SDR −10.7382 dB；ΔSTOI −0.016760",
     357,
-    "输出 · MVDR + 风压权重",
+    "处理后发送输出 · MVDR + 风压权重",
   ),
 ];
 

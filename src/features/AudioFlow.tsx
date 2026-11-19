@@ -1,6 +1,6 @@
 import { Fragment, useId, useState } from "react";
 import { ArrowDown, ArrowRight, Check, FileAudio, Info } from "lucide-react";
-import { AUDIO_ROLES } from "../domain/audio";
+import { AUDIO_ROLES, ROLE_LABEL } from "../domain/audio";
 import type { AudioFiles } from "../domain/audio";
 import { DIAGRAMS, renderDiagram } from "../domain/flow-diagram";
 import type { DiagramMode } from "../domain/flow-diagram";
@@ -8,11 +8,11 @@ import { FLOW_NODE_DETAILS } from "./audio-flow-details";
 import "./audio-flow.css";
 
 const NEEDS = [
-  { title: "基础电平与频谱", inputs: "处理后音频即可", condition: "选择实际文件与分析声道", note: "无需先运行降噪或 AEC" },
-  { title: "时延与语音保真", inputs: "干净参考 + 待测录音", condition: "同一语音、有效比较段；STOI 需真实语音确认", note: "前后改善量另需处理前录音、共有参考段和时钟 / 电平确认" },
-  { title: "降噪效果", inputs: "处理前 + 处理后", condition: "纯噪声段 + 时钟 / 电平确认", note: "SNR 另需含语音的比较段及平稳噪声假设；联合保真与增益判断" },
-  { title: "回声片段衰减", inputs: "处理前 + 处理后 + 播放参考", condition: "远端单讲段 + 条件确认 + 相关性检查", note: "得到整条链路的总功率衰减" },
-  { title: "AEC ERLE 工程估计", inputs: "AEC 输入 / 输出 + 播放参考", condition: "满足回声片段条件，并确认 AEC 测量点", note: "排除后级处理；未执行完整标准测试" },
+  { title: "基础电平与频谱", inputs: "处理后发送输出即可", condition: "选择实际文件与分析声道", note: "无需先运行降噪或 AEC" },
+  { title: "时延与语音保真", inputs: "干净近端参考 + 麦克风混合输入", condition: "同一语音、有效比较段；STOI 需真实语音确认", note: "改善量另需麦克风混合输入、共有干净近端参考段和时钟 / 电平确认" },
+  { title: "降噪效果", inputs: "麦克风混合输入 + 处理后发送输出", condition: "独立噪声输入片段 + 时钟 / 电平确认", note: "SNR 另需含语音的比较段及平稳噪声假设；联合保真与增益判断" },
+  { title: "回声片段衰减", inputs: "麦克风混合输入 + 处理后发送输出 + 远端播放信号 / 回声参考", condition: "远端单讲段 + 条件确认 + 相关性检查", note: "得到整条链路的总功率衰减" },
+  { title: "AEC ERLE 工程估计", inputs: "AEC 滤波器输入 / 输出 + 远端播放信号 / 回声参考", condition: "满足回声片段条件，并确认 AEC 测量点", note: "排除后级处理；未执行完整标准测试" },
 ];
 
 export default function AudioFlow({ files }: { files: AudioFiles }) {
@@ -35,7 +35,7 @@ export default function AudioFlow({ files }: { files: AudioFiles }) {
     <div className="audio-flow-page">
       <div className="audio-flow-context">
         <Info size={18} aria-hidden="true" />
-        <p><strong>设备负责处理，网站负责测量。</strong> AEC、BF、DTD 及后级模块是设备链路示意，启用与顺序以实际实现为准；网站不执行这些处理算法。各指标独立检查条件，单文件电平与 PSD 不要求参考音频或对齐。</p>
+        <p><strong>设备负责处理，网站负责测量。</strong> AEC、BF、DTD 及后级模块是设备链路示意，启用与顺序以实际实现为准；网站不执行这些处理算法。各指标独立检查条件，单文件电平与 PSD 不要求干净近端参考或对齐。</p>
       </div>
       <div className="audio-flow-toolbar">
         <div className="audio-flow-modes" role="group" aria-label="流程图视角">
@@ -53,11 +53,11 @@ export default function AudioFlow({ files }: { files: AudioFiles }) {
           <span className="audio-flow-count">已选择录音 <strong>{count} / 4</strong></span>
         </div>
         <div className="audio-flow-recordings" aria-label="四路录音选择状态">
-          {AUDIO_ROLES.map((role) => <span key={role} className={files[role] ? "has-file" : ""}><span aria-hidden="true">{files[role] ? <Check size={13} /> : <FileAudio size={13} />}</span>{({ reference: "干净参考", before: "处理前", after: "处理后", echo: "播放参考" })[role]}<small>{files[role] ? "已选择" : "待选择"}</small></span>)}
+          {AUDIO_ROLES.map((role) => <span key={role} className={files[role] ? "has-file" : ""}><span aria-hidden="true">{files[role] ? <Check size={13} /> : <FileAudio size={13} />}</span>{ROLE_LABEL[role]}<small>{files[role] ? "已选择" : "待选择"}</small></span>)}
         </div>
         <p className="audio-flow-scroll-hint">点击节点查看说明；小屏可在画布内左右滑动，连线与字体保持完整。</p>
         {diagrams.map((diagram, index) => <Fragment key={diagram.mode}>
-          {index > 0 ? <div className="audio-flow-handoff"><ArrowDown size={20} aria-hidden="true" /><p><strong>四路实际录音进入下方指标计算</strong><span>干净参考、处理前、处理后、播放参考；单独测 ERLE 时，滤波器输入 / 输出替换前后测点。</span></p></div> : null}
+          {index > 0 ? <div className="audio-flow-handoff"><ArrowDown size={20} aria-hidden="true" /><p><strong>四路实际录音进入下方指标计算</strong><span>干净近端参考、麦克风混合输入、处理后发送输出、远端播放信号 / 回声参考；单独测 ERLE 时，滤波器输入 / 输出替换麦克风混合输入与处理后发送输出测点。</span></p></div> : null}
           <div className="audio-flow-scroll" role="region" aria-label={`${diagram.title}，可横向滚动`} tabIndex={0}>
             <div className="audio-flow-board" style={{ width: diagram.width, height: diagram.height }}>
               <div dangerouslySetInnerHTML={{ __html: renderDiagram(diagram, { prefix: `nv200-${diagram.mode}-${markerId}`, selected, uploaded: AUDIO_ROLES.filter((role) => files[role]) }) }} />

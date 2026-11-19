@@ -3,6 +3,7 @@ import {
   useId,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 import {
   AlertCircle,
@@ -18,14 +19,27 @@ import type { FiveSignalMode } from "./five-signal-flow-model";
 import {
   BACKGROUND_NOISE_SCENE_LABELS,
   readScopedBackgroundNoisePreview,
-  readSceneConditionPreview,
+  readSceneConditionWaveformPreview,
   type BackgroundNoiseScene,
   type ScopedBackgroundNoisePreview,
   type ScopedDataset,
   type ScopedInputPreviewCase,
   type ScopedInputSignalRole,
-  type ScopedPreviewVisualTrack,
+  type ScopedPreviewWaveformTrack,
+  type ScopedSceneConditionWaveformPreview,
 } from "./scoped-acoustic-model";
+import {
+  paginateScopedCases,
+  type ScopedCasePageCursor,
+} from "./scoped-case-pagination.ts";
+import {
+  CONVERSATION_MODE_LABELS,
+  CONVERSATION_MODES,
+  conversationModeOf,
+  sceneConditionCounts,
+  sceneConditionProfileForDatasetId,
+  type ConversationMode,
+} from "./scene-condition-profiles";
 import "./scoped-dataset-visualization.css";
 
 const PREVIEW_URL =
@@ -57,6 +71,19 @@ const FAMILY_LABELS: Record<string, string> = {
 const SPEECH_FAMILIES = new Set(["g_mos", "n_mos", "s_mos"]);
 const CNG_FAMILIES = new Set(["cng_level", "cng_spectrum"]);
 
+export type ScopedCaseRenderContext = {
+  source: "execution" | "scene-condition";
+  datasetId: string;
+  mode: FiveSignalMode;
+  scene: BackgroundNoiseScene;
+  requestKey: string;
+  farEndVisual?: ScopedPreviewWaveformTrack | null;
+};
+
+type ScopedPreview =
+  | ScopedBackgroundNoisePreview
+  | ScopedSceneConditionWaveformPreview;
+
 type Props = {
   source?: "execution" | "scene-condition";
   dataset: ScopedDataset | null;
@@ -71,13 +98,28 @@ type Props = {
   onOpenWaveforms: () => void;
   onOpenExtendedWaveforms?: () => void;
   extendedPreviewCount?: number;
+  renderCaseActions?: (
+    previewCase: ScopedInputPreviewCase,
+    context: ScopedCaseRenderContext,
+  ) => ReactNode;
+  renderCaseResult?: (
+    previewCase: ScopedInputPreviewCase,
+    context: ScopedCaseRenderContext,
+  ) => ReactNode;
 };
 
 type CaseCategory = "speech" | "cng" | "mixed" | "other";
+type ConversationFilter = "all" | ConversationMode;
+
+type PreviewSegment = {
+  start_s: number;
+  end_s: number;
+  label: string;
+};
 
 type PreviewState = {
   key: string;
-  preview: ScopedBackgroundNoisePreview | null;
+  preview: ScopedPreview | null;
   loading: boolean;
   error: string;
 };
@@ -90,7 +132,7 @@ type PlayingTrack = {
 
 type RenderedTrack = {
   role: (typeof TRACK_ROLES)[number];
-  visual: ScopedPreviewVisualTrack | null;
+  visual: ScopedPreviewWaveformTrack | null;
   path: string;
   renderable: boolean;
 };
@@ -145,11 +187,11 @@ function errorMessage(reason: unknown, fallback: string): string {
 }
 
 function previewMatches(
-  preview: ScopedBackgroundNoisePreview | null,
+  preview: ScopedPreview | null,
   datasetId: string,
   mode: FiveSignalMode,
   scene: BackgroundNoiseScene,
-): preview is ScopedBackgroundNoisePreview {
+): preview is ScopedPreview {
   return (
     preview?.dataset_id === datasetId &&
     preview.mode === mode &&
@@ -184,6 +226,175 @@ function caseCategoryShortLabel(category: CaseCategory): string {
   return "其他";
 }
 
+const SEGMENT_LABELS: Record<string, string> = {
+  speech: "近端语音",
+  near_only: "近端单讲",
+  far_speech: "远端语音",
+  far_only: "远端单讲",
+  double_talk: "双讲",
+  transition: "单讲 / 双讲切换",
+  quiet: "静音",
+  noise_only: "噪声尾段",
+  cng_active: "CNG 活动",
+  cng_settling: "CNG 收敛",
+  cng_noise_observation: "噪声观测",
+  idle: "静音",
+};
+
+function formatSegmentTime(seconds: number): string {
+  return Number.isInteger(seconds)
+    ? String(seconds)
+    : seconds.toLocaleString("zh-CN", {
+        maximumFractionDigits: 2,
+      });
+}
+
+function renderMetadataOf(
+  previewCase: ScopedInputPreviewCase,
+): Record<string, unknown> | null {
+  const metadata = previewCase.provenance?.render_metadata;
+  return isRecord(metadata) ? metadata : null;
+}
+
+function metadataWindow(
+  value: unknown,
+): [number, number] | null {
+  if (
+    !Array.isArray(value) ||
+    value.length !== 2 ||
+    typeof value[0] !== "number" ||
+    !Number.isFinite(value[0]) ||
+    typeof value[1] !== "number" ||
+    !Number.isFinite(value[1]) ||
+    value[0] < 0 ||
+    value[1] <= value[0]
+  ) {
+    return null;
+  }
+  return [value[0], value[1]];
+}
+
+function windowSummary(window: [number, number] | null): string {
+  return window
+    ? `${formatSegmentTime(window[0])}–${formatSegmentTime(window[1])}s`
+    : "provenance 声明的时段";
+}
+
+function previewSegments(
+  previewCase: ScopedInputPreviewCase,
+): PreviewSegment[] {
+  const renderMetadata = renderMetadataOf(previewCase);
+  if (!renderMetadata || !Array.isArray(renderMetadata.segments)) {
+    return [];
+  }
+  return renderMetadata.segments.flatMap((segment) => {
+    if (
+      !isRecord(segment) ||
+      typeof segment.start_s !== "number" ||
+      !Number.isFinite(segment.start_s) ||
+      typeof segment.end_s !== "number" ||
+      !Number.isFinite(segment.end_s) ||
+      typeof segment.label !== "string"
+    ) {
+      return [];
+    }
+    return [{
+      start_s: segment.start_s,
+      end_s: segment.end_s,
+      label: segment.label,
+    }];
+  });
+}
+
+function segmentSummary(previewCase: ScopedInputPreviewCase): string {
+  return previewSegments(previewCase)
+    .map(
+      (segment) =>
+        `${formatSegmentTime(segment.start_s)}–${formatSegmentTime(
+          segment.end_s,
+        )}s ${
+          SEGMENT_LABELS[segment.label] ?? segment.label
+        }`,
+    )
+    .join(" · ");
+}
+
+function conversationComposition(
+  mode: ConversationMode,
+  previewCase?: ScopedInputPreviewCase,
+): string {
+  const metadata = previewCase ? renderMetadataOf(previewCase) : null;
+  const echoPathCount =
+    metadata && Array.isArray(metadata.echo_paths)
+      ? metadata.echo_paths.length
+      : null;
+  const echoPhrase =
+    echoPathCount !== null ? `经 ${echoPathCount} 条回声路径` : "经回声路径";
+  const farEndDelivery = previewCase?.provenance?.far_end_delivery;
+  const farEndSilent =
+    isRecord(farEndDelivery) && farEndDelivery.digital_silence === true;
+  const nearSpeech = previewCase?.provenance?.near_speech;
+  const nearSilent =
+    isRecord(nearSpeech) && nearSpeech.source_kind === "digital_silence";
+
+  if (mode === "near_single") {
+    return `reference 承载干净近端参考；${
+      farEndSilent
+        ? "far_end 为数字静音"
+        : "far_end 关系以 provenance 为准"
+    }；microphone 含近端语音与背景噪声。`;
+  }
+  if (mode === "far_single") {
+    return `far_end 承载 VCP RX 前回声参考，${echoPhrase}进入 microphone；点击测试后生成 RX 后参考并用于 TX；${
+      nearSilent
+        ? "reference 为数字静音"
+        : "reference 关系以 provenance 为准"
+    }；背景噪声叠加在麦克风输入中。`;
+  }
+  if (mode === "double_talk") {
+    return `reference 与 far_end 同时活动，${echoPhrase}的远端成分和背景噪声共同叠加在 microphone；点击测试后生成 RX 后参考并用于 TX。`;
+  }
+  if (mode === "transition") {
+    return `reference 与 far_end 按 provenance 分段切换远端单讲、近端单讲、双讲和噪声尾段；${echoPhrase}只在远端活动区段进入 microphone；点击测试后生成 RX 后参考并用于 TX。`;
+  }
+  const preheat = metadataWindow(metadata?.cng_preheat_window_s);
+  const observation = metadataWindow(metadata?.noise_observation_window_s);
+  const preheatText = preheat
+    ? `（${windowSummary(preheat)}）`
+    : "";
+  const observationText = observation
+    ? `${windowSummary(observation)} 才进入噪声观测窗`
+    : "随后进入 provenance 声明的噪声观测窗";
+  return `CNG 渲染先进入预热窗${preheatText}，随后收敛，${observationText}；整段不按纯噪声解释。`;
+}
+
+function engineeringCombinationSummary(
+  totalCases: number,
+  previewCase?: ScopedInputPreviewCase,
+): string {
+  const policy = previewCase?.provenance?.source_reuse_policy;
+  const sourceReuseDeclared =
+    isRecord(policy) &&
+    policy.source_audio_may_be_reused_across_cases === true &&
+    previewCase?.provenance?.independent_source_recordings === false;
+  return sourceReuseDeclared
+    ? `${totalCases}种工程组合，跨组合允许复用源录音；并非${totalCases}段独立录音。`
+    : `${totalCases}种工程组合；来源复用关系以 provenance 为准。`;
+}
+
+function conversationModeCounts(
+  cases: ScopedInputPreviewCase[],
+): Record<ConversationMode, number> {
+  const counts = Object.fromEntries(
+    CONVERSATION_MODES.map((mode) => [mode, 0]),
+  ) as Record<ConversationMode, number>;
+  for (const previewCase of cases) {
+    const mode = conversationModeOf(previewCase);
+    if (mode) counts[mode] += 1;
+  }
+  return counts;
+}
+
 function buildCaseLabels(
   cases: ScopedInputPreviewCase[],
 ): Map<string, string> {
@@ -193,8 +404,22 @@ function buildCaseLabels(
     mixed: 0,
     other: 0,
   };
+  const conversationCounters = Object.fromEntries(
+    CONVERSATION_MODES.map((mode) => [mode, 0]),
+  ) as Record<ConversationMode, number>;
   const labels = new Map<string, string>();
   for (const previewCase of cases) {
+    const conversationMode = conversationModeOf(previewCase);
+    if (conversationMode) {
+      conversationCounters[conversationMode] += 1;
+      labels.set(
+        previewCase.case_id,
+        `${CONVERSATION_MODE_LABELS[conversationMode]} ${String(
+          conversationCounters[conversationMode],
+        ).padStart(2, "0")}`,
+      );
+      continue;
+    }
     const category = caseCategory(previewCase);
     counters[category] += 1;
     labels.set(
@@ -249,7 +474,7 @@ function decodeInt16LittleEndian(encoded: string): Int16Array {
 }
 
 function envelopePath(
-  visual: ScopedPreviewVisualTrack,
+  visual: ScopedPreviewWaveformTrack,
   groupPeak: number,
 ): string {
   const minimum = decodeInt16LittleEndian(visual.wave_min_i16);
@@ -332,12 +557,18 @@ type WaveformUnitProps = {
   caseLabel: string;
   index?: number;
   datasetId: string;
-  visuals: ScopedBackgroundNoisePreview["visuals"] | undefined;
+  visuals:
+    | ScopedBackgroundNoisePreview["visuals"]
+    | ScopedSceneConditionWaveformPreview["visuals"]
+    | undefined;
   source: "execution" | "scene-condition";
   requestKey: string;
   playingTrack: PlayingTrack | null;
   waveformA11yId: string;
   variant: "list" | "detail";
+  renderCaseActions?: Props["renderCaseActions"];
+  renderCaseResult?: Props["renderCaseResult"];
+  renderContext: ScopedCaseRenderContext;
   onPlay: (track: PlayingTrack) => void;
   onOpenWaveforms: () => void;
 };
@@ -353,6 +584,9 @@ function WaveformUnit({
   playingTrack,
   waveformA11yId,
   variant,
+  renderCaseActions,
+  renderCaseResult,
+  renderContext,
   onPlay,
   onOpenWaveforms,
 }: WaveformUnitProps) {
@@ -394,17 +628,29 @@ function WaveformUnit({
     waveformTracks.every((track) => track.renderable);
   const farEndVisual =
     waveformTracks.find((track) => track.role === "far_end")?.visual ?? null;
+  const caseRenderContext: ScopedCaseRenderContext = {
+    ...renderContext,
+    farEndVisual,
+  };
   const category = caseCategory(previewCase);
+  const conversationMode = conversationModeOf(previewCase);
+  const segments = conversationMode
+    ? segmentSummary(previewCase)
+    : "";
   const caseA11yId = `${waveformA11yId}-${previewCase.case_id}`;
 
   return (
-    <article className={`sdv-waveform-unit is-${variant}`}>
+    <article
+      className={`sdv-waveform-unit is-${variant}`}
+      data-case-id={previewCase.case_id}
+      data-conversation-mode={conversationMode ?? "legacy"}
+    >
       {variant === "list" ? (
         <header className="sdv-waveform-unit-header">
           <div className="sdv-waveform-unit-identity">
             {index !== undefined ? (
-              <span className="sdv-waveform-unit-index">
-                {String(index).padStart(2, "0")}
+              <span className="sdv-waveform-unit-index" aria-label={`第 ${String(index).padStart(2, "0")} 组`}>
+                <span aria-hidden="true">{String(index).padStart(2, "0")}</span>
               </span>
             ) : null}
             <div className="sdv-waveform-unit-copy">
@@ -413,16 +659,42 @@ function WaveformUnit({
                 <span className={`sdv-case-list-kind is-${category}`}>
                   {caseCategoryShortLabel(category)}
                 </span>
+                {conversationMode ? (
+                  <span className="sdv-waveform-unit-mode">
+                    {CONVERSATION_MODE_LABELS[conversationMode]}
+                  </span>
+                ) : null}
               </div>
               <small title={previewCase.case_id}>
                 {previewCase.case_id}
               </small>
             </div>
           </div>
-          <span className="sdv-waveform-unit-contract">
-            适用合同：{humanFamilyLabels(previewCase)}
-          </span>
+          <div className="sdv-waveform-unit-controls">
+            <span className="sdv-waveform-unit-contract">
+              适用合同：{humanFamilyLabels(previewCase)}
+            </span>
+            {renderCaseActions?.(previewCase, caseRenderContext)}
+          </div>
         </header>
+      ) : null}
+
+      {variant === "list"
+        ? renderCaseResult?.(previewCase, caseRenderContext)
+        : null}
+
+      {conversationMode ? (
+        <p className="sdv-composition is-conversation">
+          <strong>{CONVERSATION_MODE_LABELS[conversationMode]}</strong>
+          <span>
+            {conversationComposition(conversationMode, previewCase)}
+          </span>
+          {segments ? (
+            <span className="sdv-composition-segments">
+              分段：{segments}
+            </span>
+          ) : null}
+        </p>
       ) : null}
 
       <div className="sdv-card-grid">
@@ -445,7 +717,8 @@ function WaveformUnit({
             <article className="sdv-card" key={role}>
               <div className="sdv-card-heading">
                 <h3>{label}</h3>
-                {role === "far_end" && visual?.peak === 0 ? (
+                {visual?.peak === 0 &&
+                (role === "far_end" || role === "reference") ? (
                   <span className="sdv-silence-badge">数字静音</span>
                 ) : null}
               </div>
@@ -536,7 +809,7 @@ function WaveformUnit({
         </div>
       ) : null}
 
-      {farEndVisual ? (
+      {!conversationMode && farEndVisual ? (
         <p className="sdv-composition">
           {farEndVisual.peak === 0
             ? "当前样本：干净近端参考 + 噪声 → 麦克风混合输入（未注入远端回声）"
@@ -561,6 +834,8 @@ export default function ScopedDatasetVisualization({
   onOpenWaveforms,
   onOpenExtendedWaveforms,
   extendedPreviewCount,
+  renderCaseActions,
+  renderCaseResult,
 }: Props) {
   const titleId = useId().replace(/[^A-Za-z0-9_-]/g, "");
   const caseSelectId = useId().replace(/[^A-Za-z0-9_-]/g, "");
@@ -584,9 +859,22 @@ export default function ScopedDatasetVisualization({
   });
   const [selectedCaseId, setSelectedCaseId] = useState("");
   const [playingTrack, setPlayingTrack] = useState<PlayingTrack | null>(null);
+  const [conversationFilter, setConversationFilter] =
+    useState<ConversationFilter>("all");
+  const [casePageCursor, setCasePageCursor] =
+    useState<ScopedCasePageCursor>({
+      scopeKey: "",
+      pageIndex: 0,
+    });
+  const casePageScopeKey = [
+    active ? "active" : "inactive",
+    requestKey,
+    conversationFilter,
+  ].join(":");
 
   useEffect(() => {
     setPlayingTrack(null);
+    setConversationFilter("all");
     if (!active || !datasetId || !requestKey) {
       setPreviewState({
         key: requestKey,
@@ -610,7 +898,10 @@ export default function ScopedDatasetVisualization({
       dataset_id: datasetId,
       mode,
     });
-    if (source === "scene-condition") params.set("scene", scene);
+    if (source === "scene-condition") {
+      params.set("scene", scene);
+      params.set("visual_detail", "waveform");
+    }
     const url = source === "scene-condition"
       ? `${SCENE_PREVIEW_URL}?${params.toString()}`
       : `${PREVIEW_URL}/${encodeURIComponent(scene)}/preview?${params.toString()}`;
@@ -619,7 +910,7 @@ export default function ScopedDatasetVisualization({
       controller.signal,
     )
       .then((body) =>
-        (source === "scene-condition" ? readSceneConditionPreview : readScopedBackgroundNoisePreview)(
+        (source === "scene-condition" ? readSceneConditionWaveformPreview : readScopedBackgroundNoisePreview)(
           body,
           datasetId,
           mode,
@@ -676,12 +967,90 @@ export default function ScopedDatasetVisualization({
     () => buildCaseLabels(visiblePreview?.cases ?? []),
     [visiblePreview?.cases],
   );
+  const activeProfile = useMemo(
+    () =>
+      datasetId
+        ? sceneConditionProfileForDatasetId(datasetId)
+        : null,
+    [datasetId],
+  );
+  const expectedCounts = activeProfile
+    ? sceneConditionCounts(activeProfile)
+    : null;
+  const conversationCounts = useMemo(
+    () => conversationModeCounts(visiblePreview?.cases ?? []),
+    [visiblePreview?.cases],
+  );
+  const hasConversationModes = CONVERSATION_MODES.some(
+    (conversationMode) => conversationCounts[conversationMode] > 0,
+  );
+  const showConversationFilter =
+    source === "scene-condition" && hasConversationModes;
+  const filteredCases = useMemo(() => {
+    const cases = visiblePreview?.cases ?? [];
+    return conversationFilter === "all"
+      ? cases
+      : cases.filter(
+          (previewCase) =>
+            conversationModeOf(previewCase) === conversationFilter,
+        );
+  }, [conversationFilter, visiblePreview?.cases]);
+  const casePage = useMemo(
+    () =>
+      paginateScopedCases(
+        filteredCases,
+        casePageScopeKey,
+        casePageCursor,
+      ),
+    [casePageCursor, casePageScopeKey, filteredCases],
+  );
+  const caseOrdinals = useMemo(
+    () =>
+      new Map(
+        (visiblePreview?.cases ?? []).map((previewCase, index) => [
+          previewCase.case_id,
+          index + 1,
+        ]),
+      ),
+    [visiblePreview?.cases],
+  );
+  const activeConversationLabel =
+    conversationFilter === "all"
+      ? "全部"
+      : CONVERSATION_MODE_LABELS[conversationFilter];
+  const casePageAriaLabel = [
+    BACKGROUND_NOISE_SCENE_LABELS[scene],
+    dataset?.name,
+    `${activeConversationLabel}工程组合`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const conversationPreview =
+    activeProfile?.schemaVersion === "scene-condition-preview-v2";
+  const engineeringSummary = engineeringCombinationSummary(
+    visiblePreview?.cases.length ?? expectedCounts?.cases ?? 0,
+    visiblePreview?.cases[0],
+  );
+  const filteredEngineeringSummary = engineeringCombinationSummary(
+    filteredCases.length,
+    filteredCases[0],
+  );
   const selectedCase =
     visiblePreview?.cases.find(
       (previewCase) => previewCase.case_id === selectedCaseId,
     ) ??
     visiblePreview?.cases[0] ??
     null;
+  const renderContext = useMemo<ScopedCaseRenderContext>(
+    () => ({
+      source,
+      datasetId,
+      mode,
+      scene,
+      requestKey,
+    }),
+    [datasetId, mode, requestKey, scene, source],
+  );
   const summary = useMemo(() => {
     const cases = visiblePreview?.cases ?? [];
     const hashes = new Set<string>();
@@ -718,6 +1087,19 @@ export default function ScopedDatasetVisualization({
       ? Math.round((summary.cngGroups / summary.groups) * 100)
       : 0;
 
+  function moveCasePage(offset: number) {
+    const lastPageIndex = Math.max(0, casePage.pageCount - 1);
+    const pageIndex = Math.min(
+      lastPageIndex,
+      Math.max(0, casePage.pageIndex + offset),
+    );
+    setPlayingTrack(null);
+    setCasePageCursor({
+      scopeKey: casePageScopeKey,
+      pageIndex,
+    });
+  }
+
   if (!active) return null;
 
   return (
@@ -728,7 +1110,13 @@ export default function ScopedDatasetVisualization({
     >
       <header className="sdv-header">
         <div className="sdv-heading">
-          <span className="sdv-eyebrow">{source === "scene-condition" ? "20 组测试数据" : "执行数据"}</span>
+          <span className="sdv-eyebrow">
+            {conversationPreview
+              ? `${expectedCounts?.cases ?? summary.groups} 种工程组合`
+              : source === "scene-condition"
+                ? "20 组测试数据"
+                : "执行数据"}
+          </span>
           <h2 id={titleId}>测试数据集</h2>
           <p className="sdv-context">
             <span>{BACKGROUND_NOISE_SCENE_LABELS[scene]}</span>
@@ -778,7 +1166,13 @@ export default function ScopedDatasetVisualization({
         <div className="sdv-body">
           <dl className="sdv-stats" aria-label="当前场景测试集统计">
             <div>
-              <dt>{source === "scene-condition" ? "样本组数" : "实际条件组"}</dt>
+              <dt>
+                {conversationPreview
+                  ? "工程组合"
+                  : source === "scene-condition"
+                    ? "样本组数"
+                    : "实际条件组"}
+              </dt>
               <dd>{summary.groups} 组</dd>
             </div>
             <div>
@@ -826,6 +1220,50 @@ export default function ScopedDatasetVisualization({
             </div>
           </div>
 
+          {showConversationFilter ? (
+            <div
+              className="sdv-conversation-filter"
+              role="group"
+              aria-label="按通话状态筛选工程组合"
+              data-testid="conversation-mode-filter"
+            >
+              <button
+                type="button"
+                className={conversationFilter === "all" ? "is-active" : ""}
+                aria-pressed={conversationFilter === "all"}
+                data-filter-mode="all"
+                onClick={() => {
+                  setPlayingTrack(null);
+                  setConversationFilter("all");
+                }}
+              >
+                <span>全部</span>
+                <strong>{visiblePreview.cases.length}</strong>
+              </button>
+              {CONVERSATION_MODES.map((conversationMode) => (
+                <button
+                  key={conversationMode}
+                  type="button"
+                  className={
+                    conversationFilter === conversationMode
+                      ? "is-active"
+                      : ""
+                  }
+                  aria-pressed={conversationFilter === conversationMode}
+                  data-filter-mode={conversationMode}
+                  title={conversationComposition(conversationMode)}
+                  onClick={() => {
+                    setPlayingTrack(null);
+                    setConversationFilter(conversationMode);
+                  }}
+                >
+                  <span>{CONVERSATION_MODE_LABELS[conversationMode]}</span>
+                  <strong>{conversationCounts[conversationMode]}</strong>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           {source === "scene-condition" ? (
             <section
               className="sdv-case-list sdv-case-unit-shell"
@@ -834,38 +1272,100 @@ export default function ScopedDatasetVisualization({
               <header className="sdv-case-list-header">
                 <div>
                   <span>TEST CASES</span>
-                  <h3 id={`${caseSelectId}-list-title`}>20 组测试样本</h3>
+                  <h3 id={`${caseSelectId}-list-title`}>
+                    {conversationPreview
+                      ? conversationFilter === "all"
+                        ? `${visiblePreview.cases.length} 种工程组合`
+                        : `${activeConversationLabel} · ${filteredCases.length} 种工程组合`
+                      : "20 组测试样本"}
+                  </h3>
                 </div>
-                <strong>全部 {visiblePreview.cases.length} 组</strong>
+                <strong>
+                  {conversationPreview
+                    ? `共 ${filteredCases.length} 种`
+                    : `全部 ${visiblePreview.cases.length} 组`}
+                </strong>
               </header>
-              <ol
-                className="sdv-case-list-items sdv-case-unit-list"
-                role="list"
-              >
-                {visiblePreview.cases.map((previewCase, index) => (
-                  <li key={previewCase.case_id}>
-                    <WaveformUnit
-                      previewCase={previewCase}
-                      caseLabel={
-                        caseLabels.get(previewCase.case_id) ?? "测试样本"
+              {filteredCases.length > 0 ? (
+                <>
+                  <nav
+                    className="sdv-case-pagination"
+                    aria-label={`${casePageAriaLabel}分页`}
+                  >
+                    <button
+                      type="button"
+                      aria-controls={`${caseSelectId}-list-items`}
+                      aria-label={`${casePageAriaLabel}上一页`}
+                      disabled={casePage.pageIndex <= 0}
+                      onClick={() => moveCasePage(-1)}
+                    >
+                      上一页
+                    </button>
+                    <span aria-live="polite">
+                      {`第${casePage.pageNumber}/${casePage.pageCount}页 · 当前${casePage.start}–${casePage.end} / 共${casePage.total}种`}
+                    </span>
+                    <button
+                      type="button"
+                      aria-controls={`${caseSelectId}-list-items`}
+                      aria-label={`${casePageAriaLabel}下一页`}
+                      disabled={
+                        casePage.pageIndex >= casePage.pageCount - 1
                       }
-                      index={index + 1}
-                      datasetId={dataset.dataset_id}
-                      visuals={visiblePreview.visuals}
-                      source={source}
-                      requestKey={requestKey}
-                      playingTrack={playingTrack}
-                      waveformA11yId={waveformA11yId}
-                      variant="list"
-                      onPlay={setPlayingTrack}
-                      onOpenWaveforms={onOpenWaveforms}
-                    />
-                  </li>
-                ))}
-              </ol>
+                      onClick={() => moveCasePage(1)}
+                    >
+                      下一页
+                    </button>
+                  </nav>
+                  <ol
+                    id={`${caseSelectId}-list-items`}
+                    key={`${casePageScopeKey}:${casePage.pageIndex}`}
+                    className="sdv-case-list-items sdv-case-unit-list"
+                    role="list"
+                  >
+                    {casePage.items.map((previewCase) => (
+                      <li key={previewCase.case_id}>
+                        <WaveformUnit
+                          previewCase={previewCase}
+                          caseLabel={
+                            caseLabels.get(previewCase.case_id) ??
+                            "测试样本"
+                          }
+                          index={caseOrdinals.get(previewCase.case_id)}
+                          datasetId={dataset.dataset_id}
+                          visuals={visiblePreview.visuals}
+                          source={source}
+                          requestKey={requestKey}
+                          playingTrack={playingTrack}
+                          waveformA11yId={waveformA11yId}
+                          variant="list"
+                          renderCaseActions={renderCaseActions}
+                          renderCaseResult={renderCaseResult}
+                          renderContext={renderContext}
+                          onPlay={setPlayingTrack}
+                          onOpenWaveforms={onOpenWaveforms}
+                        />
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              ) : (
+                <div className="sdv-filter-empty" role="status">
+                  <span>当前筛选没有工程组合</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlayingTrack(null);
+                      setConversationFilter("all");
+                    }}
+                  >
+                    查看全部
+                  </button>
+                </div>
+              )}
               <p className="sdv-case-list-hint">
-                每组是一个独立单元，滚动查看全部{" "}
-                {visiblePreview.cases.length} 组四路输入
+                {conversationPreview
+                  ? `${filteredEngineeringSummary}分页查看。`
+                  : `每组是一个独立单元，分页查看全部 ${visiblePreview.cases.length} 组四路输入。`}
               </p>
             </section>
           ) : (
@@ -914,6 +1414,7 @@ export default function ScopedDatasetVisualization({
                   playingTrack={playingTrack}
                   waveformA11yId={waveformA11yId}
                   variant="detail"
+                  renderContext={renderContext}
                   onPlay={setPlayingTrack}
                   onOpenWaveforms={onOpenWaveforms}
                 />
@@ -924,7 +1425,11 @@ export default function ScopedDatasetVisualization({
           <footer className="sdv-footer">
             <span>工程测试数据 · 正式 ITU-T 合规未测</span>
             {source === "scene-condition" ? (
-              <span>20 组样本全部参与测试 · 共 50 次指标测量</span>
+              <span>
+                {conversationPreview && expectedCounts
+                  ? `${engineeringSummary}共 ${expectedCounts.observations} 次指标测量。`
+                  : "20 组样本全部参与测试 · 共 50 次指标测量"}
+              </span>
             ) : null}
             {extendedPreviewCount !== undefined ? (
               <span className="sdv-extended">

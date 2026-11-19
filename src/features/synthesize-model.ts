@@ -11,8 +11,19 @@ export type SynthesisOptions = {
   chain?: Pick<ChainConfiguration, "profile" | "selection">;
 };
 
+const SERVER_EXECUTED_NS_IDS = new Set([
+  "cofilite",
+  "dpdfnet2",
+  "dpdfnet2_48k_hr",
+  "hybrid_v2_pitch",
+]);
+
 export function synthesisConfigurationKey(configuration: ChainConfiguration | undefined, profile: SynthesisProfile): string {
-  return configuration ? JSON.stringify(chainFlags(configuration)) : profile;
+  if (!configuration) return profile;
+  const flags = chainFlags(configuration);
+  return JSON.stringify(SERVER_EXECUTED_NS_IDS.has(configuration.selection.ns)
+    ? { flags, ns: configuration.selection.ns }
+    : flags);
 }
 
 export function buildSynthesisOptions(
@@ -29,6 +40,15 @@ export function buildSynthesisOptions(
     }
     const issue = chainExecutionIssue(checked);
     if (issue) throw new Error(issue);
+    if (checked.selection.ns === "dpdfnet2_48k_hr" && rate !== "48000") {
+      throw new Error("DPDFNet2 48 kHz HR 质量路线只接受原生 48 kHz 输入。");
+    }
+    const is16kOnly =
+      ["cofilite", "cofilite_native16", "dpdfnet2", "hybrid_v2_pitch"].includes(checked.selection.ns)
+      || ["speex_fused_dsp", "computer_pf_cpu"].includes(checked.selection.aec);
+    if (is16kOnly && rate && rate !== "16000") {
+      throw new Error("当前所选 16 kHz 专属算法簇只接受 16000 Hz 输入。");
+    }
   }
   const options: SynthesisOptions = {
     profile: configuration?.profile ?? profile,

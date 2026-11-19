@@ -80,8 +80,8 @@ const aec3: AecAlgorithm = {
       sampleRate: 16000,
       windowSeconds: [17, 23],
       delaySamples: 128,
-      beforeLabel: "输入 · 麦克风 / 双讲",
-      afterLabel: "输出 · AEC3 tap",
+      beforeLabel: "麦克风混合输入 · 双讲",
+      afterLabel: "处理后发送输出 · AEC3 tap",
       beforeFile:
         "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-16000-rt0.15-delay020/before.wav",
       afterFile:
@@ -104,8 +104,8 @@ const aec3: AecAlgorithm = {
           sampleRate: 16000,
           windowSeconds: [17, 23],
           delaySamples: 224,
-          beforeLabel: "输入 · 麦克风 / 双讲",
-          afterLabel: "输出 · aec3_off 冻结 VCP",
+          beforeLabel: "麦克风混合输入 · 双讲",
+          afterLabel: "发送处理输出（TX） · aec3_off 冻结 VCP",
           beforeFile:
             "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-16000-rt0.15-delay020/before.wav",
           afterFile:
@@ -128,8 +128,8 @@ const aec3: AecAlgorithm = {
           sampleRate: 48000,
           windowSeconds: [6, 9],
           delaySamples: 1248,
-          beforeLabel: "输入 · 麦克风 / 远端单讲",
-          afterLabel: "输出 · aec3_off 冻结 VCP",
+          beforeLabel: "麦克风混合输入 · 远端单讲",
+          afterLabel: "发送处理输出（TX） · aec3_off 冻结 VCP",
           beforeFile:
             "build/aec3-state-fusion-20261020-r3/aec3_off/cases/factorial-48000-rt0.45-delay080/before.wav",
           afterFile:
@@ -145,15 +145,15 @@ const aec3: AecAlgorithm = {
   flow: flow(
   "WEBRTC AEC3 · BASE CONFIG",
   "AEC3：延迟估计、线性自适应与非线性残差抑制",
-  "麦克风和播放参考先进入同一处理时钟；AEC3 在线估计声学延迟，持续更新线性滤波器，再用非线性抑制处理剩余回声。",
-  ["麦克风 / AEC3 音频", "播放参考 / 延迟与证据"],
+  "麦克风混合输入与远端播放信号 / 回声参考先进入同一处理时钟；AEC3 在线估计声学延迟，持续更新线性滤波器，再用非线性抑制处理剩余回声。",
+  ["麦克风混合输入 / AEC3 音频", "远端播放信号 / 回声参考 / 延迟与证据"],
   [
-    node("capture", 0, 0, "麦克风 PCM", "10 ms 回调帧", "input", "CAPTURE",
+    node("capture", 0, 0, "麦克风混合输入", "10 ms 回调帧", "input", "CAPTURE",
       "入口保留 16/24/48 kHz；多麦克风在 AEC3 前必须先形成单波束或显式选择通道 0。",
       "AudioEngine::process()", "每帧长度等于采样率 / 100。",
       ["sample_rate", "frame_size", "microphones"], "frame = sample_rate / 100"),
-    node("render", 0, 1, "播放参考", "1–8 路同步 render", "input", "RENDER",
-      "参考必须与实际扬声器播放同步；多路参考保留为多个同步通道，不先把它们混成任意一路。",
+    node("render", 0, 1, "远端播放信号 / 回声参考", "1–8 路同步 render", "input", "RENDER",
+      "远端播放信号 / 回声参考必须与实际扬声器播放同步；多路参考保留为多个同步通道，不先把它们混成任意一路。",
       "AudioEngine::process_rx()", "参考通道数固定为 1–8。",
       ["reference_channels", "rx_processing"], "ref = post_rx_processing(reference)"),
     node("condition", 1, 0, "共享条件化", "低切 · 时钟 · BF", "core", "INPUT",
@@ -238,8 +238,8 @@ const speex: AecAlgorithm = {
       sampleRate: 16000,
       windowSeconds: [17, 23],
       delaySamples: 0,
-      beforeLabel: "输入 · 麦克风 / 双讲",
-      afterLabel: "输出 · Speex MDF",
+      beforeLabel: "麦克风混合输入 · 双讲",
+      afterLabel: "处理后发送输出 · Speex MDF",
       beforeFile:
         "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.15-delay020/before.wav",
       afterFile:
@@ -262,8 +262,8 @@ const speex: AecAlgorithm = {
           sampleRate: 16000,
           windowSeconds: [17, 23],
           delaySamples: 0,
-          beforeLabel: "输入 · 麦克风 / 双讲",
-          afterLabel: "输出 · Speex MDF",
+          beforeLabel: "麦克风混合输入 · 双讲",
+          afterLabel: "处理后发送输出 · Speex MDF",
           beforeFile:
             "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.45-delay020/before.wav",
           afterFile:
@@ -286,8 +286,8 @@ const speex: AecAlgorithm = {
           sampleRate: 16000,
           windowSeconds: [17, 23],
           delaySamples: 0,
-          beforeLabel: "输入 · 麦克风 / 双讲",
-          afterLabel: "输出 · Speex MDF",
+          beforeLabel: "麦克风混合输入 · 双讲",
+          afterLabel: "处理后发送输出 · Speex MDF",
           beforeFile:
             "build/speex-res-fallback-20261020-r1/speex_res_fallback/cases/factorial-16000-rt0.15-delay180/before.wav",
           afterFile:
@@ -306,12 +306,12 @@ const speex: AecAlgorithm = {
   "Speex 路径先量化到 PCM16，由多通道 MDF 完成自适应回声消除；VCP 默认启用原生输入调理、Coherence RES 与共享后级上下文。显式回退路径可以关闭 Coherence RES。",
   ["PCM16 / MDF 音频", "参考监测 / 近端控制"],
   [
-    node("capture", 0, 0, "麦克风 PCM", "float → PCM16", "input", "CAPTURE",
-      "捕获与参考经过一致的输入条件化；Speex MDF 在 16/24/48 kHz 原生采样率初始化。",
+    node("capture", 0, 0, "麦克风混合输入", "float → PCM16", "input", "CAPTURE",
+      "麦克风混合输入与远端播放信号 / 回声参考经过一致的输入条件化；Speex MDF 在 16/24/48 kHz 原生采样率初始化。",
       "SpeexAecPipeline", "量化只发生在 AEC 内部。",
       ["sample_rate", "microphones"], "pcm16 = quantize(conditioned_capture)"),
-    node("render", 0, 1, "播放参考", "同步 render PCM16", "input", "RENDER",
-      "参考同样量化；多路 render 保留为 MDF 的多个参考通道。",
+    node("render", 0, 1, "远端播放信号 / 回声参考", "同步 render PCM16", "input", "RENDER",
+      "远端播放信号 / 回声参考同样量化；多路 render 保留为 MDF 的多个参考通道。",
       "SpeexAecPipeline", "PCM 与捕获等长、等采样率。",
       ["reference_channels", "speex_echo_tail_ms"], "pcm16_ref = quantize(conditioned_render)"),
     node("condition", 1, 0, "输入条件化", "DC notch / 低切", "core", "CONDITION",
@@ -413,8 +413,8 @@ const speexCoherenceResidual: AecAlgorithm = {
           sampleRate: 16000,
           windowSeconds: [17, 23],
           delaySamples: 96,
-          beforeLabel: "输入 · 麦克风 / 双讲",
-          afterLabel: "输出 · VCP Coherence RES",
+          beforeLabel: "麦克风混合输入 · 双讲",
+          afterLabel: "发送处理输出（TX） · VCP Coherence RES",
           beforeFile:
             "build/aec-coherence-residual-20261023-r2/speex_coherence_residual/cases/factorial-16000-rt0.15-delay080/before.wav",
           afterFile:
@@ -440,8 +440,8 @@ const speexCoherenceResidual: AecAlgorithm = {
           sampleRate: 48000,
           windowSeconds: [17, 23],
           delaySamples: 336,
-          beforeLabel: "输入 · 麦克风 / 双讲",
-          afterLabel: "输出 · VCP Coherence RES",
+          beforeLabel: "麦克风混合输入 · 双讲",
+          afterLabel: "发送处理输出（TX） · VCP Coherence RES",
           beforeFile:
             "build/aec-coherence-residual-20261023-r2/speex_coherence_residual/cases/factorial-48000-rt0.45-delay180/before.wav",
           afterFile:
@@ -511,8 +511,8 @@ const preAec: AecAlgorithm = {
       sampleRate: 16000,
       windowSeconds: [96, 102],
       delaySamples: 384,
-      beforeLabel: "BF 后输入 · 双讲",
-      afterLabel: "输出 · AEC3 tap",
+      beforeLabel: "麦克风混合输入 · BF 后双讲",
+      afterLabel: "处理后发送输出 · AEC3 tap",
       beforeFile:
         "build/vehicle-v2-continuous-20261010/16000-baseline/stream.bf.wav",
       afterFile:
@@ -547,8 +547,8 @@ const preAec: AecAlgorithm = {
       "空间前端输出一条物理 beam，后续 AEC/NR/EQ/AGC 都在这条时基上运行。",
       "PreAecPipeline", "RF、空间和风噪延迟累计到公开时延。",
       ["spatial_delay_samples", "wind_noise_control"], "beam = Σ w_ch · aligned_ch"),
-    node("render", 2, 1, "同步播放参考", "不变的多路 render", "control", "REFERENCE",
-      "播放参考不经过麦克风阵列，但必须与 capture 同步；AEC 仍可接收 1–8 路同步参考。",
+    node("render", 2, 1, "远端播放信号 / 回声参考", "不变的多路 render", "control", "REFERENCE",
+      "远端播放信号 / 回声参考不经过麦克风阵列，但必须与麦克风混合输入同步；AEC 仍可接收 1–8 路同步参考。",
       "AudioEngine core", "参考通道数直接传给 AEC 后端。",
       ["reference_channels", "far_active"], "ref unchanged"),
     node("aec", 3, 0, "单通道 AEC", "AEC3 / Speex MDF", "core", "AEC",
@@ -607,12 +607,12 @@ const multiRender: AecAlgorithm = {
   "多路参考可能高度相关，不能逐路相加或用任意单路推断。EchoSubspace 在每个频点联合建模 1–8 路 render，再与 AEC3 线性残差和非线性语音证据共同保护近端。",
   ["多参考 / AEC3", "子空间 / 双讲保护"],
   [
-    node("capture", 0, 0, "麦克风 PCM", "单波束或通道 0", "input", "CAPTURE",
+    node("capture", 0, 0, "麦克风混合输入", "单波束或通道 0", "input", "CAPTURE",
       "多参考保护只处理已形成单路物理捕获的 AEC 输入。",
       "AudioEngine", "前置 BF 的延迟已计入 AEC 时基。",
       ["microphones", "beamforming_before_aec"], "capture = beam"),
-    node("render", 0, 1, "同步多参考", "2–8 路 render", "input", "RENDERS",
-      "每路播放参考保持独立，支持 48 kHz 路径逐路下采样到 16 kHz 监测。",
+    node("render", 0, 1, "远端播放信号 / 回声参考", "2–8 路同步 render", "input", "RENDERS",
+      "每路远端播放信号 / 回声参考保持独立，支持 48 kHz 路径逐路下采样到 16 kHz 监测。",
       "AudioEngine", "不把多路 render 先混成任意单路。",
       ["reference_channels", "reference_confidence"], "R = [r1, r2, …]"),
     node("aec", 1, 0, "AEC3 多参考", "全 render 参与线性残差", "core", "AEC3",
@@ -695,8 +695,8 @@ const historicalFusion: AecAlgorithm = {
           sampleRate: 48000,
           windowSeconds: [17, 23],
           delaySamples: 1248,
-          beforeLabel: "输入 · 双讲麦克风",
-          afterLabel: "输出 · 历史 AEC3 状态融合",
+          beforeLabel: "麦克风混合输入 · 双讲",
+          afterLabel: "处理后发送输出 · 历史 AEC3 状态融合",
           beforeFile:
             "build/aec3-state-fusion-20261020-r3/aec3_fusion/cases/factorial-48000-rt0.45-delay080/before.wav",
           afterFile:
@@ -716,7 +716,7 @@ const historicalFusion: AecAlgorithm = {
     "旧分支尝试把 monitor 与 cancellation 状态融合；历史矩阵显示通过数从 10/27 降到 7/27，并新增双讲失败。当前源码已撤回该开关。",
     ["AEC3 / 历史音频", "状态融合 / 负对照"],
     [
-      node("capture", 0, 0, "历史麦克风 PCM", "冻结输入", "input", "CAPTURE",
+      node("capture", 0, 0, "麦克风混合输入 · 历史冻结", "冻结输入", "input", "CAPTURE",
         "输入来自旧 AEC 因子矩阵，文件身份与 SHA 保留。",
         "frozen results.jsonl", "当前源码不能重放此配置。",
         ["case_sha256", "sample_rate"], "x[n]"),

@@ -110,10 +110,16 @@ def main():
         if selected["aec"] != "off":
             expected_aec = {
                 "speex": "speex_mdf",
-                "speex_fused": "speex_mdf_nlms_fused",
+                "speex_fused_cpu": "speex_mdf_nlms_fused_cpu",
+                "speex_fused": "speex_mdf_nlms_fused",  # Historical CPU evidence.
+                "speex_fused_dsp": "speex_mdf_complex_pf_dsp",
                 "aec3": "webrtc_aec3",
             }[selected["aec"]]
             check(engine["aec_backend"] == expected_aec, "wrong AEC backend executed")
+            if selected["aec"] == "speex_fused_dsp":
+                check(engine.get("aec_execution_provider") == "hifi_dsp", "DSP route did not execute on HiFi")
+                check(type(engine.get("aec_dsp_inferences")) is int and engine["aec_dsp_inferences"] > 0, "DSP inference evidence missing")
+                check(engine.get("aec_dsp_fallback_frames") == 0, "DSP route used fallback")
         if selected["ns"] == "unified":
             check(engine["ns_backend"] == "unified", "Unified NS backend was not executed")
             check(engine["unified_eq_agc"] is True, "Unified EQ/AGC fusion was not enabled")

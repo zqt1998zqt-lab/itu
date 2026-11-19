@@ -45,7 +45,15 @@ OOB_DIAGNOSTIC_HZ = {
     "WB": 8_500.0,
     "SWB": 14_500.0,
 }
-KINDS = {"speech", "duplex", "response", "oob", "idle", "cng"}
+LEGACY_KINDS = {"speech", "duplex", "response", "oob", "idle", "cng"}
+CONVERSATION_STIMULUS_KINDS = {
+    "near_single",
+    "far_single",
+    "double_talk",
+    "transition",
+    "noise_only",
+}
+KINDS = LEGACY_KINDS | CONVERSATION_STIMULUS_KINDS
 DIRECTIONS = {
     "send": "send",
     "tx": "send",
@@ -289,6 +297,21 @@ def _scene(
         _append_segment(segments, 5.0, 8.0, "far_only", duration_s)
         _append_segment(segments, 8.0, speech_end_s, "double_talk", duration_s)
         _append_segment(segments, speech_end_s, duration_s, "noise_only", duration_s)
+    elif kind == "near_single":
+        masks["near"] = ones.copy()
+        masks["near_only"] = ones.copy()
+        _append_segment(segments, 0.0, duration_s, "speech", duration_s)
+    elif kind == "far_single":
+        masks["far"] = ones.copy()
+        masks["far_only"] = ones.copy()
+        _append_segment(segments, 0.0, duration_s, "far_speech", duration_s)
+    elif kind == "double_talk":
+        masks["near"] = ones.copy()
+        masks["far"] = ones.copy()
+        masks["double_talk"] = ones.copy()
+        _append_segment(segments, 0.0, duration_s, "double_talk", duration_s)
+    elif kind == "transition":
+        return _scene("duplex", direction, frames, rate)
     elif kind in {"response", "oob"}:
         if direction == "receive":
             masks["far"] = ones.copy()
@@ -297,7 +320,7 @@ def _scene(
         _append_segment(segments, 0.0, duration_s, kind, duration_s)
     elif kind == "idle":
         _append_segment(segments, 0.0, duration_s, "idle", duration_s)
-    elif kind == "cng":
+    elif kind in {"cng", "noise_only"}:
         active_end_s = min(2.0, duration_s)
         measurement_start_s = min(4.0, duration_s)
         if direction == "receive":
@@ -483,6 +506,13 @@ def render_signals(
     canonical_kind = str(kind).lower()
     if canonical_kind not in KINDS:
         raise ValueError(f"unsupported kind: {kind!r}")
+    conversation_stimulus = (
+        canonical_kind
+        if canonical_kind in CONVERSATION_STIMULUS_KINDS
+        else None
+    )
+    if conversation_stimulus is not None and canonical_direction != "send":
+        raise ValueError("conversation stimuli require send direction")
     canonical_bandwidth = str(bandwidth).upper()
     if canonical_bandwidth not in BAND_LIMITS_HZ:
         raise ValueError(f"unsupported bandwidth: {bandwidth!r}")
@@ -507,11 +537,21 @@ def render_signals(
     masks, segments = _scene(canonical_kind, canonical_direction, frames, rate)
     snr_applicable = (
         canonical_direction != "receive"
-        and canonical_kind in {"speech", "duplex", "cng", "response", "oob"}
+        and canonical_kind in {
+            "speech",
+            "duplex",
+            "cng",
+            "response",
+            "oob",
+            "near_single",
+            "double_talk",
+            "transition",
+            "noise_only",
+        }
     )
     ser_applicable = (
         canonical_direction != "receive"
-        and canonical_kind == "duplex"
+        and canonical_kind in {"duplex", "double_talk", "transition"}
     )
     noise_normalization_mask = (
         masks["near"]
@@ -567,6 +607,24 @@ def render_signals(
 
     near_active = reference[masks["near"]]
     near_active_rms = _rms(near_active)
+    far_active_rms = _rms(far_end, masks["far"])
+    if conversation_stimulus in {
+        "near_single",
+        "double_talk",
+        "transition",
+        "noise_only",
+    } and near_active_rms <= 1e-12:
+        raise ValueError(
+            f"{conversation_stimulus} requires non-silent near speech"
+        )
+    if conversation_stimulus in {
+        "far_single",
+        "double_talk",
+        "transition",
+    } and far_active_rms <= 1e-12:
+        raise ValueError(
+            f"{conversation_stimulus} requires non-silent far-end speech"
+        )
     if snr_applicable:
         if near_active_rms <= 1e-12:
             raise ValueError(
@@ -585,24 +643,38 @@ def render_signals(
     echo_gain_0 = 0.0
     echo_gain_1 = 0.0
     echo_paths: list[dict[str, Any]] = []
-    if canonical_direction != "receive" and canonical_kind == "duplex":
+    if canonical_direction != "receive" and canonical_kind in {
+        "duplex",
+        "far_single",
+        "double_talk",
+        "transition",
+    }:
         raw_echo_0, path_0 = _echo_path(
             frames, rate, far_end, float(echo_delay_ms), channel=0
         )
         raw_echo_1, path_1 = _echo_path(
             frames, rate, far_end, float(echo_delay_ms), channel=1
         )
-        far_only_rms = _rms(raw_echo_0, masks["far_only"])
-        if near_active_rms <= 1e-12 or far_only_rms <= 1e-12:
-            raise ValueError(
-                "duplex SER requires observable near-active and far-only windows"
-            )
-        echo_target_rms = (
-            near_active_rms
-            * (10.0 ** (float(ser_db) / 20.0))
-            * volume_gain
+        ser_measurement_mask = (
+            masks["far_only"]
+            if np.any(masks["far_only"])
+            else masks["near"]
         )
-        echo_gain_0 = echo_target_rms / far_only_rms
+        ser_reference_rms = _rms(raw_echo_0, ser_measurement_mask)
+        if ser_applicable:
+            if near_active_rms <= 1e-12 or ser_reference_rms <= 1e-12:
+                raise ValueError(
+                    f"{canonical_kind} SER requires observable near speech "
+                    "and far-end echo"
+                )
+            echo_target_rms = (
+                near_active_rms
+                * (10.0 ** (float(ser_db) / 20.0))
+                * volume_gain
+            )
+            echo_gain_0 = echo_target_rms / ser_reference_rms
+        else:
+            echo_gain_0 = ECHO_COUPLING_GAIN
         echo_gain_1 = echo_gain_0
         echo_0 = raw_echo_0 * echo_gain_0
         echo_1 = raw_echo_1 * echo_gain_1
@@ -679,13 +751,14 @@ def render_signals(
             _rms(signals["noise"], masks["near"]),
         )
     measured_ser = None
-    if (
-        ser_applicable
-        and np.any(masks["far_only"])
-        and np.any(masks["near"])
-    ):
+    if ser_applicable and np.any(masks["near"]):
+        measurement_mask = (
+            masks["far_only"]
+            if np.any(masks["far_only"])
+            else masks["near"]
+        )
         measured_ser = _db(
-            _rms(echo_0, masks["far_only"]),
+            _rms(echo_0, measurement_mask),
             _rms(signals["reference"], masks["near"]),
         )
     snr_db_target = float(snr_db) if snr_applicable else None
@@ -695,6 +768,14 @@ def render_signals(
         if ser_applicable
         else None
     )
+    ser_db_definition = None
+    if ser_applicable:
+        echo_scope = "double_talk" if canonical_kind == "double_talk" else "far_only"
+        ser_db_definition = (
+            f"20*log10(RMS(echo[{echo_scope}])"
+            " / RMS(reference[near_active])); "
+            "effective target = ser_db + volume_gain_db"
+        )
     noise_spatial_check = {
         "channel_0_rms_over_normalization_mask": _rms(
             signals["noise"],
@@ -718,10 +799,19 @@ def render_signals(
         else [0.0]
     )
     cng_measurement_start_s = (
-        round(min(4.0, frames / rate), 9) if canonical_kind == "cng" else None
+        round(min(4.0, frames / rate), 9)
+        if canonical_kind in {"cng", "noise_only"}
+        else None
     )
+    metadata_kind = canonical_kind
+    stimulus_kind: str | None = None
+    if conversation_stimulus is not None:
+        metadata_kind = (
+            "cng" if conversation_stimulus == "noise_only" else "speech"
+        )
+        stimulus_kind = conversation_stimulus
     metadata: dict[str, Any] = {
-        "kind": canonical_kind,
+        "kind": metadata_kind,
         "direction": canonical_direction,
         "sample_rate_hz": rate,
         "duration_s": round(frames / rate, 9),
@@ -745,12 +835,7 @@ def render_signals(
         "ser_db_nominal_target": ser_db_nominal_target,
         "ser_db_effective_target": ser_db_effective_target,
         "ser_db_measured": measured_ser,
-        "ser_db_definition": (
-            "20*log10(RMS(echo[far_only]) / RMS(reference[near_active])); "
-            "effective target = ser_db + volume_gain_db"
-            if ser_applicable
-            else None
-        ),
+        "ser_db_definition": ser_db_definition,
         "echo_delay_ms": float(echo_delay_ms),
         "echo_paths": echo_paths,
         "source_mix_check": {
@@ -818,6 +903,45 @@ def render_signals(
         "standard_compliance": False,
         "evidence_scope": "synthetic engineering stimulus only",
     }
+    if conversation_stimulus is not None:
+        metadata.update({
+            "stimulus_kind": stimulus_kind,
+            "analysis_start_s": (
+                4.0
+                if conversation_stimulus == "noise_only"
+                else 0.5
+                if conversation_stimulus == "transition"
+                else 0.0
+            ),
+            "activity_masks": {
+                name: _mask_segments(masks[name], rate)
+                for name in (
+                    "near",
+                    "far",
+                    "near_only",
+                    "far_only",
+                    "double_talk",
+                    "noise_only",
+                )
+            },
+            "double_talk_overlap_s": (
+                round(frames / rate, 9)
+                if conversation_stimulus == "double_talk"
+                else 3.0
+                if conversation_stimulus == "transition"
+                else 0.0
+            ),
+            "cng_preheat_window_s": (
+                [0.0, round(min(2.0, frames / rate), 9)]
+                if conversation_stimulus == "noise_only"
+                else None
+            ),
+            "noise_observation_window_s": (
+                [round(min(4.0, frames / rate), 9), round(frames / rate, 9)]
+                if conversation_stimulus == "noise_only"
+                else None
+            ),
+        })
     if multisine_metadata is not None:
         metadata.update(multisine_metadata)
 

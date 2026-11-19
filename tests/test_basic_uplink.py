@@ -658,7 +658,7 @@ def test_array_control_is_rejected_for_basic_but_allowed_for_full(
 @pytest.mark.parametrize(
     ("rate", "mode", "engine_rate", "expected_samples"),
     (
-        (8_000, "NB-wired", 16_000, [2.0, 8.0]),
+        (8_000, "NB-wired", 8_000, [1.0, 4.0]),
         (48_000, "SWB-wired", 48_000, [6.0, 24.0]),
     ),
 )
@@ -702,28 +702,38 @@ def test_beam_delays_are_converted_at_engine_sample_rate(
         "vcp_default",
     )
 
-    assert len(captured_commands) == 1
-    assert _command_beam_delays(captured_commands[0]) == pytest.approx(
-        expected_samples
-    )
-    assert _command_beam_delays(execution["commands"][0]) == pytest.approx(
-        expected_samples
-    )
+    if rate == 8_000:
+        assert len(captured_commands) == 1
+        assert captured_commands[0][0].endswith("itu_nb8_speex")
+        assert execution["commands"] == captured_commands
+    else:
+        assert len(captured_commands) == 2
+        assert _command_beam_delays(captured_commands[1]) == pytest.approx(
+            expected_samples
+        )
+        assert _command_beam_delays(execution["commands"][1]) == pytest.approx(
+            expected_samples
+        )
     adaptation = execution["beam_delay_adaptation"]
     assert adaptation["source_unit"] == "ms"
     assert adaptation["engine_rate"] == engine_rate
     assert adaptation["delays_ms"] == [0.125, 0.5]
     assert adaptation["delays_samples"] == pytest.approx(expected_samples)
-    assert execution["pipeline_reports"]["tx"]["data"][
-        "dsp_delay_samples"
-    ] >= 0
+    if rate == 8_000:
+        assert execution["pipeline_reports"]["tx"]["data"][
+            "algorithm_delay_samples"
+        ] == 320
+    else:
+        assert execution["pipeline_reports"]["tx"]["data"][
+            "dsp_delay_samples"
+        ] >= 0
     assert execution["output_sha256"]["tx"] == hashlib.sha256(
         outputs["tx"].read_bytes()
     ).hexdigest()
     if rate == 8_000:
-        assert execution["input_adaptation"]["microphone"][
-            "engine_rate"
-        ] == engine_rate
+        assert execution["input_adaptation"] == {}
+        assert execution["rate_path"]["engine_sample_rate_hz"] == 8_000
+        assert execution["algorithm_cluster_id"] == "speex_dpdfnet2_8khz"
 
 
 @pytest.mark.parametrize(
@@ -827,12 +837,16 @@ def test_real_vcp_and_real_calculation_cover_eight_items(
             destination,
             "vcp_default",
         )
-        assert set(outputs) == {"tx"}
+        assert set(outputs) == {"rx", "tx"}
+        assert outputs["rx"].is_file()
         assert outputs["tx"].is_file()
         assert len(execution["cli_sha256"]) == 64
         assert len(execution["catalog_sha256"]) == 64
         assert execution["output_sha256"]["tx"] == hashlib.sha256(
             outputs["tx"].read_bytes()
+        ).hexdigest()
+        assert execution["output_sha256"]["rx"] == hashlib.sha256(
+            outputs["rx"].read_bytes()
         ).hexdigest()
         assert set(execution["input_sha256"]) == set(SIGNALS)
         assert execution["beam_delay_adaptation"] is None

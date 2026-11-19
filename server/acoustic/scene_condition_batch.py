@@ -1,12 +1,14 @@
-"""Append-only VCP batches for the 20-case scene-condition dataset.
+"""Append-only VCP batches for profile-driven scene-condition datasets.
 
 This module deliberately lives beside, rather than inside, the legacy
 ``acceptance_batch`` engine.  It reuses the legacy CLI runner and case metric
 calculator, but gives every scene-condition case its own observation identity
-so five contract rows can be measured twenty times without collapsing them.
+so five contract rows can be measured across 20/50 or 100/280 profiles
+without collapsing them.
 """
 from __future__ import annotations
 
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from copy import deepcopy
 from datetime import datetime, timezone
 import errno
@@ -24,6 +26,7 @@ import uuid
 from fastapi import HTTPException
 
 from . import acceptance_batch, service
+from server.aec_routes import admit_aec_route, aec_route_requires_capability
 from .acceptance_models import calculate_case_items
 from .acceptance_scope import background_noise_scene_items
 from .acceptance_scene_conditions import (
@@ -35,16 +38,90 @@ from .acceptance_scene_conditions import (
     TEST_SCOPE,
     asset_path,
 )
+from .conversation_diagnostics import (
+    EXPECTED_RENDER_KIND,
+    diagnose_conversation_case,
+    validate_activity_metadata,
+    validate_diagnostics,
+)
+from .scene_mode_conversation_profiles import (
+    profile_for_dataset,
+    profile_for_scene,
+    profile_for_scene_and_mode,
+    profile_counts,
+    profile_mode,
+    profile_sample_rate_hz,
+)
+from .acoustic_stress_profiles import (
+    is_stress_dataset,
+    stress_profile_for_dataset,
+)
 
 
 SCHEMA = "scene-condition-batch-v1"
 BATCH_ROOT_NAME = "scene-condition-batches"
+FIXTURE_MARKER_NAME = "test-fixture.json"
+FIXTURE_MARKER_SCHEMA = "scene-condition-test-fixture-v1"
+FIXTURE_MARKER_REASON = "synthetic test fixture"
+FIXTURE_MARKER_FIELDS = frozenset(
+    {"schema", "batch_id", "reason", "snapshot_sha256"}
+)
 MIN_FREE_BYTES = 100 * 1024**3
 MIN_MEM_AVAILABLE_BYTES = 5 * 1024**3
+# Compatibility exports for callers of the original v1 profile. Runtime
+# validation always derives counts from ``profile_for_dataset`` instead.
 EXPECTED_CASE_COUNT = 20
 EXPECTED_SPEECH_CASE_COUNT = 10
 EXPECTED_CNG_CASE_COUNT = 10
 EXPECTED_OBSERVATION_COUNT = 50
+
+
+def _profile_schema_version(profile: Any) -> str:
+    return str(
+        getattr(profile, "schema_version", "scene-condition-preview-v1")
+    )
+
+
+def _profile_counts(profile: Any) -> tuple[int, int, int, int]:
+    return profile_counts(profile)
+
+
+def _profile_conversation_counts(profile: Any) -> dict[str, int]:
+    value = getattr(profile, "conversation_counts", None)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError("场景条件 profile conversation_counts 无效")
+    return {str(key): int(count) for key, count in value.items()}
+
+
+def _profile_contract_rows(profile: Any) -> dict[str, dict[str, Any]]:
+    mode = profile_mode(profile)
+    rows = background_noise_scene_items(mode, profile.scene)
+    contract_by_id = {row["id"]: row for row in rows}
+    if len(contract_by_id) != CONTRACT_ITEM_COUNT:
+        raise ValueError(
+            f"{profile.scene}/{mode} 合同项不是唯一的 5 项"
+        )
+    return contract_by_id
+
+
+def _item_ids_by_kind(
+    contract_by_id: dict[str, dict[str, Any]],
+) -> tuple[set[str], set[str]]:
+    speech = {
+        item_id
+        for item_id, row in contract_by_id.items()
+        if row["family"] in {"g_mos", "n_mos", "s_mos"}
+    }
+    cng = {
+        item_id
+        for item_id, row in contract_by_id.items()
+        if row["family"] in {"cng_level", "cng_spectrum"}
+    }
+    if len(speech) != 3 or len(cng) != 2:
+        raise ValueError("场景条件合同项必须为 3 个语音项和 2 个 CNG 项")
+    return speech, cng
 
 SUMMARY_FIELDS = (
     "pass",
@@ -154,6 +231,16 @@ _ITEM_STATUSES = frozenset(
         "invalid",
     }
 )
+SINGLE_CASE_EXECUTION_SCOPE = "single_case"
+SINGLE_CASE_SELECTION_FIELDS = (
+    "execution_scope",
+    "selected_case_id",
+    "dataset_case_count",
+    "dataset_observation_count",
+)
+CASE_WORKERS_ENV = "ITU_ACCEPTANCE_CASE_WORKERS"
+DEFAULT_CASE_WORKERS = 2
+MAX_CASE_WORKERS = 4
 
 
 class ResourceSafetyStop(RuntimeError):
@@ -376,6 +463,85 @@ def _read_snapshot(identifier: str, version: int) -> dict[str, Any]:
     return value
 
 
+def _latest_snapshot_bytes(identifier: str) -> bytes:
+    versions = _snapshot_versions(identifier)
+    if not versions:
+        raise ValueError(
+            f"fixture marker has no snapshot for batch {identifier}"
+        )
+    path = _snapshot_directory(identifier) / f"{versions[-1]:08d}.json"
+    try:
+        metadata = path.lstat()
+    except OSError as error:
+        raise ValueError(
+            f"fixture marker latest snapshot is unreadable: {path}"
+        ) from error
+    if not stat.S_ISREG(metadata.st_mode) or path.is_symlink():
+        raise ValueError("fixture marker latest snapshot is not a regular file")
+    try:
+        return path.read_bytes()
+    except OSError as error:
+        raise ValueError(
+            f"fixture marker latest snapshot is unreadable: {path}"
+        ) from error
+
+
+def _strict_marker_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate fixture marker key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_marker_constant(value: str) -> None:
+    raise ValueError(f"non-finite fixture marker value: {value}")
+
+
+def _is_fixture_batch(directory: Path) -> bool:
+    """Return true only for a fully bound, explicit synthetic fixture."""
+    marker_path = directory / FIXTURE_MARKER_NAME
+    try:
+        metadata = marker_path.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError as error:
+        raise ValueError(
+            f"fixture marker is unreadable: {marker_path}: {error}"
+        ) from error
+    if not stat.S_ISREG(metadata.st_mode) or marker_path.is_symlink():
+        raise ValueError("fixture marker must be a regular file")
+    try:
+        marker = json.loads(
+            marker_path.read_text(encoding="utf-8"),
+            object_pairs_hook=_strict_marker_object,
+            parse_constant=_reject_marker_constant,
+        )
+    except (OSError, UnicodeError, ValueError) as error:
+        raise ValueError(
+            f"fixture marker is not valid JSON: {marker_path}: {error}"
+        ) from error
+    if (
+        not isinstance(marker, dict)
+        or set(marker) != set(FIXTURE_MARKER_FIELDS)
+        or marker.get("schema") != FIXTURE_MARKER_SCHEMA
+        or marker.get("batch_id") != directory.name
+        or marker.get("reason") != FIXTURE_MARKER_REASON
+        or not isinstance(marker.get("snapshot_sha256"), str)
+        or re.fullmatch(r"[a-f0-9]{64}", marker["snapshot_sha256"]) is None
+    ):
+        raise ValueError("fixture marker schema or identity is invalid")
+    actual_sha256 = hashlib.sha256(
+        _latest_snapshot_bytes(directory.name)
+    ).hexdigest()
+    if marker["snapshot_sha256"] != actual_sha256:
+        raise ValueError(
+            "fixture marker snapshot_sha256 does not match latest snapshot"
+        )
+    return True
+
+
 def _latest_snapshot(identifier: str) -> dict[str, Any] | None:
     versions = _snapshot_versions(identifier)
     if not versions:
@@ -458,7 +624,15 @@ def _write_once_json(path: Path, value: Any) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _validated_dataset(dataset_id: str) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+def _validated_dataset(
+    dataset_id: str,
+    requested_scene: str | None = None,
+    requested_mode: str | None = None,
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    if is_stress_dataset(dataset_id):
+        from .acoustic_stress_batch import validated_dataset
+
+        return validated_dataset(dataset_id, requested_scene)
     # Import lazily to keep the API -> backend module graph acyclic.
     from .acceptance_scene_condition_api import _load_dataset
 
@@ -466,19 +640,55 @@ def _validated_dataset(dataset_id: str) -> tuple[dict[str, Any], dict[str, dict[
         dataset = _load_dataset(dataset_id)
     except HTTPException:
         raise
+    profile = profile_for_dataset(dataset_id)
+    schema_version = _profile_schema_version(profile)
+    case_target, speech_target, cng_target, observation_target = (
+        _profile_counts(profile)
+    )
+    if (
+        dataset.get("dataset_id") != dataset_id
+        or dataset.get("dataset_name") != profile.dataset_name
+        or dataset.get("dataset_kind") != profile.dataset_kind
+        or dataset.get("mode") != profile_mode(profile)
+        or dataset.get("scene") != profile.scene
+        or dataset.get("schema_version", schema_version) != schema_version
+        or requested_scene is not None
+        and requested_scene != profile.scene
+        or requested_mode is not None
+        and requested_mode != profile_mode(profile)
+    ):
+        raise ValueError("场景条件测试集与请求模式或场景不一致")
     cases = dataset.get("cases")
-    if not isinstance(cases, list) or len(cases) != EXPECTED_CASE_COUNT:
-        raise ValueError("场景条件测试集必须恰好包含 20 个 case")
+    if not isinstance(cases, list) or len(cases) != case_target:
+        raise ValueError(
+            f"场景条件测试集必须恰好包含 {case_target} 个 case"
+        )
     if (
         dataset.get("contract_item_count") != CONTRACT_ITEM_COUNT
         or CONTRACT_ITEM_COUNT != 5
     ):
         raise ValueError("场景条件测试集合同项数量不是 5")
+    if dataset.get("preview_condition_group_count", case_target) != case_target:
+        raise ValueError("场景条件测试集 preview count 与 profile 不一致")
+    if dataset.get("observation_count", observation_target) != observation_target:
+        raise ValueError("场景条件测试集 observation count 与 profile 不一致")
+
+    contract_by_id = _profile_contract_rows(profile)
+    speech_item_ids, cng_item_ids = _item_ids_by_kind(contract_by_id)
+    expected_conversation_counts = _profile_conversation_counts(profile)
+    if schema_version == "scene-condition-preview-v2":
+        if dataset.get("conversation_counts") != expected_conversation_counts:
+            raise ValueError(
+                "场景条件测试集 conversation_counts 与 profile 不一致"
+            )
 
     kinds = {"speech": 0, "cng": 0}
+    conversation_counts: dict[str, int] = {}
     seen_case_ids: set[str] = set()
     covered_items: set[str] = set()
     for case in cases:
+        if not isinstance(case, dict):
+            raise ValueError("场景条件 case 必须是对象")
         case_id = case.get("case_id")
         if (
             not isinstance(case_id, str)
@@ -487,16 +697,12 @@ def _validated_dataset(dataset_id: str) -> tuple[dict[str, Any], dict[str, dict[
         ):
             raise ValueError("场景条件 case ID 无效或重复")
         seen_case_ids.add(case_id)
+        if case.get("conditions") != profile.conditions:
+            raise ValueError(
+                f"{case_id} 的条件组与 {profile.scene} profile 不一致"
+            )
         if set(case.get("signals", {})) != set(ROLES):
             raise ValueError(f"{case_id} 必须恰好包含四路输入角色")
-        item_ids = case.get("contract_item_ids")
-        if (
-            not isinstance(item_ids, list)
-            or len(item_ids) not in {2, 3}
-            or len(set(item_ids)) != len(item_ids)
-        ):
-            raise ValueError(f"{case_id} 合同项身份无效")
-        covered_items.update(item_ids)
         provenance = case.get("provenance")
         render_metadata = (
             provenance.get("render_metadata")
@@ -511,6 +717,59 @@ def _validated_dataset(dataset_id: str) -> tuple[dict[str, Any], dict[str, dict[
         if kind not in kinds:
             raise ValueError(f"{case_id} 缺少有效的 speech/CNG 类型")
         kinds[kind] += 1
+        conversation_mode = None
+        if schema_version == "scene-condition-preview-v2":
+            if not isinstance(provenance, dict):
+                raise ValueError(f"{case_id} provenance 无效")
+            try:
+                activity = validate_activity_metadata(
+                    provenance,
+                    expected_duration_s=float(
+                        getattr(profile, "duration_s", 12.0)
+                    ),
+                    expected_sample_rate_hz=profile_sample_rate_hz(profile),
+                )
+            except ValueError as error:
+                raise ValueError(
+                    f"{case_id} 活动元数据无效: {error}"
+                ) from error
+            conversation_mode = activity["conversation_mode"]
+            conversation_counts[conversation_mode] = (
+                conversation_counts.get(conversation_mode, 0) + 1
+            )
+            if kind != EXPECTED_RENDER_KIND[conversation_mode]:
+                raise ValueError(
+                    f"{case_id} conversation_mode 与 render kind 不一致"
+                )
+            if (
+                "signal_kind" in provenance
+                and provenance["signal_kind"] != kind
+            ):
+                raise ValueError(
+                    f"{case_id} provenance.signal_kind 与 kind 不一致"
+                )
+            if (
+                "scene" in provenance
+                and provenance["scene"] != profile.scene
+            ):
+                raise ValueError(
+                    f"{case_id} provenance.scene 与 profile 不一致"
+                )
+            if (
+                "direction" in render_metadata
+                and render_metadata["direction"]
+                != profile.conditions["direction"]
+            ):
+                raise ValueError(
+                    f"{case_id} render direction 与 profile 不一致"
+                )
+            if (
+                conversation_mode in {"near_single", "double_talk"}
+                and activity["analysis_start_s"] != 0.0
+            ):
+                raise ValueError(
+                    f"{case_id} 完整 12 秒 TX 必须从 analysis_start_s=0 开始"
+                )
         delays = (
             render_metadata.get("beam_delays_ms")
             if isinstance(render_metadata, dict)
@@ -525,49 +784,107 @@ def _validated_dataset(dataset_id: str) -> tuple[dict[str, Any], dict[str, dict[
         analysis_start_s = provenance.get("analysis_start_s")
         if not _finite_number(analysis_start_s) or analysis_start_s < 0:
             raise ValueError(f"{case_id} 的 analysis_start_s 无效")
-
-    if (
-        kinds["speech"] != EXPECTED_SPEECH_CASE_COUNT
-        or kinds["cng"] != EXPECTED_CNG_CASE_COUNT
-    ):
-        raise ValueError("场景条件测试集必须为 10 个 speech 和 10 个 CNG")
-    contract_rows = background_noise_scene_items(MODE, SCENE)
-    contract_by_id = {row["id"]: row for row in contract_rows}
-    if len(contract_by_id) != CONTRACT_ITEM_COUNT:
-        raise ValueError("Sce1/WB-wired 合同项不是唯一的 5 项")
-    if covered_items != set(contract_by_id):
-        raise ValueError("场景条件 case 未完整覆盖五个合同项")
-    speech_item_ids = {
-        row["id"]
-        for row in contract_rows
-        if row["family"] in {"g_mos", "n_mos", "s_mos"}
-    }
-    cng_item_ids = {
-        row["id"]
-        for row in contract_rows
-        if row["family"] in {"cng_level", "cng_spectrum"}
-    }
-    for case in cases:
-        kind = case["provenance"]["render_metadata"]["kind"]
+        item_ids = case.get("contract_item_ids")
+        if (
+            not isinstance(item_ids, list)
+            or len(set(item_ids)) != len(item_ids)
+            or any(
+                not isinstance(item_id, str)
+                or item_id not in contract_by_id
+                for item_id in item_ids
+            )
+        ):
+            raise ValueError(f"{case_id} 合同项身份无效")
         expected_items = (
             speech_item_ids if kind == "speech" else cng_item_ids
         )
-        if set(case["contract_item_ids"]) != expected_items:
+        if set(item_ids) != expected_items:
             raise ValueError(
-                f"{case['case_id']} 的 {kind} 合同项映射不符合 B24-B28"
+                f"{case_id} 的 {kind} 合同项映射不符合 "
+                f"{profile.scene} 合同"
             )
+        covered_items.update(item_ids)
+        expected_families = {
+            contract_by_id[item_id]["family"]
+            for item_id in item_ids
+        }
+        families = case.get("families")
+        if (
+            not isinstance(families, list)
+            or len(set(families)) != len(families)
+            or set(families) != expected_families
+        ):
+            raise ValueError(f"{case_id} 的 families 与合同项不一致")
+
+    if (
+        kinds["speech"] != speech_target
+        or kinds["cng"] != cng_target
+    ):
+        raise ValueError(
+            "场景条件测试集 speech/CNG 分组与 profile 不一致"
+        )
+    if (
+        schema_version == "scene-condition-preview-v2"
+        and conversation_counts != expected_conversation_counts
+    ):
+        raise ValueError(
+            "场景条件测试集 conversation_mode 分组与 profile 不一致"
+        )
+    if covered_items != set(contract_by_id):
+        raise ValueError("场景条件 case 未完整覆盖五个合同项")
+    observations = (
+        kinds["speech"] * len(speech_item_ids)
+        + kinds["cng"] * len(cng_item_ids)
+    )
+    if observations != observation_target:
+        raise ValueError(
+            "场景条件测试集 observation count 与 profile 不一致"
+        )
     return dataset, contract_by_id
 
 
 def _execution_case(case: dict[str, Any]) -> dict[str, Any]:
     provenance = case["provenance"]
     render_metadata = provenance["render_metadata"]
+    dynamic_metadata_present = (
+        isinstance(render_metadata, dict)
+        and any(
+            key in render_metadata
+            for key in (
+                "near_arrival_delays_samples",
+                "echo_paths",
+                "noise_spatial",
+            )
+        )
+    )
+    dynamic_microphone_from_post_rx = (
+        case["conditions"].get("direction") != "receive"
+        and isinstance(render_metadata, dict)
+        and isinstance(
+            render_metadata.get("near_arrival_delays_samples"), list
+        )
+        and isinstance(render_metadata.get("noise_spatial"), dict)
+    )
+    if (
+        case["conditions"].get("direction") != "receive"
+        and (
+            provenance.get("conversation_mode") is not None
+            or dynamic_metadata_present
+        )
+        and not dynamic_microphone_from_post_rx
+    ):
+        raise ValueError(
+            f"{case['case_id']} 缺少运行时 post-RX 麦克风合成元数据"
+        )
     return {
         "id": case["case_id"],
         "conditions": deepcopy(case["conditions"]),
         "item_ids": list(case["contract_item_ids"]),
         "beam_delays_ms": list(render_metadata["beam_delays_ms"]),
         "analysis_start_s": provenance["analysis_start_s"],
+        "conversation_mode": provenance.get("conversation_mode"),
+        "dynamic_microphone_from_post_rx": dynamic_microphone_from_post_rx,
+        "provenance": deepcopy(provenance),
     }
 
 
@@ -576,6 +893,8 @@ def _initial_items(
     contract_by_id: dict[str, dict[str, Any]],
     identifier: str,
 ) -> list[dict[str, Any]]:
+    profile = profile_for_dataset(dataset["dataset_id"])
+    _, _, _, expected_observations = _profile_counts(profile)
     items: list[dict[str, Any]] = []
     for case in dataset["cases"]:
         case_id = case["case_id"]
@@ -591,7 +910,7 @@ def _initial_items(
                     "item_id": item_id,
                     "observation_id": f"{case_id}:{item_id}",
                     "case_id": case_id,
-                    "mode": MODE,
+                    "mode": dataset["mode"],
                     "status": "pending",
                     "value": None,
                     "metric": None,
@@ -607,10 +926,12 @@ def _initial_items(
                     },
                 }
             )
-    if len(items) != EXPECTED_OBSERVATION_COUNT:
-        raise ValueError("场景条件批次没有形成 50 个 observation")
+    if len(items) != expected_observations:
+        raise ValueError(
+            f"场景条件批次没有形成 {expected_observations} 个 observation"
+        )
     observation_ids = {row["observation_id"] for row in items}
-    if len(observation_ids) != EXPECTED_OBSERVATION_COUNT:
+    if len(observation_ids) != expected_observations:
         raise ValueError("场景条件 observation_id 不唯一")
     return items
 
@@ -628,9 +949,199 @@ def _initial_cases(dataset: dict[str, Any]) -> list[dict[str, Any]]:
             "input_sha256": deepcopy(case["signals_sha256"]),
             "provenance": deepcopy(case["provenance"]),
             "tx_visual": None,
+            "rx_visual": None,
         }
         for case in dataset["cases"]
     ]
+
+
+def _validated_case_id(case_id: Any) -> str:
+    if (
+        not isinstance(case_id, str)
+        or not case_id
+        or _CASE_ID.fullmatch(case_id) is None
+    ):
+        raise ValueError("case_id 必须是非空且合法的场景条件 case ID")
+    return case_id
+
+
+def _selected_source_case(
+    dataset: dict[str, Any],
+    case_id: str,
+) -> dict[str, Any]:
+    selected_case_id = _validated_case_id(case_id)
+    cases = dataset.get("cases")
+    if not isinstance(cases, list):
+        raise ValueError("场景条件测试集 cases 无效")
+    matches = [
+        case
+        for case in cases
+        if isinstance(case, dict) and case.get("case_id") == selected_case_id
+    ]
+    if not matches:
+        raise ValueError(
+            "case_id 不属于当前测试集的场景、模式或范围: "
+            f"{selected_case_id}"
+        )
+    if len(matches) != 1:
+        raise ValueError(f"场景条件测试集 case_id 重复: {selected_case_id}")
+    return matches[0]
+
+
+def _single_case_selected_id(
+    snapshot: dict[str, Any],
+) -> str | None:
+    """Return the selected id for a single-case snapshot, or None for full."""
+    present = [
+        field for field in SINGLE_CASE_SELECTION_FIELDS if field in snapshot
+    ]
+    if not present:
+        return None
+    if len(present) != len(SINGLE_CASE_SELECTION_FIELDS):
+        raise ValueError("单案例快照必须同时包含全部四个选择字段")
+    if snapshot.get("execution_scope") != SINGLE_CASE_EXECUTION_SCOPE:
+        raise ValueError("单案例快照 execution_scope 无效")
+    return _validated_case_id(snapshot.get("selected_case_id"))
+
+
+def _single_conversation_counts(
+    counts: dict[str, int],
+    selected_mode: str,
+) -> dict[str, int]:
+    if selected_mode not in counts:
+        raise ValueError("所选 case 的 conversation_mode 不在 profile 中")
+    return {
+        str(mode): int(mode == selected_mode)
+        for mode in counts
+    }
+
+
+def _single_category_counts(
+    counts: dict[str, int],
+    selected_category: str,
+) -> dict[str, int]:
+    if selected_category not in counts:
+        raise ValueError("所选 case 的 workload_category 不在 profile 中")
+    return {
+        str(category): int(category == selected_category)
+        for category in counts
+    }
+
+
+def _filter_snapshot_to_single_case(
+    snapshot: dict[str, Any],
+    dataset: dict[str, Any],
+    case_id: str,
+) -> dict[str, Any]:
+    """Rebuild one selected case from a full snapshot and source dataset."""
+    selected_case_id = _validated_case_id(case_id)
+    source_case = _selected_source_case(dataset, selected_case_id)
+    source_cases = dataset["cases"]
+    full_case_count = snapshot.get("case_count")
+    if (
+        not isinstance(full_case_count, int)
+        or isinstance(full_case_count, bool)
+        or full_case_count != len(source_cases)
+    ):
+        raise ValueError("完整快照 case 数量与源数据集不一致")
+    source_observation_count = dataset.get(
+        "observation_count",
+        snapshot["observation_count"],
+    )
+    if (
+        not isinstance(source_observation_count, int)
+        or isinstance(source_observation_count, bool)
+        or source_observation_count != snapshot["observation_count"]
+    ):
+        raise ValueError("完整快照 observation 数量与源数据集不一致")
+
+    frozen_cases = [
+        case
+        for case in snapshot.get("cases", [])
+        if isinstance(case, dict)
+        and case.get("case_id") == selected_case_id
+    ]
+    if len(frozen_cases) != 1:
+        raise ValueError("完整快照未唯一包含所选 case")
+    selected_items = [
+        row
+        for row in snapshot.get("items", [])
+        if isinstance(row, dict)
+        and row.get("case_id") == selected_case_id
+    ]
+    contract_item_ids = source_case.get("contract_item_ids")
+    if (
+        not isinstance(contract_item_ids, list)
+        or len(contract_item_ids) != len(set(contract_item_ids))
+        or len(selected_items) != len(contract_item_ids)
+        or {row.get("item_id") for row in selected_items}
+        != set(contract_item_ids)
+    ):
+        raise ValueError("完整快照中的所选 case 合同 observation 不完整")
+
+    result = deepcopy(snapshot)
+    result["cases"] = [deepcopy(frozen_cases[0])]
+    result["items"] = deepcopy(selected_items)
+    result["case_count"] = 1
+    result["observation_count"] = len(selected_items)
+    result["preview_condition_group_count"] = full_case_count
+    result["execution_scope"] = SINGLE_CASE_EXECUTION_SCOPE
+    result["selected_case_id"] = selected_case_id
+    result["dataset_case_count"] = full_case_count
+    result["dataset_observation_count"] = source_observation_count
+
+    if is_stress_dataset(snapshot.get("dataset_id")):
+        category_counts = snapshot.get("category_counts")
+        if not isinstance(category_counts, dict):
+            raise ValueError("stress 完整快照 category_counts 无效")
+        provenance = source_case.get("provenance")
+        category = (
+            provenance.get("workload_category")
+            if isinstance(provenance, dict)
+            else None
+        )
+        result["category_counts"] = _single_category_counts(
+            category_counts,
+            str(category),
+        )
+    else:
+        provenance = source_case.get("provenance")
+        render_metadata = (
+            provenance.get("render_metadata")
+            if isinstance(provenance, dict)
+            else None
+        )
+        kind = (
+            render_metadata.get("kind")
+            if isinstance(render_metadata, dict)
+            else None
+        )
+        if kind not in {"speech", "cng"}:
+            raise ValueError("所选 case 缺少有效的 speech/CNG 类型")
+        result["speech_case_count"] = int(kind == "speech")
+        result["cng_case_count"] = int(kind == "cng")
+        schema_version = _profile_schema_version(
+            profile_for_dataset(snapshot["dataset_id"])
+        )
+        if schema_version == "scene-condition-preview-v2":
+            conversation_counts = snapshot.get("conversation_counts")
+            if not isinstance(conversation_counts, dict):
+                raise ValueError("v2 完整快照 conversation_counts 无效")
+            conversation_mode = (
+                provenance.get("conversation_mode")
+                if isinstance(provenance, dict)
+                else None
+            )
+            result["conversation_counts"] = _single_conversation_counts(
+                conversation_counts,
+                str(conversation_mode),
+            )
+        else:
+            result["conversation_counts"] = {}
+
+    result["summary"] = _summary(result["items"])
+    result["progress"] = _progress(result)
+    return result
 
 
 def _build_snapshot(
@@ -641,11 +1152,31 @@ def _build_snapshot(
     configuration: dict[str, Any],
     catalog_sha256: str,
     cli_sha256: str,
+    case_id: str | None = None,
 ) -> dict[str, Any]:
+    if is_stress_dataset(dataset["dataset_id"]):
+        from .acoustic_stress_batch import build_snapshot
+
+        return build_snapshot(
+            dataset,
+            contract_by_id,
+            identifier,
+            algorithm_cluster_id,
+            configuration,
+            catalog_sha256,
+            cli_sha256,
+            case_id=case_id,
+        )
     timestamp = _now()
+    profile = profile_for_dataset(dataset["dataset_id"])
+    case_count, speech_count, cng_count, observation_count = (
+        _profile_counts(profile)
+    )
+    schema_version = _profile_schema_version(profile)
+    conversation_counts = _profile_conversation_counts(profile)
     items = _initial_items(dataset, contract_by_id, identifier)
     cases = _initial_cases(dataset)
-    return {
+    snapshot = {
         "schema": SCHEMA,
         "schema_version": SCHEMA,
         "batch_id": identifier,
@@ -661,23 +1192,41 @@ def _build_snapshot(
         "status": "queued",
         "created_at": timestamp,
         "updated_at": timestamp,
-        "selected_mode": MODE,
-        "selected_scene": SCENE,
+        "selected_mode": dataset["mode"],
+        "selected_scene": dataset["scene"],
         "test_scope": TEST_SCOPE,
         "standard_compliance": False,
         "formal_test_status": "not_measured",
         "contract_item_count": CONTRACT_ITEM_COUNT,
-        "observation_count": EXPECTED_OBSERVATION_COUNT,
+        "dataset_schema_version": schema_version,
+        "case_count": case_count,
+        "speech_case_count": speech_count,
+        "cng_case_count": cng_count,
+        "preview_condition_group_count": case_count,
+        "observation_count": observation_count,
+        "conversation_counts": conversation_counts,
         "progress": {
             "completed_cases": 0,
-            "total_cases": EXPECTED_CASE_COUNT,
+            "total_cases": case_count,
             "completed_items": 0,
-            "total_items": EXPECTED_OBSERVATION_COUNT,
+            "total_items": observation_count,
         },
         "summary": _summary(items),
         "items": items,
         "cases": cases,
     }
+    if profile_mode(profile).startswith("NB-"):
+        from server.rate_paths import require_primary_path
+
+        snapshot["native_nb8_identity"] = (
+            acceptance_batch.native_nb8_identity()
+        )
+        snapshot["rate_paths"] = {
+            "8000": require_primary_path(8_000).as_dict()
+        }
+    if case_id is not None:
+        return _filter_snapshot_to_single_case(snapshot, dataset, case_id)
+    return snapshot
 
 
 def _create_batch_directories(identifier: str) -> None:
@@ -695,18 +1244,67 @@ def _create_batch_directories(identifier: str) -> None:
         raise
 
 
+def _validate_completed_v2_diagnostics(
+    case_record: dict[str, Any],
+) -> None:
+    """Bind persisted diagnostics to the exact case, TX, and activity window."""
+    provenance = case_record.get("provenance")
+    diagnostics = case_record.get("conversation_diagnostics")
+    output_sha256 = case_record.get("output_sha256")
+    if (
+        not isinstance(provenance, dict)
+        or not isinstance(diagnostics, dict)
+        or not isinstance(output_sha256, dict)
+        or not isinstance(output_sha256.get("tx"), str)
+    ):
+        raise ValueError(
+            "v2 completed case provenance/diagnostics/output binding is missing"
+        )
+    activity = validate_activity_metadata(provenance)
+    validate_diagnostics(
+        diagnostics,
+        expected_mode=activity["conversation_mode"],
+        expected_case_id=case_record["case_id"],
+        expected_tx_sha256=output_sha256["tx"],
+        expected_activity=activity,
+    )
+
+
 def start_batch(
     dataset_id: str,
     algorithm_cluster_id: str,
     *,
     mode: str = MODE,
     scene: str = SCENE,
+    case_id: str | None = None,
 ) -> dict[str, Any]:
     """Validate, reserve the shared executor, then persist a queued batch."""
-    if mode != MODE:
-        raise ValueError(f"场景条件批次仅支持 {MODE}")
-    if scene != SCENE:
-        raise ValueError(f"场景条件批次仅支持 {SCENE}")
+    if is_stress_dataset(dataset_id):
+        from .acoustic_stress_batch import start_batch as start_stress_batch
+
+        return start_stress_batch(
+            dataset_id,
+            algorithm_cluster_id,
+            mode=mode,
+            scene=scene,
+            case_id=case_id,
+        )
+    try:
+        target_profile = profile_for_dataset(dataset_id)
+    except ValueError:
+        target_profile = None
+    if target_profile is not None and _profile_schema_version(target_profile) != "scene-condition-preview-v2":
+        if mode != MODE:
+            raise ValueError(f"场景条件批次仅支持 {MODE}")
+        try:
+            profile = profile_for_scene(scene)
+        except ValueError as error:
+            raise ValueError(f"场景条件批次不支持场景 {scene}") from error
+    else:
+        try:
+            profile = profile_for_scene_and_mode(scene, mode)
+        except ValueError as error:
+            raise ValueError(f"场景条件批次不支持场景/模式 {scene}/{mode}") from error
 
     _resource_preflight()
     from server.alignment_runner import (
@@ -714,18 +1312,63 @@ def start_batch(
         resolve_cli,
     )
 
-    cli = resolve_cli()
-    if cli is None:
-        raise ValueError("未找到可执行的 VCP CLI")
     preset, _, configuration, catalog_sha256 = resolve_algorithm_cluster(
         algorithm_cluster_id
     )
-    profile = preset.get("profile")
-    if not isinstance(profile, str) or not profile.startswith("vcp"):
+    algorithm_profile = preset.get("profile")
+    if (
+        not isinstance(algorithm_profile, str)
+        or not algorithm_profile.startswith("vcp")
+    ):
         raise ValueError("场景条件批次只允许 VCP 算法簇")
-    cli_sha256 = _sha256_file(cli)
+    from server.rate_paths import (
+        NB8_CLUSTER_ID,
+        validate_cluster_rate_compatibility,
+    )
 
-    dataset, contract_by_id = _validated_dataset(dataset_id)
+    target_rate = profile_sample_rate_hz(profile)
+    validate_cluster_rate_compatibility(
+        algorithm_cluster_id,
+        target_rate,
+        configuration=configuration,
+    )
+    from server.ns_routes import ns_route_identity, resolve_ns_cli
+
+    is_native_nb8_cluster = algorithm_cluster_id == NB8_CLUSTER_ID
+    cli = (
+        resolve_cli()
+        if is_native_nb8_cluster
+        else resolve_ns_cli(resolve_cli(), configuration)
+    )
+    if cli is None and not (is_native_nb8_cluster and profile_mode(profile).startswith("NB-")):
+        raise ValueError("未找到可执行的 VCP CLI")
+    selected_ns_identity = None if is_native_nb8_cluster else ns_route_identity(configuration)
+    admitted_aec = None
+    if (
+        not is_native_nb8_cluster
+        and not profile_mode(profile).startswith("NB-")
+        and isinstance(configuration.get("selection"), dict)
+        and aec_route_requires_capability(configuration)
+    ):
+        admitted_aec = admit_aec_route(
+            cli,
+            configuration,
+            sample_rate=(48000 if target_rate == 48000 else 16000),
+            reference_channels=1,
+        )
+    cli_sha256 = (
+        _sha256_file(cli)
+        if cli is not None
+        else acceptance_batch.native_nb8_identity()["speex_cli_sha256"]
+    )
+
+    dataset, contract_by_id = _validated_dataset(
+        dataset_id,
+        requested_scene=profile.scene,
+        requested_mode=profile_mode(profile),
+    )
+    if case_id is not None:
+        _selected_source_case(dataset, case_id)
     identifier = uuid.uuid4().hex
     snapshot = _build_snapshot(
         dataset,
@@ -735,7 +1378,12 @@ def start_batch(
         configuration,
         catalog_sha256,
         cli_sha256,
+        case_id=case_id,
     )
+    if admitted_aec is not None:
+        snapshot["aec_route_capability"] = admitted_aec
+    if selected_ns_identity is not None:
+        snapshot["ns_route_identity"] = selected_ns_identity
 
     with acceptance_batch._LOCK:
         if acceptance_batch._ACTIVE or acceptance_batch._LEGACY_ACTIVE:
@@ -755,6 +1403,11 @@ def start_batch(
 def _validate_snapshot_contract(snapshot: dict[str, Any]) -> None:
     if not isinstance(snapshot, dict):
         raise ValueError("场景条件快照必须是对象")
+    if is_stress_dataset(snapshot.get("dataset_id")):
+        from .acoustic_stress_batch import validate_snapshot as validate_stress_snapshot
+
+        validate_stress_snapshot(snapshot)
+        return
     missing_snapshot_fields = [
         field for field in SNAPSHOT_REQUIRED_FIELDS if field not in snapshot
     ]
@@ -781,6 +1434,24 @@ def _validate_snapshot_contract(snapshot: dict[str, Any]) -> None:
         or _BATCH_ID.fullmatch(snapshot["dataset_id"]) is None
     ):
         raise ValueError("场景条件批次或测试集 ID 无效")
+    try:
+        profile = profile_for_dataset(snapshot["dataset_id"])
+    except ValueError as error:
+        raise ValueError("场景条件快照绑定了未注册的数据集") from error
+    schema_version = _profile_schema_version(profile)
+    case_target, speech_target, cng_target, observation_target = (
+        _profile_counts(profile)
+    )
+    selected_case_id = _single_case_selected_id(snapshot)
+    single_case = selected_case_id is not None
+    expected_conversation_counts = _profile_conversation_counts(profile)
+    if (
+        snapshot.get("dataset_name") != profile.dataset_name
+        or snapshot.get("selected_scene") != profile.scene
+        or snapshot.get("dataset_schema_version", schema_version)
+        != schema_version
+    ):
+        raise ValueError("场景条件快照数据集名称、schema 或场景身份无效")
     for field in (
         "dataset_name",
         "algorithm_cluster_id",
@@ -809,16 +1480,71 @@ def _validate_snapshot_contract(snapshot: dict[str, Any]) -> None:
         "failed",
     }:
         raise ValueError("场景条件批次状态无效")
-    if (
-        snapshot.get("contract_item_count") != CONTRACT_ITEM_COUNT
-        or snapshot.get("observation_count") != EXPECTED_OBSERVATION_COUNT
-        or len(snapshot.get("cases", [])) != EXPECTED_CASE_COUNT
-        or len(snapshot.get("items", [])) != EXPECTED_OBSERVATION_COUNT
+    cases = snapshot.get("cases")
+    items = snapshot.get("items")
+    if not isinstance(cases, list) or not isinstance(items, list):
+        raise ValueError("场景条件快照 cases/items 必须是数组")
+    if any(not isinstance(case, dict) for case in cases) or any(
+        not isinstance(row, dict) for row in items
     ):
-        raise ValueError("场景条件快照 20 case/50 observation 合同无效")
+        raise ValueError("场景条件快照 cases/items 元素必须是对象")
+    if snapshot.get("contract_item_count") != CONTRACT_ITEM_COUNT:
+        raise ValueError("场景条件快照合同项总数与 profile 不一致")
+    if single_case:
+        if (
+            not isinstance(snapshot.get("case_count"), int)
+            or isinstance(snapshot.get("case_count"), bool)
+            or snapshot.get("case_count") != 1
+            or len(cases) != 1
+            or snapshot.get("preview_condition_group_count") != case_target
+            or not isinstance(snapshot.get("dataset_case_count"), int)
+            or isinstance(snapshot.get("dataset_case_count"), bool)
+            or snapshot.get("dataset_case_count") != case_target
+            or not isinstance(snapshot.get("dataset_observation_count"), int)
+            or isinstance(snapshot.get("dataset_observation_count"), bool)
+            or snapshot.get("dataset_observation_count") != observation_target
+            or not isinstance(snapshot.get("observation_count"), int)
+            or isinstance(snapshot.get("observation_count"), bool)
+            or snapshot["observation_count"] <= 0
+            or len(items) != snapshot["observation_count"]
+            or not isinstance(snapshot.get("speech_case_count"), int)
+            or isinstance(snapshot.get("speech_case_count"), bool)
+            or not isinstance(snapshot.get("cng_case_count"), int)
+            or isinstance(snapshot.get("cng_case_count"), bool)
+            or not isinstance(snapshot.get("conversation_counts"), dict)
+        ):
+            raise ValueError(
+                "单案例快照选择字段、case/observation 数量或 profile 总量无效"
+            )
+    elif (
+        snapshot.get("observation_count") != observation_target
+        or len(cases) != case_target
+        or len(items) != observation_target
+        or snapshot.get("case_count", case_target) != case_target
+        or snapshot.get("preview_condition_group_count", case_target)
+        != case_target
+        or snapshot.get("speech_case_count", speech_target) != speech_target
+        or snapshot.get("cng_case_count", cng_target) != cng_target
+    ):
+        raise ValueError(
+            "场景条件快照 case/observation 数量与 profile 不一致"
+        )
+    if schema_version == "scene-condition-preview-v2":
+        if not single_case and (
+            snapshot.get("conversation_counts") != expected_conversation_counts
+        ):
+            raise ValueError(
+                "场景条件快照 conversation_counts 与 profile 不一致"
+            )
+    elif not single_case and (
+        "conversation_counts" in snapshot
+        and snapshot["conversation_counts"]
+        not in ({}, expected_conversation_counts)
+    ):
+        raise ValueError("旧版场景条件快照 conversation_counts 无效")
     if (
-        snapshot.get("selected_mode") != MODE
-        or snapshot.get("selected_scene") != SCENE
+        snapshot.get("selected_mode") != profile_mode(profile)
+        or snapshot.get("selected_scene") != profile.scene
         or snapshot.get("test_scope") != TEST_SCOPE
         or snapshot.get("standard_compliance") is not False
         or snapshot.get("formal_test_status") != "not_measured"
@@ -826,24 +1552,27 @@ def _validate_snapshot_contract(snapshot: dict[str, Any]) -> None:
         raise ValueError("场景条件快照执行范围或合规边界无效")
     item_keys = {
         (row.get("case_id"), row.get("item_id"))
-        for row in snapshot["items"]
+        for row in items
     }
-    if len(item_keys) != EXPECTED_OBSERVATION_COUNT:
+    if len(item_keys) != len(items):
         raise ValueError("场景条件快照 observation 不唯一")
-    cases = snapshot["cases"]
     case_ids = [case.get("case_id") for case in cases]
+    expected_batch_case_count = 1 if single_case else case_target
     if (
         any(
             not isinstance(case_id, str)
             or _CASE_ID.fullmatch(case_id) is None
             for case_id in case_ids
         )
-        or len(set(case_ids)) != EXPECTED_CASE_COUNT
+        or len(set(case_ids)) != expected_batch_case_count
     ):
         raise ValueError("场景条件快照 case ID 无效或重复")
     case_by_id = {case["case_id"]: case for case in cases}
+    contract_by_id = _profile_contract_rows(profile)
+    speech_item_ids, cng_item_ids = _item_ids_by_kind(contract_by_id)
     covered_items: set[str] = set()
     kinds = {"speech": 0, "cng": 0}
+    conversation_counts: dict[str, int] = {}
     for case in cases:
         missing_case_fields = [
             field for field in CASE_REQUIRED_FIELDS if field not in case
@@ -885,16 +1614,10 @@ def _validate_snapshot_contract(snapshot: dict[str, Any]) -> None:
                 "场景条件 case.input_sha256 必须完全等于 "
                 "case.signals_sha256 的真实 manifest 四路哈希"
             )
-        if not isinstance(case.get("conditions"), dict):
-            raise ValueError("场景条件 case 缺少完整 conditions")
-        item_ids = case.get("contract_item_ids")
-        if (
-            not isinstance(item_ids, list)
-            or len(item_ids) not in {2, 3}
-            or len(set(item_ids)) != len(item_ids)
-        ):
-            raise ValueError("场景条件 case 合同项身份无效")
-        covered_items.update(item_ids)
+        if case.get("conditions") != profile.conditions:
+            raise ValueError(
+                "场景条件 case conditions 与 dataset profile 不一致"
+            )
         provenance = case.get("provenance")
         render_metadata = (
             provenance.get("render_metadata")
@@ -909,6 +1632,78 @@ def _validate_snapshot_contract(snapshot: dict[str, Any]) -> None:
         if kind not in kinds:
             raise ValueError("场景条件 case 缺少 speech/CNG 类型")
         kinds[kind] += 1
+        conversation_mode = None
+        if schema_version == "scene-condition-preview-v2":
+            if not isinstance(provenance, dict):
+                raise ValueError("场景条件 case provenance 无效")
+            try:
+                activity = validate_activity_metadata(
+                    provenance,
+                    expected_duration_s=float(
+                        getattr(profile, "duration_s", 12.0)
+                    ),
+                    expected_sample_rate_hz=profile_sample_rate_hz(profile),
+                )
+            except ValueError as error:
+                raise ValueError(
+                    f"场景条件 case 活动元数据无效: {error}"
+                ) from error
+            conversation_mode = activity["conversation_mode"]
+            conversation_counts[conversation_mode] = (
+                conversation_counts.get(conversation_mode, 0) + 1
+            )
+            if kind != EXPECTED_RENDER_KIND[conversation_mode]:
+                raise ValueError(
+                    "场景条件 case conversation_mode 与 kind 不一致"
+                )
+            if (
+                "signal_kind" in provenance
+                and provenance["signal_kind"] != kind
+            ):
+                raise ValueError(
+                    "场景条件 case provenance.signal_kind 与 kind 不一致"
+                )
+            if (
+                "scene" in provenance
+                and provenance["scene"] != profile.scene
+            ):
+                raise ValueError(
+                    "场景条件 case provenance.scene 与 profile 不一致"
+                )
+            if (
+                "direction" in render_metadata
+                and render_metadata["direction"]
+                != profile.conditions["direction"]
+            ):
+                raise ValueError(
+                    "场景条件 case render direction 与 profile 不一致"
+                )
+            if (
+                conversation_mode in {"near_single", "double_talk"}
+                and activity["analysis_start_s"] != 0.0
+            ):
+                raise ValueError(
+                    "near_single/double_talk 必须使用完整 12 秒 TX"
+                )
+        item_ids = case.get("contract_item_ids")
+        if (
+            not isinstance(item_ids, list)
+            or len(set(item_ids)) != len(item_ids)
+            or any(
+                not isinstance(item_id, str)
+                or item_id not in contract_by_id
+                for item_id in item_ids
+            )
+        ):
+            raise ValueError("场景条件 case 合同项身份无效")
+        expected_items = (
+            speech_item_ids if kind == "speech" else cng_item_ids
+        )
+        if set(item_ids) != expected_items:
+            raise ValueError(
+                "场景条件 case 三/二行合同项与 kind 不一致"
+            )
+        covered_items.update(item_ids)
         report_id = case.get("report_id")
         if report_id is not None and (
             not isinstance(report_id, str)
@@ -929,9 +1724,20 @@ def _validate_snapshot_contract(snapshot: dict[str, Any]) -> None:
             output_sha256 = case.get("output_sha256")
             if (
                 not isinstance(output_sha256, dict)
-                or set(output_sha256) != {"tx"}
+                or set(output_sha256) not in ({"tx"}, {"rx", "tx"})
                 or not isinstance(output_sha256.get("tx"), str)
                 or re.fullmatch(r"[a-f0-9]{64}", output_sha256["tx"]) is None
+                or (
+                    "rx" in output_sha256
+                    and (
+                        not isinstance(output_sha256.get("rx"), str)
+                        or re.fullmatch(
+                            r"[a-f0-9]{64}",
+                            output_sha256["rx"],
+                        )
+                        is None
+                    )
+                )
                 or not isinstance(case.get("assessment_sha256"), str)
                 or re.fullmatch(
                     r"[a-f0-9]{64}",
@@ -944,16 +1750,24 @@ def _validate_snapshot_contract(snapshot: dict[str, Any]) -> None:
                 raise ValueError("完成 case 缺少 TX 输出或可视化证据")
             if set(case["tx_visual"]) != set(TX_VISUAL_FIELDS):
                 raise ValueError("完成 case 的 tx_visual 字段不完整")
+            if "rx" in output_sha256:
+                rx_visual = case.get("rx_visual")
+                if (
+                    not isinstance(rx_visual, dict)
+                    or set(rx_visual) != set(TX_VISUAL_FIELDS)
+                    or rx_visual.get("source_sha256") != output_sha256["rx"]
+                ):
+                    raise ValueError(
+                        "完成 case 的 RX 处理后可视化证据不完整"
+                    )
             execution = case["execution"]
+            acceptance_batch.validate_execution_identity(
+                snapshot,
+                execution,
+                require_algorithm_configuration=True,
+            )
             if (
-                execution.get("algorithm_cluster_id")
-                != snapshot["algorithm_cluster_id"]
-                or execution.get("configuration")
-                != snapshot["configuration"]
-                or execution.get("catalog_sha256")
-                != snapshot["catalog_sha256"]
-                or execution.get("cli_sha256") != snapshot["cli_sha256"]
-                or execution.get("output_sha256") != output_sha256
+                execution.get("output_sha256") != output_sha256
             ):
                 raise ValueError("完成 case 的执行身份与批次冻结配置不一致")
             if (
@@ -961,6 +1775,72 @@ def _validate_snapshot_contract(snapshot: dict[str, Any]) -> None:
                 != output_sha256["tx"]
             ):
                 raise ValueError("完成 case 的可视化源哈希与 TX 不一致")
+            echo_reference = execution.get("echo_reference")
+            if {"rx", "tx"}.issubset(output_sha256):
+                if (
+                    not isinstance(echo_reference, dict)
+                    or echo_reference.get("source")
+                    not in {
+                        "vcp_rx_processed",
+                        "native_nb8_rx_processed",
+                    }
+                    or echo_reference.get("processed_output") != "rx"
+                    or echo_reference.get("processed_sha256")
+                    != output_sha256["rx"]
+                    or echo_reference.get("tx_echo_argument_sha256")
+                    != output_sha256["rx"]
+                ):
+                    raise ValueError(
+                        "完成 case 未证明 TX 使用 RX 处理后回声参考"
+                    )
+            elif echo_reference is not None:
+                raise ValueError(
+                    "旧版 TX-only case 不得声明 RX 处理后回声参考"
+                )
+            dynamic_microphone = execution.get("dynamic_microphone")
+            if dynamic_microphone is not None:
+                dynamic_visual = case.get("dynamic_microphone_visual")
+                effective_inputs = case.get("effective_input_sha256")
+                if (
+                    not isinstance(dynamic_microphone, dict)
+                    or case.get("dynamic_microphone")
+                    != dynamic_microphone
+                    or not isinstance(dynamic_visual, dict)
+                    or set(dynamic_visual) != set(TX_VISUAL_FIELDS)
+                    or dynamic_visual.get("source_sha256")
+                    != dynamic_microphone.get("sha256")
+                    or not isinstance(effective_inputs, dict)
+                    or set(effective_inputs)
+                    != {"microphone", "reference", "noise", "far_end"}
+                    or any(
+                        not isinstance(value, str)
+                        or re.fullmatch(r"[a-f0-9]{64}", value) is None
+                        for value in effective_inputs.values()
+                    )
+                    or execution.get("effective_input_sha256")
+                    != effective_inputs
+                    or effective_inputs.get("far_end")
+                    != output_sha256.get("rx")
+                ):
+                    raise ValueError(
+                        "完成 case 的运行时动态麦克风证据不完整"
+                    )
+            elif (
+                case.get("dynamic_microphone") is not None
+                or case.get("dynamic_microphone_visual") is not None
+                or case.get("effective_input_sha256") is not None
+            ):
+                raise ValueError(
+                    "case 声明了动态麦克风但 execution 未证明其来源"
+                )
+            if schema_version == "scene-condition-preview-v2":
+                try:
+                    _validate_completed_v2_diagnostics(case)
+                except ValueError as error:
+                    raise ValueError(
+                        "v2 完成 case conversation_diagnostics 绑定无效: "
+                        f"{error}"
+                    ) from error
     for row in snapshot["items"]:
         missing_item_fields = [
             field for field in ITEM_CORE_FIELDS if field not in row
@@ -977,9 +1857,22 @@ def _validate_snapshot_contract(snapshot: dict[str, Any]) -> None:
             raise ValueError("场景条件 item 引用了未知 case")
         if item_id not in case_by_id[case_id]["contract_item_ids"]:
             raise ValueError("场景条件 item 不属于对应 case")
+        contract = contract_by_id.get(item_id)
+        if contract is None:
+            raise ValueError("场景条件 item 不属于当前 dataset profile")
+        for field in (
+            "id",
+            "family",
+            "source_cell",
+            "direction",
+        ):
+            if row.get(field) != contract.get(field):
+                raise ValueError(
+                    f"场景条件 item {field} 不能跨场景或合同行"
+                )
         if row.get("observation_id") != f"{case_id}:{item_id}":
             raise ValueError("场景条件 observation_id 不符合 case:item 契约")
-        if row.get("mode") != MODE:
+        if row.get("mode") != snapshot["selected_mode"]:
             raise ValueError("场景条件 item mode 无效")
         if row.get("value") is not None and not _finite_number(row["value"]):
             raise ValueError("场景条件 item value 不是有限数")
@@ -1006,17 +1899,56 @@ def _validate_snapshot_contract(snapshot: dict[str, Any]) -> None:
             raise ValueError("场景条件 item evidence_binding 不完整")
         if row.get("status") == "review_required" and (
             not isinstance(binding.get("output_sha256"), dict)
-            or set(binding["output_sha256"]) != {"tx"}
+            or binding.get("output_sha256")
+            != case_by_id[case_id].get("output_sha256")
         ):
-            raise ValueError("review_required item 必须绑定 TX 输出")
-    if kinds != {
-        "speech": EXPECTED_SPEECH_CASE_COUNT,
-        "cng": EXPECTED_CNG_CASE_COUNT,
-    }:
-        raise ValueError("场景条件快照不是 10 speech/10 CNG")
-    contract_rows = background_noise_scene_items(MODE, SCENE)
-    if covered_items != {row["id"] for row in contract_rows}:
-        raise ValueError("场景条件快照未覆盖五个合同项")
+            raise ValueError(
+                "review_required item 必须绑定该 case 的完整输出证据"
+            )
+    if single_case:
+        selected_case = cases[0]
+        expected_observation_count = len(
+            selected_case["contract_item_ids"]
+        )
+        if (
+            selected_case["case_id"] != selected_case_id
+            or snapshot["observation_count"] != expected_observation_count
+            or len(items) != expected_observation_count
+            or kinds["speech"] + kinds["cng"] != 1
+            or snapshot["speech_case_count"] != kinds["speech"]
+            or snapshot["cng_case_count"] != kinds["cng"]
+            or covered_items != set(selected_case["contract_item_ids"])
+        ):
+            raise ValueError(
+                "单案例快照所选 case、合同 observation 或 speech/CNG 计数不一致"
+            )
+        if schema_version == "scene-condition-preview-v2":
+            selected_mode = selected_case["provenance"]["conversation_mode"]
+            expected_single_conversations = _single_conversation_counts(
+                expected_conversation_counts,
+                selected_mode,
+            )
+            if snapshot["conversation_counts"] != expected_single_conversations:
+                raise ValueError(
+                    "单案例快照 conversation_counts 与所选 case 不一致"
+                )
+        elif snapshot["conversation_counts"] != {}:
+            raise ValueError("旧版单案例快照 conversation_counts 必须为空")
+    else:
+        if (
+            kinds["speech"] != speech_target
+            or kinds["cng"] != cng_target
+        ):
+            raise ValueError("场景条件快照 speech/CNG 分组与 profile 不一致")
+        if (
+            schema_version == "scene-condition-preview-v2"
+            and conversation_counts != expected_conversation_counts
+        ):
+            raise ValueError(
+                "场景条件快照 conversation_mode 分组与 profile 不一致"
+            )
+        if covered_items != set(contract_by_id):
+            raise ValueError("场景条件快照未覆盖五个合同项")
     if snapshot.get("summary") != summarize_items(snapshot["items"]):
         raise ValueError("场景条件 summary 与 items 不一致")
     if snapshot.get("progress") != progress_counts(snapshot):
@@ -1062,6 +1994,18 @@ def _verify_dataset_frozen(
     snapshot: dict[str, Any],
     dataset: dict[str, Any],
 ) -> None:
+    if is_stress_dataset(snapshot.get("dataset_id")):
+        from .acoustic_stress_batch import verify_dataset_frozen
+
+        verify_dataset_frozen(snapshot, dataset)
+        return
+    profile = profile_for_dataset(snapshot["dataset_id"])
+    schema_version = _profile_schema_version(profile)
+    case_count, speech_count, cng_count, observation_count = (
+        _profile_counts(profile)
+    )
+    selected_case_id = _single_case_selected_id(snapshot)
+    single_case = selected_case_id is not None
     for field in (
         "dataset_id",
         "dataset_manifest_sha256",
@@ -1071,17 +2015,105 @@ def _verify_dataset_frozen(
         expected = snapshot.get(field)
         if actual != expected:
             raise ValueError(f"批次开始后测试集身份发生变化: {field}")
+    if (
+        dataset.get("mode") != snapshot.get("selected_mode")
+        or dataset.get("scene") != snapshot.get("selected_scene")
+        or dataset.get("dataset_name") != profile.dataset_name
+        or dataset.get("dataset_kind") != profile.dataset_kind
+        or dataset.get("schema_version", schema_version) != schema_version
+        or len(dataset.get("cases", [])) != case_count
+        or dataset.get("preview_condition_group_count", case_count)
+        != case_count
+        or dataset.get("observation_count", observation_count)
+        != observation_count
+    ):
+        raise ValueError(
+            "批次开始后测试集模式、场景、schema 或 profile 计数发生变化"
+        )
+    if single_case:
+        if (
+            snapshot.get("dataset_schema_version", schema_version)
+            != schema_version
+            or snapshot.get("dataset_case_count") != case_count
+            or snapshot.get("dataset_observation_count") != observation_count
+            or snapshot.get("preview_condition_group_count") != case_count
+            or snapshot.get("case_count") != 1
+        ):
+            raise ValueError("单案例快照的源数据集总量发生变化")
+    elif (
+        snapshot.get("dataset_schema_version", schema_version) != schema_version
+        or snapshot.get("case_count", case_count) != case_count
+        or snapshot.get("speech_case_count", speech_count) != speech_count
+        or snapshot.get("cng_case_count", cng_count) != cng_count
+        or snapshot.get("observation_count") != observation_count
+    ):
+        raise ValueError("批次快照的 profile 计数发生变化")
+    if schema_version == "scene-condition-preview-v2":
+        expected_conversations = _profile_conversation_counts(profile)
+        if dataset.get("conversation_counts") != expected_conversations:
+            raise ValueError(
+                "批次开始后 conversation_counts 发生变化"
+            )
+        if single_case:
+            selected_case = _selected_source_case(
+                dataset,
+                selected_case_id,
+            )
+            selected_mode = selected_case["provenance"]["conversation_mode"]
+            if snapshot.get("conversation_counts") != (
+                _single_conversation_counts(
+                    expected_conversations,
+                    selected_mode,
+                )
+            ):
+                raise ValueError(
+                    "单案例快照 conversation_counts 发生变化"
+                )
+        elif snapshot.get("conversation_counts") != expected_conversations:
+            raise ValueError(
+                "批次开始后 conversation_counts 发生变化"
+            )
     expected_cases = {
         case["case_id"]: case for case in dataset["cases"]
     }
+    if single_case:
+        selected_source_case = _selected_source_case(
+            dataset,
+            selected_case_id,
+        )
+        expected_cases = {
+            selected_case_id: selected_source_case,
+        }
     snapshot_cases = {
         case["case_id"]: case for case in snapshot["cases"]
     }
     if set(expected_cases) != set(snapshot_cases):
         raise ValueError("批次开始后场景条件 case 集合发生变化")
     for case_id, case in expected_cases.items():
-        if snapshot_cases[case_id].get("signals_sha256") != case["signals_sha256"]:
+        frozen_case = snapshot_cases[case_id]
+        if frozen_case.get("signals_sha256") != case["signals_sha256"]:
             raise ValueError(f"批次开始后 {case_id} 输入身份发生变化")
+        for field in (
+            "conditions",
+            "contract_item_ids",
+            "signals",
+        ):
+            if frozen_case.get(field) != case.get(field):
+                raise ValueError(
+                    f"批次开始后 {case_id} {field} 发生变化"
+                )
+        frozen_provenance = frozen_case.get("provenance")
+        current_provenance = case.get("provenance")
+        if not isinstance(frozen_provenance, dict) or not isinstance(
+            current_provenance,
+            dict,
+        ):
+            raise ValueError(f"批次开始后 {case_id} provenance 无效")
+        for field in ("analysis_start_s", "render_metadata"):
+            if frozen_provenance.get(field) != current_provenance.get(field):
+                raise ValueError(
+                    f"批次开始后 {case_id} provenance.{field} 发生变化"
+                )
 
 
 def _hash_case_inputs(
@@ -1102,19 +2134,34 @@ def _assert_execution_frozen(
     execution: dict[str, Any],
     input_sha256: dict[str, str],
 ) -> None:
-    if execution.get("algorithm_cluster_id") != snapshot["algorithm_cluster_id"]:
-        raise ValueError("执行期间算法簇发生变化")
-    if execution.get("configuration") != snapshot["configuration"]:
-        raise ValueError("执行期间算法簇 configuration 发生变化")
-    if execution.get("catalog_sha256") != snapshot["catalog_sha256"]:
-        raise ValueError("执行期间算法目录 catalog_sha256 发生变化")
-    if execution.get("cli_sha256") != snapshot["cli_sha256"]:
-        raise ValueError("执行期间 VCP CLI 发生变化")
+    acceptance_batch.validate_execution_identity(
+        snapshot,
+        execution,
+        require_algorithm_configuration=True,
+    )
     if execution.get("input_sha256") != input_sha256:
         raise ValueError("执行器报告的输入哈希与实际四路输入不一致")
     outputs = execution.get("output_sha256")
-    if not isinstance(outputs, dict) or set(outputs) != {"tx"}:
-        raise ValueError("执行器必须且只能报告一个 TX 输出")
+    if (
+        not isinstance(outputs, dict)
+        or set(outputs) not in ({"tx"}, {"rx", "tx"})
+    ):
+        raise ValueError("执行器必须报告 TX 及可选的 RX 处理后输出")
+    if {"rx", "tx"}.issubset(outputs):
+        echo_reference = execution.get("echo_reference")
+        if (
+            not isinstance(echo_reference, dict)
+            or echo_reference.get("source")
+            not in {
+                "vcp_rx_processed",
+                "native_nb8_rx_processed",
+            }
+            or echo_reference.get("processed_output") != "rx"
+            or echo_reference.get("processed_sha256") != outputs["rx"]
+            or echo_reference.get("tx_echo_argument_sha256")
+            != outputs["rx"]
+        ):
+            raise ValueError("执行器未证明 TX 使用 RX 处理后回声参考")
 
 
 def _actual_output_hashes(
@@ -1123,7 +2170,7 @@ def _actual_output_hashes(
 ) -> dict[str, str]:
     actual = {role: _sha256_file(path) for role, path in outputs.items()}
     if actual != execution.get("output_sha256"):
-        raise ValueError("执行期间 VCP TX 输出身份发生变化")
+        raise ValueError("执行期间 VCP 输出身份发生变化")
     return actual
 
 
@@ -1143,7 +2190,7 @@ def _normalized_item(
         item_id=existing["item_id"],
         observation_id=existing["observation_id"],
         case_id=case["case_id"],
-        mode=MODE,
+        mode=snapshot["selected_mode"],
         report_id=report_id,
         standard_compliance=False,
         evidence_binding={
@@ -1209,6 +2256,10 @@ def _verified_assessment(
     case_record: dict[str, Any],
     destination: Path,
 ) -> dict[str, Any]:
+    if is_stress_dataset(snapshot.get("dataset_id")):
+        from .acoustic_stress_batch import validate_assessment
+
+        return validate_assessment(snapshot, case_record, destination)
     assessment_path = destination / "assessment.json"
     if assessment_path.is_symlink():
         raise ArtifactIntegrityError("assessment.json 不能是符号链接")
@@ -1237,23 +2288,62 @@ def _verified_assessment(
         or assessment.get("report_id") != case_record.get("report_id")
         or assessment.get("batch_id") != snapshot.get("batch_id")
         or assessment.get("dataset_id") != snapshot.get("dataset_id")
+        or assessment.get("conditions") != case_record.get("conditions")
         or case_record.get("input_sha256")
         != case_record.get("signals_sha256")
         or assessment.get("input_sha256")
         != case_record.get("input_sha256")
         or assessment.get("output_sha256") != case_record.get("output_sha256")
+        or assessment.get("rx_visual") != case_record.get("rx_visual")
     ):
         raise ArtifactIntegrityError(
             "assessment.json 的 case/report/batch/dataset/input/output "
             "绑定不一致"
         )
+    profile = profile_for_dataset(snapshot["dataset_id"])
+    schema_version = _profile_schema_version(profile)
+    if "provenance" in assessment and (
+        assessment.get("provenance") != case_record.get("provenance")
+    ):
+        raise ArtifactIntegrityError(
+            "assessment.json 的 provenance 与 case 不一致"
+        )
+    for field in (
+        "dynamic_microphone",
+        "dynamic_microphone_visual",
+        "effective_input_sha256",
+    ):
+        if assessment.get(field) != case_record.get(field):
+            raise ArtifactIntegrityError(
+                f"assessment.json 的 {field} 与 case 不一致"
+            )
+    if schema_version == "scene-condition-preview-v2":
+        try:
+            _validate_completed_v2_diagnostics(case_record)
+        except (TypeError, ValueError) as error:
+            raise ArtifactIntegrityError(
+                "assessment.json 的 v2 诊断身份绑定无效: "
+                f"{error}"
+            ) from error
+        diagnostics = case_record.get("conversation_diagnostics")
+        if (
+            assessment.get("provenance") != case_record.get("provenance")
+            or not isinstance(diagnostics, dict)
+            or assessment.get("conversation_diagnostics") != diagnostics
+        ):
+            raise ArtifactIntegrityError(
+                "assessment.json 的 v2 provenance/诊断绑定不一致"
+            )
     return assessment
 
 
 def _case_output_path(
     snapshot: dict[str, Any],
     case_record: dict[str, Any],
+    kind: str = "tx",
 ) -> Path:
+    if kind not in {"tx", "rx"}:
+        raise ValueError("未知 VCP 输出方向")
     case_id = case_record["case_id"]
     batch_directory = _batch_directory(snapshot["batch_id"])
     cases_root = batch_directory / "cases"
@@ -1273,34 +2363,37 @@ def _case_output_path(
     execution = case_record.get("execution")
     if not isinstance(execution, dict):
         raise ValueError("条件组没有完成的 execution")
-    alignment = execution.get("output_alignment", {}).get("tx", {})
+    alignment = execution.get("output_alignment", {}).get(kind, {})
     filename = alignment.get(
         "analysis_filename",
-        "tx.after.wav",
+        "tx.after.wav" if kind == "tx" else "rx.rx-spk.wav",
     )
     if (
         not isinstance(filename, str)
         or Path(filename).name != filename
     ):
-        raise ArtifactIntegrityError("TX 输出文件名无效")
+        raise ArtifactIntegrityError(f"{kind.upper()} 输出文件名无效")
     path = destination / filename
     if path.is_symlink():
-        raise ArtifactIntegrityError("TX 输出不能是符号链接")
+        raise ArtifactIntegrityError(f"{kind.upper()} 输出不能是符号链接")
     if not path.is_file():
-        raise FileNotFoundError("TX 输出不存在或不是普通文件")
+        raise FileNotFoundError(f"{kind.upper()} 输出不存在或不是普通文件")
     if not path.resolve().is_relative_to(destination.resolve()):
-        raise ArtifactIntegrityError("TX 输出越出条件组目录")
-    expected = execution.get("output_sha256", {}).get("tx")
+        raise ArtifactIntegrityError(f"{kind.upper()} 输出越出条件组目录")
+    expected = execution.get("output_sha256", {}).get(kind)
     if not isinstance(expected, str) or _sha256_file(path) != expected:
-        raise ArtifactIntegrityError("TX 输出哈希校验失败")
+        raise ArtifactIntegrityError(f"{kind.upper()} 输出哈希校验失败")
     return path
 
 
 def output_path(
     identifier: str,
     case_id: str,
+    kind: str = "tx",
 ) -> tuple[Path, str]:
-    """Return a verified TX path and its frozen SHA-256."""
+    """Return a verified VCP output path and its frozen SHA-256."""
+    if kind not in {"tx", "rx"}:
+        raise ValueError("未知 VCP 输出方向")
     snapshot = get_batch(identifier)
     if snapshot is None:
         raise FileNotFoundError("场景条件批次不存在")
@@ -1313,9 +2406,234 @@ def output_path(
         None,
     )
     if case_record is None or case_record.get("status") != "completed":
-        raise FileNotFoundError("条件组 TX 输出不存在或未执行成功")
-    path = _case_output_path(snapshot, case_record)
-    return path, case_record["execution"]["output_sha256"]["tx"]
+        raise FileNotFoundError(
+            f"条件组 {kind.upper()} 输出不存在或未执行成功"
+        )
+    path = _case_output_path(snapshot, case_record, kind)
+    return path, case_record["execution"]["output_sha256"][kind]
+
+
+def dynamic_microphone_path(
+    identifier: str,
+    case_id: str,
+) -> tuple[Path, str]:
+    """Return the verified runtime microphone consumed by the TX invocation."""
+    snapshot = get_batch(identifier)
+    if snapshot is None:
+        raise FileNotFoundError("场景条件批次不存在")
+    case_record = next(
+        (
+            row
+            for row in snapshot.get("cases", [])
+            if row.get("case_id") == case_id
+        ),
+        None,
+    )
+    if case_record is None or case_record.get("status") != "completed":
+        raise FileNotFoundError("条件组动态麦克风不存在或未执行成功")
+    destination = _case_directory(identifier, case_id)
+    _verified_assessment(snapshot, case_record, destination)
+    execution = case_record.get("execution")
+    dynamic = (
+        execution.get("dynamic_microphone")
+        if isinstance(execution, dict)
+        else None
+    )
+    if not isinstance(dynamic, dict):
+        raise FileNotFoundError("该条件组没有运行时动态麦克风")
+    raw_path = dynamic.get("path")
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ArtifactIntegrityError("动态麦克风文件名无效")
+    filename = Path(raw_path).name
+    if not filename:
+        raise ArtifactIntegrityError("动态麦克风文件名无效")
+    path = destination / filename
+    if path.is_symlink() or not path.is_file():
+        raise FileNotFoundError("动态麦克风文件不存在")
+    if not path.resolve().is_relative_to(destination.resolve()):
+        raise ArtifactIntegrityError("动态麦克风越出条件组目录")
+    expected = dynamic.get("sha256")
+    if (
+        not isinstance(expected, str)
+        or re.fullmatch(r"[a-f0-9]{64}", expected) is None
+        or _sha256_file(path) != expected
+    ):
+        raise ArtifactIntegrityError("动态麦克风哈希校验失败")
+    return path, expected
+
+
+def _case_worker_count(case_count: int) -> int:
+    """Return the bounded number of condition groups executed concurrently."""
+    if type(case_count) is not int or case_count < 0:
+        raise ValueError("case_count must be a non-negative integer")
+    raw = os.environ.get(CASE_WORKERS_ENV, str(DEFAULT_CASE_WORKERS))
+    try:
+        workers = int(raw)
+    except ValueError as error:
+        raise ValueError(
+            f"{CASE_WORKERS_ENV} must be an integer between 1 and "
+            f"{MAX_CASE_WORKERS}"
+        ) from error
+    if not 1 <= workers <= MAX_CASE_WORKERS:
+        raise ValueError(
+            f"{CASE_WORKERS_ENV} must be between 1 and {MAX_CASE_WORKERS}"
+        )
+    return min(workers, case_count) if case_count else 0
+
+
+def _case_work_snapshot(
+    snapshot: dict[str, Any],
+    case_id: str,
+) -> dict[str, Any]:
+    """Create an isolated snapshot for one case worker.
+
+    Completed cases and unrelated observation rows are excluded so parallel
+    workers never read the mutable parent snapshot or copy prior visual data.
+    """
+    cases = [
+        case for case in snapshot.get("cases", [])
+        if case.get("case_id") == case_id
+    ]
+    if len(cases) != 1:
+        raise ValueError(f"条件组 {case_id} 在批次中不唯一")
+    items = [
+        deepcopy(row) for row in snapshot.get("items", [])
+        if row.get("case_id") == case_id
+    ]
+    expected_item_ids = set(cases[0].get("contract_item_ids", []))
+    if {row.get("item_id") for row in items} != expected_item_ids:
+        raise ValueError(f"条件组 {case_id} 的观测行不完整")
+    work = {
+        key: deepcopy(value)
+        for key, value in snapshot.items()
+        if key not in {"cases", "items", "current_cases"}
+    }
+    work["cases"] = [deepcopy(cases[0])]
+    work["items"] = items
+    work["current_case"] = case_id
+    return work
+
+
+def _run_case_snapshot(
+    work: dict[str, Any],
+    dataset: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Execute one isolated case snapshot without writing a batch snapshot."""
+    case_record = work["cases"][0]
+    case_id = case_record["case_id"]
+    item_by_key = {
+        (row["case_id"], row["item_id"]): row
+        for row in work["items"]
+    }
+    _run_one_case(
+        work,
+        dataset,
+        case_record,
+        item_by_key,
+        persist=False,
+    )
+    return (
+        deepcopy(case_record),
+        deepcopy(work["items"]),
+    )
+
+
+def _merge_case_result(
+    snapshot: dict[str, Any],
+    case_record: dict[str, Any],
+    item_rows: list[dict[str, Any]],
+) -> None:
+    """Merge one isolated worker result into the parent in stable order."""
+    case_id = case_record.get("case_id")
+    if not isinstance(case_id, str):
+        raise ValueError("条件组结果缺少 case_id")
+    with acceptance_batch._LOCK:
+        case_indexes = [
+            index for index, row in enumerate(snapshot.get("cases", []))
+            if row.get("case_id") == case_id
+        ]
+        if len(case_indexes) != 1:
+            raise ValueError(f"条件组 {case_id} 在父批次中不唯一")
+        snapshot["cases"][case_indexes[0]] = deepcopy(case_record)
+
+        row_indexes = {
+            (row.get("case_id"), row.get("item_id")): index
+            for index, row in enumerate(snapshot.get("items", []))
+        }
+        expected_item_ids = set(case_record.get("contract_item_ids", []))
+        if {row.get("item_id") for row in item_rows} != expected_item_ids:
+            raise ValueError(f"条件组 {case_id} 的并行结果行不完整")
+        for row in item_rows:
+            key = (case_id, row.get("item_id"))
+            index = row_indexes.get(key)
+            if index is None:
+                raise ValueError(f"条件组 {case_id} 的并行结果行不属于父批次")
+            snapshot["items"][index] = deepcopy(row)
+
+
+
+def _adapt_nb_outputs_to_8k(
+    outputs: dict[str, Path],
+    execution: dict[str, Any],
+    paths: dict[str, Path],
+) -> None:
+    """Restore 16 kHz engine outputs to 8 kHz for NB-mode scene-condition cases."""
+    from scipy import signal as sp_signal
+    import soundfile as sf
+
+    for role in ("rx", "tx"):
+        out_path = outputs.get(role)
+        if out_path is None or not out_path.is_file():
+            continue
+        info = sf.info(out_path)
+        if info.samplerate == 16_000:
+            samples, _ = sf.read(out_path, dtype="float64", always_2d=True)
+            adapted = sp_signal.resample_poly(samples, 1, 2, axis=0)
+            subtype = "FLOAT" if out_path.name.endswith(".analysis.wav") else "PCM_16"
+            sf.write(out_path, adapted, 8_000, subtype=subtype)
+            new_sha = _sha256_file(out_path)
+            if isinstance(execution.get("output_sha256"), dict):
+                execution["output_sha256"][role] = new_sha
+            alignment = execution.get("output_alignment", {}).get(role)
+            if isinstance(alignment, dict) and "analysis_sha256" in alignment:
+                alignment["analysis_sha256"] = new_sha
+    rx_sha = execution.get("output_sha256", {}).get("rx")
+    if isinstance(rx_sha, str) and isinstance(execution.get("echo_reference"), dict):
+        execution["echo_reference"]["processed_sha256"] = rx_sha
+        execution["echo_reference"]["tx_echo_argument_sha256"] = rx_sha
+
+    dm = execution.get("dynamic_microphone")
+    if isinstance(dm, dict):
+        mic_path = Path(dm["path"])
+        if mic_path.is_file() and sf.info(mic_path).samplerate == 16_000:
+            mic_samples, _ = sf.read(mic_path, dtype="float64", always_2d=True)
+            mic_adapted = sp_signal.resample_poly(mic_samples, 1, 2, axis=0)
+            sf.write(mic_path, mic_adapted, 8_000, subtype="PCM_16")
+            dm["sha256"] = _sha256_file(mic_path)
+            dm["sample_rate"] = 8_000
+            dm["frames"] = int(len(mic_adapted))
+        for role_name, path_key, sha_key in (
+            ("reference", "reference_path", "reference_sha256"),
+            ("noise", "noise_path", "noise_sha256"),
+        ):
+            p = Path(dm[path_key])
+            if float(dm.get("capture_gain", 1.0)) == 1.0:
+                orig_p = paths[role_name]
+                dm[path_key] = str(orig_p)
+                dm[sha_key] = _sha256_file(orig_p)
+            elif p.is_file() and sf.info(p).samplerate == 16_000:
+                s, _ = sf.read(p, dtype="float64", always_2d=True)
+                s_adapted = sp_signal.resample_poly(s, 1, 2, axis=0)
+                sf.write(p, s_adapted, 8_000, subtype="PCM_16")
+                dm[sha_key] = _sha256_file(p)
+        if isinstance(rx_sha, str):
+            dm["playback_sha256"] = rx_sha
+        execution["effective_input_sha256"] = {
+            "microphone": dm["sha256"],
+            "reference": dm["reference_sha256"],
+            "noise": dm["noise_sha256"],
+            "far_end": rx_sha,
+        }
 
 
 def _run_one_case(
@@ -1323,11 +2641,26 @@ def _run_one_case(
     dataset: dict[str, Any],
     case_record: dict[str, Any],
     item_by_key: dict[tuple[str, str], dict[str, Any]],
+    *,
+    persist: bool = True,
 ) -> None:
     case_id = case_record["case_id"]
     dataset_case = next(
         case for case in dataset["cases"] if case["case_id"] == case_id
     )
+    stress = is_stress_dataset(snapshot["dataset_id"])
+    if stress:
+        profile = stress_profile_for_dataset(snapshot["dataset_id"])
+        schema_version = profile.schema_version
+        conversation_mode = None
+    else:
+        profile = profile_for_dataset(snapshot["dataset_id"])
+        schema_version = _profile_schema_version(profile)
+        conversation_mode = (
+            dataset_case.get("provenance", {}).get("conversation_mode")
+            if schema_version == "scene-condition-preview-v2"
+            else None
+        )
     destination = _case_directory(snapshot["batch_id"], case_id)
     try:
         destination.mkdir(parents=True, exist_ok=False)
@@ -1351,7 +2684,8 @@ def _run_one_case(
             report_id
         )
     snapshot["current_case"] = case_id
-    _save(snapshot)
+    if persist:
+        _save(snapshot)
 
     try:
         input_before = _hash_case_inputs(dataset, dataset_case)
@@ -1359,13 +2693,41 @@ def _run_one_case(
             role: asset_path(dataset["root"], dataset_case["signals"][role])
             for role in ROLES
         }
-        execution_case = _execution_case(dataset_case)
+        if stress:
+            from .acoustic_stress_batch import execution_case as stress_execution_case
+
+            execution_case = stress_execution_case(dataset_case, paths)
+        else:
+            execution_case = _execution_case(dataset_case)
         outputs, execution = acceptance_batch._run_cli(
             execution_case,
             paths,
             destination,
             snapshot["algorithm_cluster_id"],
         )
+        if not acceptance_batch.is_native_rate_path_execution(execution) and (
+            (stress and profile.mode.startswith("NB-"))
+            or (
+                not stress
+                and profile_sample_rate_hz(profile) == 8_000
+            )
+        ):
+            _adapt_nb_outputs_to_8k(outputs, execution, paths)
+        effective_paths = dict(paths)
+        dynamic_microphone = execution.get("dynamic_microphone")
+        if isinstance(dynamic_microphone, dict):
+            effective_paths["microphone"] = Path(
+                dynamic_microphone["path"]
+            )
+            effective_paths["reference"] = Path(
+                dynamic_microphone["reference_path"]
+            )
+            effective_paths["noise"] = Path(
+                dynamic_microphone["noise_path"]
+            )
+            rx_path = outputs.get("rx")
+            if rx_path is not None:
+                effective_paths["far_end"] = rx_path
         _assert_execution_frozen(snapshot, execution, input_before)
         input_after = _hash_case_inputs(dataset, dataset_case)
         if input_after != input_before:
@@ -1374,15 +2736,110 @@ def _run_one_case(
         execution.update(
             actual_input_sha256=deepcopy(input_after),
             actual_output_sha256=deepcopy(output_sha256),
+            batch_id=snapshot["batch_id"],
+            dataset_id=snapshot["dataset_id"],
         )
 
-        calculated_rows = calculate_case_items(
-            execution_case,
-            paths,
-            outputs,
-            execution,
-            report_id=report_id,
-        )
+        conversation_diagnostics = None
+        stress_diagnostics = None
+        if stress:
+            from .acoustic_stress_models import (
+                calculate_stress_case as calculate_stress_rows,
+                validate_activity_segments,
+                validate_stress_diagnostics,
+            )
+
+            tx_path = outputs.get("tx")
+            if tx_path is None:
+                raise ValueError("stress execution lacks a real VCP TX")
+            calculated_rows, stress_diagnostics = calculate_stress_rows(
+                execution_case,
+                effective_paths,
+                outputs,
+                execution,
+                report_id=report_id,
+                profile=profile,
+            )
+            activity = validate_activity_segments(
+                dataset_case["provenance"],
+                scope=profile.scope,
+                mode=profile.mode,
+            )
+            validate_stress_diagnostics(
+                stress_diagnostics,
+                expected_case_id=case_id,
+                expected_tx_sha256=output_sha256["tx"],
+                expected_scope=profile.scope,
+                expected_mode=profile.mode,
+                expected_category=dataset_case["provenance"][
+                    "workload_category"
+                ],
+                expected_segments=activity,
+            )
+        elif schema_version == "scene-condition-preview-v2":
+            tx_path = outputs.get("tx")
+            if tx_path is None:
+                raise ValueError("v2 场景条件执行缺少真实 VCP TX")
+            conversation_diagnostics = diagnose_conversation_case(
+                dataset_case,
+                effective_paths,
+                tx_path,
+                tx_sha256=output_sha256["tx"],
+            )
+            activity = validate_activity_metadata(
+                dataset_case["provenance"]
+            )
+            validate_diagnostics(
+                conversation_diagnostics,
+                expected_mode=str(conversation_mode),
+                expected_case_id=case_id,
+                expected_tx_sha256=output_sha256["tx"],
+                expected_activity=activity,
+            )
+
+        if not stress:
+            calculation_case = execution_case
+            no_mos_mode = conversation_mode in {"far_single", "transition"}
+            if no_mos_mode:
+                # Empty item_ids deliberately bypasses DNSMOS while still
+                # using the same calculator to validate case/output identities.
+                calculation_case = {**execution_case, "item_ids": []}
+            calculated_rows = calculate_case_items(
+                calculation_case,
+                effective_paths,
+                outputs,
+                execution,
+                report_id=report_id,
+            )
+            if no_mos_mode:
+                if calculated_rows:
+                    raise ValueError(
+                        "far_single/transition 禁止产生 DNSMOS/GNS 数值行"
+                    )
+                if conversation_mode == "far_single":
+                    no_mos_reason = (
+                        "未计算 DNSMOS/G-MOS/N-MOS/S-MOS：far_single "
+                        "没有持续近端语音，不满足 12 秒 P.835 近端窗口；"
+                        "真实 VCP TX 与工程诊断已保留"
+                    )
+                else:
+                    no_mos_reason = (
+                        "未计算 DNSMOS/G-MOS/N-MOS/S-MOS：transition "
+                        "由 far_only/near_only/double_talk/noise_only "
+                        "混合短窗口组成，没有连续 12 秒近端语音；"
+                        "不拼接短段冒充完整 P.835 窗口，真实 VCP TX "
+                        "与逐段工程诊断已保留"
+                    )
+                calculated_rows = [
+                    {
+                        "item_id": item_id,
+                        "value": None,
+                        "status": "not_measured",
+                        "metric": None,
+                        "reason": no_mos_reason,
+                    }
+                    for item_id in item_ids
+                ]
         if (
             len(calculated_rows) != len(item_ids)
             or {row.get("item_id") for row in calculated_rows} != set(item_ids)
@@ -1399,9 +2856,27 @@ def _run_one_case(
         from .acceptance_scene_condition_api import _visual_track
 
         try:
+            rx_visual = None
+            dynamic_microphone_visual = None
+            rx_path = outputs.get("rx")
+            if rx_path is not None:
+                if _sha256_file(rx_path) != output_sha256["rx"]:
+                    raise ValueError(
+                        "RX 处理后可视化前输出哈希校验失败"
+                    )
+                rx_visual = _compact_visual(
+                    _visual_track(rx_path, output_sha256["rx"])
+                )
             tx_visual = _compact_visual(
                 _visual_track(tx_path, output_sha256["tx"])
             )
+            if isinstance(dynamic_microphone, dict):
+                dynamic_microphone_visual = _compact_visual(
+                    _visual_track(
+                        Path(dynamic_microphone["path"]),
+                        dynamic_microphone["sha256"],
+                    )
+                )
         except OSError as error:
             _raise_if_enospc(error)
             raise
@@ -1440,20 +2915,59 @@ def _run_one_case(
             "standard_compliance": False,
             "formal_test_status": "not_measured",
         }
+        if isinstance(dynamic_microphone, dict):
+            assessment["dynamic_microphone"] = deepcopy(dynamic_microphone)
+            assessment["effective_input_sha256"] = deepcopy(
+                execution.get("effective_input_sha256", {})
+            )
+        if dynamic_microphone_visual is not None:
+            assessment["dynamic_microphone_visual"] = deepcopy(
+                dynamic_microphone_visual
+            )
+        if rx_visual is not None:
+            assessment["rx_visual"] = deepcopy(rx_visual)
+        if stress:
+            assessment["provenance"] = deepcopy(dataset_case["provenance"])
+            assessment["stress_diagnostics"] = deepcopy(stress_diagnostics)
+        elif schema_version == "scene-condition-preview-v2":
+            assessment["provenance"] = deepcopy(dataset_case["provenance"])
+            assessment["conversation_diagnostics"] = deepcopy(
+                conversation_diagnostics
+            )
         _resource_preflight(destination)
         assessment_sha256 = _write_once_json(
             destination / "assessment.json",
             assessment,
         )
-        case_record.update(
-            status="completed",
-            report_id=report_id,
-            input_sha256=deepcopy(input_after),
-            output_sha256=deepcopy(output_sha256),
-            execution=deepcopy(execution),
-            tx_visual=deepcopy(tx_visual),
-            assessment_sha256=assessment_sha256,
-        )
+        case_update = {
+            "status": "completed",
+            "report_id": report_id,
+            "input_sha256": deepcopy(input_after),
+            "output_sha256": deepcopy(output_sha256),
+            "execution": deepcopy(execution),
+            "tx_visual": deepcopy(tx_visual),
+            "assessment_sha256": assessment_sha256,
+        }
+        if isinstance(dynamic_microphone, dict):
+            case_update["dynamic_microphone"] = deepcopy(
+                dynamic_microphone
+            )
+            case_update["effective_input_sha256"] = deepcopy(
+                execution.get("effective_input_sha256", {})
+            )
+        if dynamic_microphone_visual is not None:
+            case_update["dynamic_microphone_visual"] = deepcopy(
+                dynamic_microphone_visual
+            )
+        if rx_visual is not None:
+            case_update["rx_visual"] = deepcopy(rx_visual)
+        case_record.update(case_update)
+        if stress:
+            case_record["stress_diagnostics"] = deepcopy(stress_diagnostics)
+        elif schema_version == "scene-condition-preview-v2":
+            case_record["conversation_diagnostics"] = deepcopy(
+                conversation_diagnostics
+            )
     except ResourceSafetyStop:
         raise
     except Exception as error:
@@ -1484,7 +2998,83 @@ def _run_one_case(
     snapshot["progress"]["completed_cases"] += 1
     snapshot["progress"]["completed_items"] += len(item_ids)
     snapshot["progress"] = _progress(snapshot)
-    _save(snapshot)
+    if persist:
+        _save(snapshot)
+
+
+def _run_pending_cases(
+    snapshot: dict[str, Any],
+    dataset: dict[str, Any],
+    item_by_key: dict[tuple[str, str], dict[str, Any]],
+) -> None:
+    """Execute pending cases serially or with bounded case-level parallelism."""
+    pending = list(snapshot["cases"])
+    for case_record in pending:
+        if case_record.get("status") != "pending":
+            raise ValueError("场景条件批次不是全新 pending 状态")
+    workers = _case_worker_count(len(pending))
+    if workers <= 1:
+        for case_record in pending:
+            _resource_preflight(_batch_directory(snapshot["batch_id"]))
+            _run_one_case(
+                snapshot,
+                dataset,
+                case_record,
+                item_by_key,
+            )
+        return
+
+    active: dict[Any, str] = {}
+    with ThreadPoolExecutor(
+        max_workers=workers,
+        thread_name_prefix="scene-condition-case",
+    ) as executor:
+        try:
+            while pending or active:
+                while pending and len(active) < workers:
+                    case_record = pending.pop(0)
+                    case_id = case_record["case_id"]
+                    work = _case_work_snapshot(snapshot, case_id)
+                    future = executor.submit(
+                        _run_case_snapshot,
+                        work,
+                        dataset,
+                    )
+                    active[future] = case_id
+                    with acceptance_batch._LOCK:
+                        parent = next(
+                            row for row in snapshot["cases"]
+                            if row.get("case_id") == case_id
+                        )
+                        parent["status"] = "running"
+                        parent.pop("error", None)
+
+                active_ids = sorted(active.values())
+                snapshot["current_cases"] = active_ids
+                snapshot["current_case"] = active_ids[0] if active_ids else None
+                _save(snapshot)
+
+                done, _ = wait(
+                    tuple(active),
+                    return_when=FIRST_COMPLETED,
+                )
+                for future in done:
+                    active.pop(future)
+                    case_record, item_rows = future.result()
+                    _merge_case_result(
+                        snapshot,
+                        case_record,
+                        item_rows,
+                    )
+
+                active_ids = sorted(active.values())
+                snapshot["current_cases"] = active_ids
+                snapshot["current_case"] = active_ids[0] if active_ids else None
+                _save(snapshot)
+        except BaseException:
+            for future in active:
+                future.cancel()
+            raise
 
 
 def run_batch(identifier: str) -> dict[str, Any] | None:
@@ -1503,34 +3093,28 @@ def run_batch(identifier: str) -> dict[str, Any] | None:
         _validate_snapshot_contract(snapshot)
         if snapshot.get("status") != "queued":
             raise ValueError("场景条件批次不是 queued 状态")
-        dataset, _ = _validated_dataset(snapshot["dataset_id"])
+        dataset, _ = _validated_dataset(
+            snapshot["dataset_id"],
+            requested_scene=snapshot["selected_scene"],
+        )
         _verify_dataset_frozen(snapshot, dataset)
         item_by_key = {
             (row["case_id"], row["item_id"]): row
             for row in snapshot["items"]
         }
-        if len(item_by_key) != EXPECTED_OBSERVATION_COUNT:
+        case_count = snapshot["case_count"]
+        observation_count = snapshot["observation_count"]
+        if len(item_by_key) != observation_count:
             raise ValueError("场景条件 item 索引不完整")
 
         snapshot["status"] = "running"
         snapshot.pop("error", None)
         _save(snapshot)
-        for case_record in snapshot["cases"]:
-            if case_record.get("status") != "pending":
-                raise ValueError("场景条件批次不是全新 pending 状态")
-            _resource_preflight(
-                _batch_directory(snapshot["batch_id"])
-            )
-            _run_one_case(
-                snapshot,
-                dataset,
-                case_record,
-                item_by_key,
-            )
+        _run_pending_cases(snapshot, dataset, item_by_key)
 
         if (
-            len(snapshot["cases"]) != EXPECTED_CASE_COUNT
-            or len(snapshot["items"]) != EXPECTED_OBSERVATION_COUNT
+            len(snapshot["cases"]) != case_count
+            or len(snapshot["items"]) != observation_count
             or any(
                 case["status"] not in _TERMINAL_CASE_STATUSES
                 for case in snapshot["cases"]
@@ -1546,6 +3130,7 @@ def run_batch(identifier: str) -> dict[str, Any] | None:
         )
         snapshot["status"] = "failed" if failed_cases else "completed"
         snapshot.pop("current_case", None)
+        snapshot.pop("current_cases", None)
         if failed_cases:
             snapshot["error"] = (
                 f"{failed_cases} 个条件组执行失败；"
@@ -1562,6 +3147,7 @@ def run_batch(identifier: str) -> dict[str, Any] | None:
                 "资源安全线触发，批次已中断；最后可读快照已保留"
             )
             snapshot.pop("current_case", None)
+            snapshot.pop("current_cases", None)
             for case in snapshot.get("cases", []):
                 if case.get("status") not in _TERMINAL_CASE_STATUSES:
                     case["status"] = "failed"
@@ -1582,6 +3168,7 @@ def run_batch(identifier: str) -> dict[str, Any] | None:
         snapshot["status"] = "failed"
         snapshot["error"] = message
         snapshot.pop("current_case", None)
+        snapshot.pop("current_cases", None)
         for case in snapshot["cases"]:
             if case.get("status") not in _TERMINAL_CASE_STATUSES:
                 case.update(status="failed", error=message)
@@ -1619,14 +3206,17 @@ def list_batches(
     limit: int = 20,
     dataset_id: str | None = None,
     algorithm_cluster_id: str | None = None,
+    latest_per_case: bool = False,
 ) -> list[dict[str, Any]]:
-    """List complete new-store snapshots, newest first."""
+    """List snapshots, optionally selecting the newest coverage per case."""
     if (
         isinstance(limit, bool)
         or not isinstance(limit, int)
         or not 1 <= limit <= 20
     ):
         raise ValueError("limit 必须为 1 到 20 的整数")
+    if not isinstance(latest_per_case, bool):
+        raise ValueError("latest_per_case 必须为布尔值")
     if dataset_id is not None and (
         not isinstance(dataset_id, str)
         or _BATCH_ID.fullmatch(dataset_id) is None
@@ -1637,6 +3227,33 @@ def list_batches(
         or not algorithm_cluster_id
     ):
         raise ValueError("algorithm_cluster_id 无效")
+    if latest_per_case and (
+        dataset_id is None or algorithm_cluster_id is None
+    ):
+        raise ValueError(
+            "latest_per_case=true 时必须同时指定 "
+            "dataset_id 和 algorithm_cluster_id"
+        )
+
+    expected_case_ids: set[str] | None = None
+    if latest_per_case:
+        dataset, _ = _validated_dataset(dataset_id)
+        expected_case_ids = {
+            case["case_id"]
+            for case in dataset["cases"]
+        }
+        if is_stress_dataset(dataset_id):
+            profile_case_count = stress_profile_for_dataset(
+                dataset_id
+            ).case_count
+        else:
+            profile_case_count = _profile_counts(
+                profile_for_dataset(dataset_id)
+            )[0]
+        if len(expected_case_ids) != profile_case_count:
+            raise ValueError(
+                "latest_per_case 的源数据集 case 数与 profile 不一致"
+            )
 
     root = _batch_root()
     try:
@@ -1652,6 +3269,8 @@ def list_batches(
             _BATCH_ID.fullmatch(directory.name) is None
             or directory.is_symlink()
         ):
+            continue
+        if _is_fixture_batch(directory):
             continue
         try:
             snapshot = get_batch(directory.name)
@@ -1671,6 +3290,25 @@ def list_batches(
             continue
         rows.append((created_at, directory.name, snapshot))
     rows.sort(key=lambda row: (row[0], row[1]), reverse=True)
+    if latest_per_case:
+        assert expected_case_ids is not None
+        selected: list[dict[str, Any]] = []
+        covered: set[str] = set()
+        for _, _, snapshot in rows:
+            case_ids = {
+                case["case_id"]
+                for case in snapshot.get("cases", [])
+            }
+            if not case_ids or not case_ids.issubset(expected_case_ids):
+                continue
+            new_case_ids = case_ids - covered
+            if not new_case_ids:
+                continue
+            selected.append(snapshot)
+            covered.update(new_case_ids)
+            if covered == expected_case_ids:
+                break
+        return selected
     return [snapshot for _, _, snapshot in rows[:limit]]
 
 
@@ -1682,10 +3320,16 @@ __all__ = [
     "EVIDENCE_BINDING_FIELDS",
     "EXPECTED_CASE_COUNT",
     "EXPECTED_OBSERVATION_COUNT",
+    "FIXTURE_MARKER_FIELDS",
+    "FIXTURE_MARKER_NAME",
+    "FIXTURE_MARKER_REASON",
+    "FIXTURE_MARKER_SCHEMA",
     "ITEM_CORE_FIELDS",
     "PROGRESS_FIELDS",
     "ResourceSafetyStop",
     "SCHEMA",
+    "SINGLE_CASE_EXECUTION_SCOPE",
+    "SINGLE_CASE_SELECTION_FIELDS",
     "SNAPSHOT_COMPAT_FIELDS",
     "SNAPSHOT_REQUIRED_FIELDS",
     "SUMMARY_FIELDS",

@@ -88,8 +88,15 @@ class PreAecPipeline {
     }
     if(c_.diagnostic_stages) {
       auto& taps=*c_.diagnostic_stages;
-      taps.core_delay_samples+=static_cast<unsigned>(std::ceil(double(front_delay)*taps.core_sample_rate/c_.sample_rate));
-      taps.eq_delay_samples+=static_cast<unsigned>(std::ceil(double(front_delay)*taps.eq_sample_rate/c_.sample_rate));
+      const unsigned core_extra=static_cast<unsigned>(std::ceil(double(front_delay)*taps.core_sample_rate/c_.sample_rate));
+      const unsigned eq_extra=static_cast<unsigned>(std::ceil(double(front_delay)*taps.eq_sample_rate/c_.sample_rate));
+      taps.core_delay_samples+=core_extra;
+      taps.experiment_ns_input_delay_samples+=core_extra;
+      taps.agc_delay_samples+=core_extra;
+      taps.drc_delay_samples+=core_extra;
+      taps.pre_eq_delay_samples+=eq_extra;
+      taps.post_eq_delay_samples+=eq_extra;
+      taps.eq_delay_samples=taps.post_eq_delay_samples;
     }
     return Status::ok;
   }
@@ -98,8 +105,20 @@ class PreAecPipeline {
     return sizeof(*this)+(history_.capacity()+aligned_.capacity()+beam_.capacity()+aec_.capacity()+input_.capacity())*sizeof(float)
         +core_.working_memory_bytes()+(spatial_ ? spatial_->memory_bytes() : 0);
   }
+  AecRouteDiagnostics aec_route_diagnostics() const {return core_.aec_route_diagnostics();}
  private:
   static Config core_config(Config c) {
+    if(c.localvqe_source_samples) {
+      float maximum=0;
+      for(unsigned ch=0;ch<c.microphones;++ch)
+        maximum=std::max(maximum,c.beam_delays_samples[ch]);
+      c.localvqe_source_samples+=static_cast<unsigned>(std::ceil(maximum));
+      if(c.spatial_mvdr || c.wind_noise_control) {
+        unsigned window=1;
+        while(window<2*c.frame_size) window*=2;
+        c.localvqe_source_samples+=window-c.frame_size;
+      }
+    }
     c.microphones=1;c.beamforming=false;c.beam_delays_samples={};
     c.spatial_mvdr=c.wind_noise_control=c.spatial_fixed_steering=c.spatial_continuous_covariance=false;
     c.rx_processing=c.rx_config.enabled=false;

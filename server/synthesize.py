@@ -24,6 +24,11 @@ import soundfile as sf
 from scipy import signal
 
 from server.audio import MAX_SECONDS, ROLES, Audio, AudioError, db, decode, describe, power
+from server.aec_routes import (
+    admit_aec_route, effective_aec_reference_channels,
+    validate_aec_route_report, validate_admitted_aec_identity,
+)
+from server.ns_routes import execute_ns_command, ns_route_identity, resolve_ns_cli, validate_ns_route_report
 
 ROOT = Path(__file__).resolve().parents[1]
 # The engine takes its rate from the microphone WAV and only implements 10 ms
@@ -33,6 +38,8 @@ DEFAULT_RATE = 16000
 # Prefer the production host target containing all published chain options.
 # ITU_CLI remains an explicit deployment override; legacy binaries are fallbacks.
 CANDIDATE_BINARIES = (
+    "build/aec-routes-host-20261111-v2/cpp/itu_audio_cli",
+    "build/aec-routes-host-20261111/cpp/itu_audio_cli",
     "build/host/cpp/itu_audio_cli",
     "build/itu_audio_cli",
     "build/rtd-low-delay-20261014-top/cpp/itu_audio_cli",
@@ -358,7 +365,18 @@ def synthesize(
             raise AudioError(f"{ROLE_TITLE['clean']}：{detail}") from error
         clean = _resample(decoded_clean.data, decoded_clean.rate, target)[:frames]
 
-    binary = cli_path()
+    try:
+        binary = resolve_ns_cli(cli_path(), canonical_chain)
+        admitted_aec = admit_aec_route(
+            binary, canonical_chain, sample_rate=target,
+            reference_channels=effective_aec_reference_channels(
+                canonical_chain, 1 if ref.ndim == 1 else ref.shape[1]
+            ),
+            capture_channels=microphone.original_channels,
+            beamforming=mode == "beamform",
+        )
+    except ValueError as error:
+        raise AudioError(str(error)) from error
     binary_sha256 = hashlib.sha256(binary.read_bytes()).hexdigest()
     timeout = int(os.environ.get("ITU_SYNTH_TIMEOUT", "300"))
     run_id = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()) + "-" + secrets.token_hex(4)
@@ -376,9 +394,14 @@ def synthesize(
             "--diagnostic-stages",
         ]
         try:
-            run = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+            run = execute_ns_command(
+                command, configuration=canonical_chain,
+                capture_output=True, text=True, timeout=timeout,
+            )
         except subprocess.TimeoutExpired as error:
             raise AudioError(f"引擎超过 {timeout} 秒未返回，请缩短音频后重试") from error
+        except ValueError as error:
+            raise AudioError(f"NS 模型执行失败：{error}") from error
         if run.returncode != 0:
             lines = (run.stderr or run.stdout or "").strip().splitlines()
             raise AudioError("引擎执行失败：" + (lines[-1] if lines else f"退出码 {run.returncode}"))
@@ -390,6 +413,11 @@ def synthesize(
         report_path = prefix.with_suffix(".json")
         if report_path.is_file():
             engine = json.loads(report_path.read_text())
+            route_errors = validate_aec_route_report(engine, canonical_chain)
+            route_errors += validate_admitted_aec_identity(engine, admitted_aec)
+            route_errors += validate_ns_route_report(engine, canonical_chain)
+            if route_errors:
+                raise AudioError("处理链路执行身份不一致：" + "；".join(route_errors))
             engine_report = {
                 key: engine.get(key)
                 for key in (
@@ -399,8 +427,28 @@ def synthesize(
                     "reference_channels", "beamforming_enabled", "beamforming_before_aec",
                     "speex_multirender_context", "vehicle_ns_unified_raw_budget",
                     "vehicle_ns_dry_max", "vehicle_ns_policy", "tx_drc_config", "tx_drc_enabled", "ns_backend",
+                    "aec_backend", "aec_backend_requested", "aec_backend_effective",
+                    "aec_execution_provider", "aec_device_id", "aec_model_id",
+                    "aec_model_sha256", "aec_frontend_sha256", "aec_provider_sha256",
+                    "aec_dsp_inferences", "aec_dsp_processed_frames", "aec_dsp_fallback_frames",
+                    "aec_localvqe_inferences", "aec_localvqe_processed_frames",
+                    "aec_localvqe_fallback_frames", "aec_neural_delay_samples",
+                    "aec_model_codec_delay_samples_16k",
+                    "aec_linear_frontend_delay_samples_16k",
+                    "aec_processing_mode",
+                    "reference_channels_original",
+                    "localvqe_reference_channel",
+                    "ns_backend_requested", "ns_backend_effective", "ns_model_id",
+                    "ns_model_sha256", "ns_frontend_sha256", "ns_processing_mode",
+                    "ns_boundary_input_sha256", "ns_output_sha256", "ns_delay_samples",
+                    "ns_external_pcm_enabled", "ns_external_applied_frames",
+                    "ns_external_fallback_frames", "ns_external_delay_samples",
+                    "ns_inference_calls", "ns_model_inference_s",
+                    "ns_offline_whole_utterance", "ns_lookahead_samples", "ns_execution",
                 )
             }
+        elif admitted_aec is not None:
+            raise AudioError("DSP 未生成可核验的 AEC 执行报告")
         summary = {}
         frames_path = prefix.with_suffix(".frames.csv")
         if frames_path.is_file():
@@ -479,6 +527,7 @@ def synthesize(
         "binary_sha256": binary_sha256,
         "chain": canonical_chain,
         "catalog_sha256": catalog_sha,
+        "ns_route_identity": ns_route_identity(canonical_chain),
         "joint_control": joint,
         "sample_rate": target,
         "seconds": frames / target,
@@ -811,3 +860,8 @@ def demo_pair(scenario: str) -> tuple[bytes, bytes]:
         sf.write(buffer, channel, DEMO_RATE, format="WAV", subtype="PCM_16")
         payload.append(buffer.getvalue())
     return payload[0], payload[1]
+
+
+# Native16 registration: additive dispatch; original source prefix remains frozen.
+
+CHAIN_CATALOG = ROOT / "src/features/enhancement-chain-configs-native16.json"

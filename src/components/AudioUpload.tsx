@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, FileAudio, Upload, X } from "lucide-react";
+import { ACOUSTIC_SIGNAL_DESCRIPTIONS } from "../domain/acoustic-terminology.ts";
 import { ROLE_COLOR, ROLE_LABEL } from "../domain/audio";
 import type { AudioDescription, AudioRole } from "../domain/audio";
 const ROLE_HINT = {
-  reference: "原始干净信号，用于时延、保真与可懂度对照。",
-  before: "算法处理前的麦克风录音，保留噪声与回声。",
-  after: "算法处理后的输出，这是开始计算的必需输入。",
-  echo: "送往扬声器的远端信号，用于回声片段核对。",
+  reference: ACOUSTIC_SIGNAL_DESCRIPTIONS.reference,
+  before: ACOUSTIC_SIGNAL_DESCRIPTIONS.microphone,
+  after: `${ACOUSTIC_SIGNAL_DESCRIPTIONS.near_end}这是开始计算的必需输入。`,
+  echo: `${ACOUSTIC_SIGNAL_DESCRIPTIONS.far_end}用于回声片段核对。`,
 };
 export default function AudioUpload({
   role,

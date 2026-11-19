@@ -22,6 +22,17 @@ enum itu_audio_profile {
   ITU_AUDIO_PROFILE_VCP_FUSED_AEC = 5
 };
 enum itu_audio_noise_backend { ITU_AUDIO_NS_WEBRTC=0, ITU_AUDIO_NS_RNNOISE=1, ITU_AUDIO_NS_SPEEX=2, ITU_AUDIO_NS_ULUNAS=3, ITU_AUDIO_NS_OMLSA_IMCRA=4, ITU_AUDIO_NS_SUPER_GAUSSIAN=5, ITU_AUDIO_NS_UNIFIED=6 };
+/* Explicit AEC route selection. DEFAULT preserves the selected profile's
+ * backend. MDF is the plain Speex MDF route; FUSED_CPU is the existing
+ * CPU NLMS-fusion route; MDF_COMPLEX_PF_DSP requires a real HiFi provider. */
+enum itu_audio_aec_backend_v2 {
+  ITU_AEC_PROFILE_DEFAULT = 0,
+  ITU_AEC_WEBRTC = 1,
+  ITU_AEC_MDF = 2,
+  ITU_AEC_FUSED_CPU = 3,
+  ITU_AEC_MDF_COMPLEX_PF_DSP = 4,
+  ITU_AEC_LOCALVQE_AEC200K = 5
+};
 enum itu_audio_eq_kind { ITU_AUDIO_EQ_PEAK=0, ITU_AUDIO_EQ_LOW_SHELF=1, ITU_AUDIO_EQ_HIGH_SHELF=2 };
 typedef struct itu_audio_eq_band { int kind; float frequency_hz, gain_db, q; } itu_audio_eq_band;
 typedef struct itu_audio_eq_config {
@@ -51,6 +62,26 @@ void itu_audio_default_extensions(itu_audio_extensions* extensions);
 itu_audio_engine* itu_audio_create_extended(const itu_audio_config* config,
   int profile, int noise_backend, const itu_audio_eq_config* eq,
   const itu_audio_extensions* extensions, char* error, size_t error_capacity);
+/* Additive AEC-selection extension. The embedded v1 structure and all legacy
+ * layouts remain unchanged. dsp_model_id names a provider-registered model;
+ * NULL or an empty string selects complex_pf_stream_v1. File paths and path
+ * separators are rejected. dsp_deadline_us defaults to 10000. */
+typedef struct itu_audio_extensions_v2 {
+  uint32_t struct_size, version; /* version=2 */
+  itu_audio_extensions base;
+  uint32_t aec_backend;
+  const char* dsp_model_id;
+  uint32_t dsp_deadline_us;
+} itu_audio_extensions_v2;
+void itu_audio_default_extensions_v2(itu_audio_extensions_v2* extensions);
+itu_audio_engine* itu_audio_create_extended_v2(const itu_audio_config* config,
+  int profile, int noise_backend, const itu_audio_eq_config* eq,
+  const itu_audio_extensions_v2* extensions, char* error, size_t error_capacity);
+/* Returns the stable backend ID for a valid v2 value, or NULL when invalid. */
+const char* itu_audio_aec_backend_name_v2(int aec_backend);
+/* Returns 1 only when the real provider capability is available, 0 when
+ * unavailable, and -1 for an invalid enum value. DEFAULT probes WebRTC. */
+int itu_audio_aec_backend_available_v2(int aec_backend);
 typedef struct itu_audio_frame_info {
   uint64_t frame_index;
   int far_active, linear_aec_available;
@@ -62,6 +93,27 @@ typedef struct itu_audio_frame_info {
   uint32_t limited_samples, latency_samples;
   uint32_t aec_output_delay_samples, linear_aec_delay_samples;
 } itu_audio_frame_info;
+/* Independent snapshot of the actual route and its cumulative diagnostics.
+ * When AEC is disabled, effective_backend is "disabled". The remaining
+ * backend_id fields still identify the configured core route. */
+typedef struct itu_audio_aec_route_info_v1 {
+  uint32_t struct_size, version; /* version=1 */
+  uint32_t requested_backend;
+  char backend_id[32];
+  char effective_backend[48];
+  char execution_provider[32];
+  char device_id[64];
+  char model_id[64];
+  char model_sha256[65];
+  char frontend_sha256[65];
+  char provider_sha256[65];
+  uint64_t processed_frames, inferences, fallback_frames, cycles;
+  uint32_t neural_delay_samples;
+} itu_audio_aec_route_info_v1;
+/* Exact struct_size/version validation. All strings are NUL-terminated and
+ * safely truncated to their fixed field capacities. */
+int itu_audio_get_aec_route_info_v1(const itu_audio_engine* engine,
+                                    itu_audio_aec_route_info_v1* info);
 /* Sets all fields including struct_size and ABI version; NULL is a no-op. */
 void itu_audio_default_config(itu_audio_config* config);
 /* Returns NULL on invalid config/allocation failure; optional error is NUL-terminated if capacity>0. */

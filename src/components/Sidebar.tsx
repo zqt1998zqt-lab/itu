@@ -25,7 +25,7 @@ import {
 
 export type View =
   | "workbench" | "synthesize" | "workflow" | "car3d" | "results"
-  | "enhancement" | "denoise" | "aec" | "bf" | "drc" | "eq" | "agc" | "compare" | "metrics" | "evaluation" | "alignment" | "basic-uplink" | "basic-downlink" | "echo" | "double-talk" | "background-noise" | "acoustic" | "graphs"
+  | "enhancement" | "denoise" | "aec" | "localvqe" | "bf" | "drc" | "eq" | "agc" | "compare" | "metrics" | "evaluation" | "alignment" | "basic-uplink" | "basic-downlink" | "echo" | "double-talk" | "background-noise" | "acoustic" | "graphs"
   | "background-noise-idle" | "background-noise-urban" | "background-noise-highway" | "background-noise-hvac";
 
 export const NAV = [
@@ -36,6 +36,7 @@ export const NAV = [
   { id: "enhancement", label: "综合增强链路", icon: GitBranch },
   { id: "denoise", label: "降噪链路", icon: Waves },
   { id: "aec", label: "AEC 链路", icon: RadioTower },
+  { id: "localvqe", label: "LocalVQE 测试", icon: Sparkles },
   { id: "bf", label: "BF 波束链路", icon: Radar },
   { id: "drc", label: "DRC 动态范围", icon: Activity },
   { id: "eq", label: "EQ 链路", icon: SlidersHorizontal },
@@ -60,7 +61,7 @@ export const NAV = [
 
 const GROUPS: { label: string; ids: View[] }[] = [
   { label: "工作与结果", ids: ["workbench", "synthesize", "graphs", "results", "compare"] },
-  { label: "增强技术", ids: ["enhancement", "denoise", "aec", "bf", "drc", "eq", "agc"] },
+  { label: "增强技术", ids: ["enhancement", "denoise", "aec", "localvqe", "bf", "drc", "eq", "agc"] },
   { label: "评测与方法", ids: ["workflow", "car3d", "evaluation", "alignment", "basic-uplink", "basic-downlink", "echo", "double-talk", "background-noise", "background-noise-idle", "background-noise-urban", "background-noise-highway", "background-noise-hvac", "acoustic", "metrics"] },
 ];
 

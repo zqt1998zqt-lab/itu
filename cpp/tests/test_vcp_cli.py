@@ -101,13 +101,21 @@ def check_unified_cli(cli, root):
         first / "unified-ns.log")
     report = json.loads(Path(str(prefix) + ".json").read_text())
     assert report["ns_backend"] == "unified"
-    assert report["aec_backend"] == "speex_mdf_nlms_fused"
+    assert report["aec_backend"] == "speex_mdf_nlms_fused_cpu"
     assert report["unified_eq_agc"] is True
     assert all(key in report for key in
                ("unified_eq_weight", "unified_agc_fused_weight", "unified_agc_gain_db"))
     assert len(report["unified_ns_weights"]) == 4
     assert len(report["unified_ns_target_weights"]) == 4
     assert report["unified_ns_noise_updates"] >= 0
+    explicit_prefix = first / "unified-explicit-cpu"
+    run([cli, "--profile", "vcp_unified", "--aec-backend", "speex_fused_cpu",
+         "--mic", str(first/"mic.wav"), "--rx-in", str(first/"rx.wav"),
+         "--out", str(explicit_prefix)], first / "unified-explicit-cpu.log")
+    explicit_report = json.loads(
+        Path(str(explicit_prefix) + ".json").read_text()
+    )
+    assert explicit_report["aec_backend"] == "speex_mdf_nlms_fused_cpu"
     with Path(str(prefix) + ".frames.csv").open() as stream:
         fields = next(csv.reader(stream))
     required = {"unified_ns_w0", "unified_ns_target_w3", "unified_ns_weight_entropy",
@@ -119,7 +127,7 @@ def check_unified_cli(cli, root):
          "--beam-delays", "0,0", "--rx-in", str(multi / "rx.wav"),
          "--out", str(multi_prefix)], multi / "unified-multirender.log")
     multi_report = json.loads(Path(str(multi_prefix) + ".json").read_text())
-    assert multi_report["aec_backend"] == "speex_mdf_nlms_fused"
+    assert multi_report["aec_backend"] == "speex_mdf_nlms_fused_cpu"
     assert multi_report["beamforming_before_aec"] is True
     assert multi_report["aec_capture_channels"] == 1
     assert multi_report["unified_eq_agc"] is True

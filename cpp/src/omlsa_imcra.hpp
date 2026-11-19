@@ -2,10 +2,14 @@
 #include "fft.hpp"
 #include "super_gaussian.hpp"
 #include "ns_spectral_frame.hpp"
+#include "complex_spectral_control.hpp"
+#include "itu/omlsa_config.hpp"
+#include "omlsa_adaptive_control.hpp"
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -116,7 +120,9 @@ class ImcraNoiseEstimator {
   unsigned unconditional_history_depth() const noexcept {return unconditional_history_depth_;}
   unsigned conditional_history_depth() const noexcept {return conditional_history_depth_;}
   std::size_t step_updates() const noexcept {return step_updates_;}
-  void update(const float* power,const float* xi,const float* gamma,float step_recovery=0) noexcept {
+  void update(const float* power,const float* xi,const float* gamma,float step_recovery=0,
+              const float* speech_hold=nullptr,float update_scale=1.f,
+              float pause_confidence=0.f,const float* independent_noise=nullptr) noexcept {
     // First iteration: unconditional time/frequency smoothing and minima.
     for(unsigned k=0;k<bins_;++k) {
       smooth_[k]=alpha_s*smooth_[k]+(1-alpha_s)*frequency(power,k);
@@ -155,6 +161,21 @@ class ImcraNoiseEstimator {
         // update exactly when recovery is disabled or the estimator is open.
         next+=(a-bounded)*(std::min(power[k],4.f*previous)-previous);
         step_updates_+=bounded<a;a=bounded;
+      }
+      // Only slow upward noise learning on independently supported speech.
+      // Downward adaptation and the original conditional-minimum posterior
+      // remain intact. A nonzero update scale prevents a frozen estimator.
+      if(speech_hold && update_scale<1.f && next>previous && step_recovery<=0.f) {
+        const float weight=1.f-(1.f-update_scale)*speech_hold[k];
+        next=previous+weight*(next-previous);
+      }
+      if(pause_confidence>0.f && independent_noise) {
+        // Reopen a frozen posterior only after independent capture evidence
+        // confirms a pause. Bound both the PSD rise and the extra update.
+        const float target=std::min(power[k],
+            std::min(4.f*previous,2.f*independent_noise[k]/beta));
+        if(target>previous)
+          next=std::max(next,previous+.06f*pause_confidence*(target-previous));
       }
       noise_[k]=std::max(1e-16f,next);
       noise_updates_+=a<.99999f;
@@ -221,13 +242,35 @@ class ImcraNoiseEstimator {
 class OmlsaImcra {
  public:
   explicit OmlsaImcra(unsigned rate,float floor_db=-18.f,bool protect_start=true,
-                      SpectralGainRule rule=SpectralGainRule::omlsa)
+                      SpectralGainRule rule=SpectralGainRule::omlsa,
+                      itu::OmlsaTuningConfig tuning={})
       : rate_(check_rate(rate)),hop_(rate_/100),n_(next_power_two(2*hop_)),bins_(n_/2+1),
         fft_(n_),noise_(bins_,rate_==16000?1.519743f:rate_==24000?1.450226f:1.448289f),window_(2*hop_),past_(hop_),overlap_(hop_),power_(bins_),
         gamma_(bins_),xi_(bins_),previous_h1_snr_(bins_,1.f),zeta_(bins_),gain_(bins_,1.f),noise_used_(bins_),probability_(bins_),
       local_(kernel(1)),global_(kernel(std::max(1u,unsigned(std::lround(470.*n_/rate_))))),
-        spectrum_(n_),floor_gain_(std::pow(10.f,floor_db/20)),protect_start_(protect_start),rule_(rule) {
+        spectrum_(n_),floor_gain_(std::pow(10.f,floor_db/20)),protect_start_(protect_start),rule_(rule),tuning_(tuning),
+        speech_floor_gain_(std::pow(10.f,tuning.speech_floor_db/20)) {
     if(!std::isfinite(floor_db) || floor_db>0 || floor_db< -40) throw std::invalid_argument("OM-LSA floor must be -40..0 dB");
+    if(!std::isfinite(tuning.noise_update_scale) || tuning.noise_update_scale<.1f || tuning.noise_update_scale>1.f ||
+       !std::isfinite(tuning.speech_recovery) || tuning.speech_recovery<0.f || tuning.speech_recovery>1.f ||
+       !std::isfinite(tuning.release_ms) || tuning.release_ms<0.f || tuning.release_ms>200.f ||
+       !std::isfinite(tuning.speech_floor_db) || tuning.speech_floor_db< -40.f || tuning.speech_floor_db>0.f)
+      throw std::invalid_argument("OM-LSA tuning requires noise scale .1..1, speech recovery 0..1, release 0..200 ms, speech floor -40..0 dB");
+    adaptive_enabled_=tuning.adaptive_noise_tracking || tuning.high_snr_transparency ||
+                      tuning.low_band_protection;
+    tuning_enabled_=tuning.noise_update_scale<1.f || tuning.speech_recovery>0.f ||
+                    tuning.speech_floor_db> -40.f || adaptive_enabled_;
+    if(tuning_enabled_ && rule_!=SpectralGainRule::omlsa)
+      throw std::invalid_argument("OM-LSA tuning is unavailable for other spectral gain rules");
+    if(tuning_enabled_) {
+      speech_hold_.resize(bins_);ungated_probability_.resize(bins_);
+      previous_power_.resize(bins_);stable_frames_.resize(bins_);
+      release_=tuning.release_ms>0.f ? std::exp(-10.f/tuning.release_ms):0.f;
+    }
+    if(adaptive_enabled_) {
+      adaptive_=std::make_unique<OmlsaAdaptiveControl>(rate_,n_,bins_);
+      independent_noise_.resize(bins_);previous_gain_.assign(bins_,1.f);
+    }
     for(unsigned i=0;i<2*hop_;++i) window_[i]=std::sin(3.14159265358979323846*(i+.5)/(2*hop_));
   }
   unsigned delay() const noexcept {return hop_;}
@@ -237,10 +280,17 @@ class OmlsaImcra {
   float noise_power() const noexcept {return noise_power_;}
   float bootstrap_seed() const noexcept {return bootstrap_seed_;}
   const ImcraNoiseEstimator& estimator() const noexcept {return noise_;}
+  // Engine-provided evidence is computed from current/past capture PCM by
+  // SpectralExcess. It is not an external VAD or a clean-reference label.
+  void set_capture_evidence(float excess_fraction) noexcept {
+    capture_evidence_=std::isfinite(excess_fraction) && excess_fraction>=0.f ?
+        std::clamp(excess_fraction,0.f,1.f):-1.f;
+  }
   NsSpectralFrame spectral_frame() noexcept {
     return {rate_,n_,bins_,power_.data(),noise_used_.data(),xi_.data(),gamma_.data(),probability_.data(),gain_.data()};
   }
-  void process(float* audio,NsSpectralControl* control=nullptr,float step_recovery=0) noexcept {
+  void process(float* audio,NsSpectralControl* control=nullptr,float step_recovery=0,
+               ComplexSpectralControl* complex_control=nullptr) noexcept {
     for(unsigned i=0;i<hop_;++i) {
       spectrum_[i]={past_[i]*window_[i],0};
       spectrum_[i+hop_]={audio[i]*window_[i+hop_],0};past_[i]=audio[i];
@@ -248,6 +298,19 @@ class OmlsaImcra {
     std::fill(spectrum_.begin()+2*hop_,spectrum_.end(),std::complex<float>{});
     fft_.run(spectrum_.data());
     for(unsigned k=0;k<bins_;++k) power_[k]=std::max(1e-16f,std::norm(spectrum_[k]));
+    if(adaptive_) {
+      adaptive_->observe(power_.data());
+      for(unsigned k=0;k<bins_;++k) independent_noise_[k]=adaptive_->anchor(k);
+      const bool supplied=capture_evidence_>=0.f;
+      const float evidence=supplied ? std::clamp((capture_evidence_-.25f)/.50f,0.f,1.f):
+          adaptive_->current_speech();
+      capture_speech_=std::max(evidence,capture_speech_*std::exp(-10.f/90.f));
+      capture_quiet_frames_=evidence<.12f ? std::min(1000u,capture_quiet_frames_+1):0;
+      capture_pause_=supplied && adaptive_frames_>=30 && capture_quiet_frames_>=10 &&
+          capture_speech_<.25f ? std::clamp((float(capture_quiet_frames_)-9.f)/10.f,0.f,1.f):
+          (supplied ? 0.f:adaptive_->pause());
+      ++adaptive_frames_;
+    }
     if(!noise_.initialized()) {
       // A bounded cold-start prior, using only this capture frame. Tonal/speech
       // starts must not immediately become the noise floor. It expires as the
@@ -275,6 +338,36 @@ class OmlsaImcra {
       } else frame_probability=probability(frame_zeta/peak_zeta_);
     }
     previous_frame_zeta_=frame_zeta;
+    if(tuning_enabled_) {
+      for(unsigned k=0;k<bins_;++k) {
+        const float prior=std::max(.005f,probability(average(zeta_,k,local_))*
+                                               probability(average(zeta_,k,global_)));
+        ungated_probability_[k]=omlsa_posterior(prior,xi_[k],gamma_[k]);
+      }
+      for(unsigned k=0;k<bins_;++k) {
+        unsigned neighbours=0;
+        for(int offset=-1;offset<=1;++offset) {
+          const unsigned j=unsigned(std::clamp(int(k)+offset,0,int(bins_)-1));
+          neighbours+=ungated_probability_[j]>.75f && gamma_[j]>1.5f && xi_[j]>.15f;
+        }
+        const float change=std::abs(power_[k]-previous_power_[k])/
+            std::max(std::max(power_[k],previous_power_[k]),1e-16f);
+        stable_frames_[k]=change<.08f ? std::min(1000u,stable_frames_[k]+1):0;
+        const float hz=float(k)*rate_/n_;
+        const float evidence=hz>=150.f && hz<=7000.f && neighbours>=2 && stable_frames_[k]<8 ?
+            std::clamp((ungated_probability_[k]-.60f)/.35f,0.f,1.f):0.f;
+        float current_evidence=evidence;
+        if(adaptive_ && tuning_.adaptive_noise_tracking) {
+          // Statistical speech evidence on steady car noise cannot keep the
+          // synthesis hold alive across an independently confirmed pause.
+          current_evidence*=std::max(.15f,capture_speech_);
+        }
+        speech_hold_[k]=std::max(current_evidence,speech_hold_[k]*release_);
+        if(adaptive_ && tuning_.adaptive_noise_tracking && capture_pause_>0.f)
+          speech_hold_[k]*=1.f-.25f*capture_pause_;
+        previous_power_[k]=power_[k];
+      }
+    }
     mean_probability_=mean_gain_=noise_power_=0;
     for(unsigned k=0;k<bins_;++k) {
       const float prior=std::max(.005f,probability(average(zeta_,k,local_))*probability(average(zeta_,k,global_))*frame_probability);
@@ -283,9 +376,64 @@ class OmlsaImcra {
       // The optional super-Gaussian experiment changes H1 gain only. IMCRA,
       // Gaussian evidence for soft speech presence, floor and timebase stay
       // identical. This hybrid is not a super-Gaussian marginal likelihood.
+      float bin_floor=floor_gain_;
+      if(adaptive_ && tuning_.adaptive_noise_tracking)
+        bin_floor=floor_gain_*std::pow(10.f,-9.f*capture_pause_/20.f);
       const float h1=std::max(floor_gain_,rule_==SpectralGainRule::omlsa ?
           omlsa_h1_gain(xi_[k],gamma_[k]):super_gaussian_h1_gain(xi_[k],gamma_[k]));
-      gain_[k]=std::exp(p*std::log(h1)+(1-p)*std::log(floor_gain_));
+      float synthesis_p=p;
+      if(adaptive_ && tuning_.adaptive_noise_tracking)
+        synthesis_p*=1.f-.85f*capture_pause_;
+      gain_[k]=std::exp(synthesis_p*std::log(h1)+(1-synthesis_p)*std::log(bin_floor));
+      if(tuning_enabled_ && tuning_.speech_recovery>0.f) {
+        // Preserve weak continuations only up to their conditional H1 gain;
+        // no speech hold can lift a noise bin above its H1 estimate. Keep
+        // this synthesis probability out of the DD/noise evidence.
+        const float protected_probability=std::max(synthesis_p,
+            tuning_.speech_recovery*speech_hold_[k]);
+        gain_[k]=std::exp(protected_probability*std::log(h1)+
+                         (1.f-protected_probability)*std::log(bin_floor));
+      }
+      if(adaptive_) {
+        const float hz=float(k)*rate_/n_;
+        const float local_excess=adaptive_->local_excess(k,power_.data());
+        if(tuning_.high_snr_transparency && capture_speech_>.35f && hz>=80.f) {
+          // Only restore bins with current local SNR support; no broadband
+          // dry bypass that would carry low-frequency rumble into pauses.
+          const float clean=std::clamp((local_excess-.90f)/.08f,0.f,1.f);
+          const float frame=std::clamp((adaptive_->mid_snr_db()-8.f)/10.f,0.f,1.f);
+          gain_[k]+=clean*frame*(1.f-gain_[k]);
+        }
+        if(tuning_.low_band_protection && hz>=80.f && hz<400.f &&
+           capture_speech_>.4f && adaptive_->mid_snr_db()>3.f) {
+          const float edge=std::clamp((hz-80.f)/50.f,0.f,1.f)*
+                           std::clamp((400.f-hz)/100.f,0.f,1.f);
+          const float evidence=std::clamp((local_excess-.75f)/.20f,0.f,1.f)*
+                               capture_speech_*edge;
+          const float clean_gain=std::sqrt(std::clamp(local_excess,0.f,1.f));
+          gain_[k]=std::max(gain_[k],gain_[k]+.6f*evidence*(clean_gain-gain_[k]));
+        }
+        if(capture_evidence_<0.f && adaptive_->cold_tonal_unconfirmed() && gamma_[k]>2.f)
+          gain_[k]=std::max(gain_[k],std::sqrt(std::clamp(1.f-1.f/gamma_[k],0.f,1.f)));
+        gain_[k]=std::max(gain_[k],adaptive_->narrow_tone_protection(k));
+        // Continuous attack/release on synthesis only; PSD/DD remain separate.
+        const float min_gain=tuning_.adaptive_noise_tracking ? floor_gain_*.35481339f:floor_gain_;
+        const float desired=std::clamp(gain_[k],min_gain,1.f);
+        const float alpha=desired>previous_gain_[k] ? .15f:.65f;
+        gain_[k]=alpha*previous_gain_[k]+(1.f-alpha)*desired;
+        previous_gain_[k]=gain_[k];
+      }
+      if(tuning_enabled_ && tuning_.speech_floor_db> -40.f) {
+        const float hz=float(k)*rate_/n_;
+        if(hz>=150.f && hz<=7000.f) {
+          // Lift only bins already supported by the causal speech-hold evidence.
+          // This synthesis-only floor cannot feed DD, H1 state or noise estimation.
+          const float evidence=std::clamp(speech_hold_[k],0.f,1.f);
+          const float bounded_floor=floor_gain_+
+              evidence*(std::max(floor_gain_,speech_floor_gain_)-floor_gain_);
+          gain_[k]=std::min(1.f,std::max(gain_[k],bounded_floor));
+        }
+      }
       previous_h1_snr_[k]=h1*h1*gamma_[k];
       mean_probability_+=p;mean_gain_+=gain_[k];noise_power_+=noise_.noise(k);
     }
@@ -296,8 +444,13 @@ class OmlsaImcra {
       mean_gain_=0;for(float g:gain_) mean_gain_+=g;mean_gain_/=bins_;
     }
     // Estimate t+1 only after this frame's gain uses the t noise estimate.
-    noise_.update(power_.data(),xi_.data(),gamma_.data(),step_recovery);
+    noise_.update(power_.data(),xi_.data(),gamma_.data(),step_recovery,
+                  tuning_enabled_ ? speech_hold_.data():nullptr,tuning_.noise_update_scale,
+                  adaptive_ && tuning_.adaptive_noise_tracking ? capture_pause_:0.f,
+                  adaptive_ ? independent_noise_.data():nullptr);
     for(unsigned k=0;k<bins_;++k) spectrum_[k]*=gain_[k];
+    if(complex_control) complex_control->observe(
+        {rate_,n_,bins_,spectrum_.data(),gain_.data()});
     for(unsigned k=1;k<n_/2;++k) spectrum_[n_-k]=std::conj(spectrum_[k]);
     fft_.run(spectrum_.data(),true);
     for(unsigned i=0;i<hop_;++i) {
@@ -337,5 +490,16 @@ class OmlsaImcra {
   float mean_probability_=0,mean_gain_=1,noise_power_=0,bootstrap_seed_=1;
   bool protect_start_;
   SpectralGainRule rule_;
+  itu::OmlsaTuningConfig tuning_;
+  float speech_floor_gain_;
+  bool tuning_enabled_=false;
+  bool adaptive_enabled_=false;
+  std::unique_ptr<OmlsaAdaptiveControl> adaptive_;
+  std::vector<float> independent_noise_,previous_gain_;
+  float capture_evidence_=-1.f,capture_speech_=0.f,capture_pause_=0.f;
+  unsigned capture_quiet_frames_=0,adaptive_frames_=0;
+  float release_=0.f;
+  std::vector<float> speech_hold_,ungated_probability_,previous_power_;
+  std::vector<unsigned> stable_frames_;
 };
 }

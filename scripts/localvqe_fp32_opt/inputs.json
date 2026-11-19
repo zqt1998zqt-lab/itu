@@ -1,0 +1,106 @@
+{
+  "cases": [
+    {
+      "condition": "near_single",
+      "case_directory": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/c75b5a062af041c9ad07398f8bf33b5c/cases/sce1-wb-wired-near_single-01-conversation-v2",
+      "files": {
+        "mic": {
+          "path": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/c75b5a062af041c9ad07398f8bf33b5c/cases/sce1-wb-wired-near_single-01-conversation-v2/tx.dynamic-microphone.wav",
+          "sha256": "8c8b12d9df867925e7bf8981e4adc7977ea78f4434d37d1130751a9d27761d89",
+          "rate": 16000,
+          "channels": 2,
+          "samples": 192000
+        },
+        "echo": {
+          "path": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/c75b5a062af041c9ad07398f8bf33b5c/cases/sce1-wb-wired-near_single-01-conversation-v2/rx.rx-spk.wav",
+          "sha256": "6e49db6ecc812f32cb043fb3c02e4aea55329fa8df27724c5b4e2a76ed57c360",
+          "rate": 16000,
+          "channels": 1,
+          "samples": 192000
+        }
+      }
+    },
+    {
+      "condition": "far_single",
+      "case_directory": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/7e823b132d434c46bac8a3ff47ee99d7/cases/sce1-wb-wired-far_single-01-conversation-v2",
+      "files": {
+        "mic": {
+          "path": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/7e823b132d434c46bac8a3ff47ee99d7/cases/sce1-wb-wired-far_single-01-conversation-v2/tx.dynamic-microphone.wav",
+          "sha256": "bfd0c00f57f81f9fd093d8ae20788902bfef18edb39e447dc8794b5722cc86f2",
+          "rate": 16000,
+          "channels": 2,
+          "samples": 192000
+        },
+        "echo": {
+          "path": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/7e823b132d434c46bac8a3ff47ee99d7/cases/sce1-wb-wired-far_single-01-conversation-v2/rx.rx-spk.wav",
+          "sha256": "0ad70720de2df403e89510935ff6d3d1781c83d668b779fc60e3c4b762c85c8c",
+          "rate": 16000,
+          "channels": 1,
+          "samples": 192000
+        }
+      }
+    },
+    {
+      "condition": "double_talk",
+      "case_directory": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/12ad2bf8bf424c74b51abac91c2a6ec9/cases/sce1-wb-wired-double_talk-01-conversation-v2",
+      "files": {
+        "mic": {
+          "path": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/12ad2bf8bf424c74b51abac91c2a6ec9/cases/sce1-wb-wired-double_talk-01-conversation-v2/tx.dynamic-microphone.wav",
+          "sha256": "33a5b50434441020b4a6612e6698a4730ad89564f8c33aba0d7731791cc7f9f3",
+          "rate": 16000,
+          "channels": 2,
+          "samples": 192000
+        },
+        "echo": {
+          "path": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/12ad2bf8bf424c74b51abac91c2a6ec9/cases/sce1-wb-wired-double_talk-01-conversation-v2/rx.rx-spk.wav",
+          "sha256": "84c5f7df978f0d85c8c809f61db91c694f402639562ed234ed178a4d81a313d1",
+          "rate": 16000,
+          "channels": 1,
+          "samples": 192000
+        }
+      }
+    },
+    {
+      "condition": "transition",
+      "case_directory": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/e23407dca72846ea84984daf04a48ab5/cases/sce1-wb-wired-transition-01-conversation-v2",
+      "files": {
+        "mic": {
+          "path": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/e23407dca72846ea84984daf04a48ab5/cases/sce1-wb-wired-transition-01-conversation-v2/tx.dynamic-microphone.wav",
+          "sha256": "4dbd98d2745b3b7b5d334db49fa0f84eebf976d373c71631ee3744e84d8aa0c5",
+          "rate": 16000,
+          "channels": 2,
+          "samples": 192000
+        },
+        "echo": {
+          "path": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/e23407dca72846ea84984daf04a48ab5/cases/sce1-wb-wired-transition-01-conversation-v2/rx.rx-spk.wav",
+          "sha256": "82c04c545a2f845ba2337de2340750274b234c316479884cd73b09980e27cdac",
+          "rate": 16000,
+          "channels": 1,
+          "samples": 192000
+        }
+      }
+    },
+    {
+      "condition": "noise_only",
+      "case_directory": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/27f15c8fac3343068bb204643535a1b1/cases/sce1-wb-wired-noise_only-01-conversation-v2",
+      "files": {
+        "mic": {
+          "path": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/27f15c8fac3343068bb204643535a1b1/cases/sce1-wb-wired-noise_only-01-conversation-v2/tx.dynamic-microphone.wav",
+          "sha256": "cacaba1cb185583a6133b065d7ca81ba30e5e94b3e4db935f5b08b7c8e1ea379",
+          "rate": 16000,
+          "channels": 2,
+          "samples": 192000
+        },
+        "echo": {
+          "path": "/home/zhangqingtian/project/itu/build/acoustic-qualification/scene-condition-batches/27f15c8fac3343068bb204643535a1b1/cases/sce1-wb-wired-noise_only-01-conversation-v2/rx.rx-spk.wav",
+          "sha256": "6e49db6ecc812f32cb043fb3c02e4aea55329fa8df27724c5b4e2a76ed57c360",
+          "rate": 16000,
+          "channels": 1,
+          "samples": 192000
+        }
+      }
+    }
+  ],
+  "existing_sources_only": true,
+  "no_dataset_mutation": true
+}

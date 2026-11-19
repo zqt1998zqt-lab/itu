@@ -30,11 +30,13 @@ from server.acoustic.acceptance_scene_conditions import (
     ROLES,
     SCENE,
 )
+from server.acoustic.scene_condition_profiles import profile_for_scene
 from server.app import app as product_app
 
 
-DATASET_ID = "c" * 32
-DATASET_NAME = "synthetic-scene-condition-batch-v1"
+PROFILE = profile_for_scene(SCENE)
+DATASET_ID = PROFILE.dataset_id
+DATASET_NAME = PROFILE.dataset_name
 ALGORITHM_CLUSTER = "vcp_default"
 CATALOG_SHA256 = "e" * 64
 BATCH_PREFIX = "/api/alignment/acceptance/scene-condition-batches"
@@ -47,6 +49,46 @@ class _CapturingExecutor:
     def submit(self, function, *args):
         self.submissions.append((function, args))
         return None
+
+
+def test_rx_command_flags_remove_tx_only_localvqe_reference_channel():
+    flags = [
+        "--no-rx-processing",
+        "--aec-backend",
+        "localvqe_aec200k",
+        "--localvqe-reference-channel",
+        "0",
+    ]
+    assert acceptance_batch._rx_command_flags(flags) == [
+        "--aec-backend",
+        "localvqe_aec200k",
+    ]
+
+
+def test_rx_command_flags_reject_orphaned_tx_only_option():
+    with pytest.raises(ValueError, match="TX-only option without a value"):
+        acceptance_batch._rx_command_flags(["--localvqe-reference-channel"])
+
+
+def test_execution_case_fails_closed_when_dynamic_metadata_is_incomplete():
+    case = {
+        "case_id": "incomplete-dynamic-case",
+        "conditions": {"direction": "send"},
+        "contract_item_ids": [],
+        "provenance": {
+            "analysis_start_s": 0.0,
+            "conversation_mode": "double_talk",
+            "render_metadata": {
+                "beam_delays_ms": [0.0, 0.0],
+                "near_arrival_delays_samples": [0, 0],
+            },
+        },
+    }
+    with pytest.raises(
+        ValueError,
+        match="运行时 post-RX 麦克风合成元数据",
+    ):
+        scene_condition_batch._execution_case(case)
 
 
 @dataclass
@@ -152,6 +194,9 @@ def _synthetic_dataset(build: Path) -> dict:
     return {
         "dataset_id": DATASET_ID,
         "dataset_name": DATASET_NAME,
+        "dataset_kind": PROFILE.dataset_kind,
+        "mode": MODE,
+        "scene": SCENE,
         "root": root,
         "cases": cases,
         "dataset_manifest_sha256": "1" * 64,
@@ -161,9 +206,11 @@ def _synthetic_dataset(build: Path) -> dict:
 
 
 def _validated_loader(dataset: dict, contract_by_id: dict[str, dict]):
-    def load(dataset_id: str):
+    def load(dataset_id: str, requested_scene: str | None = None):
         if dataset_id != DATASET_ID:
             raise ValueError("场景条件测试集不可用: unknown synthetic dataset")
+        if requested_scene is not None and requested_scene != dataset["scene"]:
+            raise ValueError("场景条件测试集与请求模式或场景不一致")
         return copy.deepcopy(dataset), copy.deepcopy(contract_by_id)
 
     return load
@@ -184,6 +231,7 @@ def scene_batch_environment(tmp_path, monkeypatch) -> _SceneBatchEnvironment:
     )
     monkeypatch.setattr(acceptance_batch, "_ACTIVE", set())
     monkeypatch.setattr(acceptance_batch, "_LEGACY_ACTIVE", False)
+    monkeypatch.setenv(scene_condition_batch.CASE_WORKERS_ENV, "1")
     executor = _CapturingExecutor()
     monkeypatch.setattr(acceptance_batch, "_EXECUTOR", executor)
 
@@ -201,7 +249,10 @@ def scene_batch_environment(tmp_path, monkeypatch) -> _SceneBatchEnvironment:
         return (
             {"profile": profile},
             {},
-            {"algorithm_cluster_id": cluster_id},
+            {
+                "algorithm_cluster_id": cluster_id,
+                "selection": {"aec": "webrtc"},
+            },
             CATALOG_SHA256,
         )
 
@@ -257,7 +308,7 @@ def _controlled_calculation(
 ) -> list[dict]:
     assert report_id
     assert set(input_paths) == set(ROLES)
-    assert set(outputs) == {"tx"}
+    assert set(outputs) in ({"tx"}, {"rx", "tx"})
     assert set(execution["input_sha256"]) == set(ROLES)
     return [
         {
@@ -277,6 +328,7 @@ def _install_successful_executor(
     *,
     fail_case_id: str | None = None,
     mismatch: str | None = None,
+    with_rx: bool = False,
 ) -> SimpleNamespace:
     run_calls: list[dict] = []
     calculate_calls: list[dict] = []
@@ -301,10 +353,21 @@ def _install_successful_executor(
             raise RuntimeError("controlled case failure")
 
         tx_path = _write_tx(destination, case["id"])
+        rx_path = None
+        if with_rx:
+            rx_path = destination / "rx.rx-spk.wav"
+            sf.write(
+                rx_path,
+                np.zeros(1_600, dtype=np.float32),
+                16_000,
+                subtype="PCM_16",
+            )
         input_sha256 = {
             role: _sha256_file(path) for role, path in paths.items()
         }
         output_sha256 = {"tx": _sha256_file(tx_path)}
+        if rx_path is not None:
+            output_sha256["rx"] = _sha256_file(rx_path)
         reported_inputs = dict(input_sha256)
         reported_outputs = dict(output_sha256)
         if mismatch is not None and not mismatch_used:
@@ -324,9 +387,24 @@ def _install_successful_executor(
             "input_sha256": reported_inputs,
             "output_sha256": reported_outputs,
             "output_alignment": {
-                "tx": {"analysis_filename": tx_path.name}
+                **(
+                    {"rx": {"analysis_filename": rx_path.name}}
+                    if rx_path is not None
+                    else {}
+                ),
+                "tx": {"analysis_filename": tx_path.name},
             },
         }
+        if rx_path is not None:
+            execution["echo_reference"] = {
+                "source": "vcp_rx_processed",
+                "input_role": "far_end",
+                "input_sha256": input_sha256["far_end"],
+                "processed_output": "rx",
+                "processed_sha256": output_sha256["rx"],
+                "tx_echo_argument_sha256": output_sha256["rx"],
+            }
+            return {"tx": tx_path, "rx": rx_path}, execution
         return {"tx": tx_path}, execution
 
     def controlled_calculate(*args, **kwargs):
@@ -735,11 +813,17 @@ def test_invalid_dataset_mode_scene_and_non_vcp_cluster_are_rejected(
             ALGORITHM_CLUSTER,
             mode="NB-wired",
         )
-    with pytest.raises(ValueError, match=SCENE):
+    with pytest.raises(ValueError, match="不一致"):
         scene_condition_batch.start_batch(
             DATASET_ID,
             ALGORITHM_CLUSTER,
             scene="sce2",
+        )
+    with pytest.raises(ValueError, match="不支持场景"):
+        scene_condition_batch.start_batch(
+            DATASET_ID,
+            ALGORITHM_CLUSTER,
+            scene="sce5",
         )
     with pytest.raises(ValueError, match="VCP"):
         scene_condition_batch.start_batch(DATASET_ID, "agc_default")
@@ -794,6 +878,46 @@ def test_tx_endpoint_serves_only_the_bound_case_and_rejects_wrong_case(
         f"{BATCH_PREFIX}/{queued['batch_id']}/cases/not-a-case/outputs/tx"
     )
     assert wrong_case.status_code == 404
+
+
+def test_rx_after_endpoint_serves_processed_echo_reference_used_by_tx(
+    scene_batch_environment: _SceneBatchEnvironment,
+    monkeypatch,
+):
+    queued = _queue_batch(scene_batch_environment)
+    _install_successful_executor(
+        monkeypatch,
+        queued,
+        with_rx=True,
+    )
+    completed = scene_condition_batch.run_batch(queued["batch_id"])
+    case = completed["cases"][0]
+    case_id = case["case_id"]
+    assert set(case["output_sha256"]) == {"rx", "tx"}
+    assert case["execution"]["echo_reference"]["processed_sha256"] == (
+        case["output_sha256"]["rx"]
+    )
+    assert case["execution"]["echo_reference"][
+        "tx_echo_argument_sha256"
+    ] == case["output_sha256"]["rx"]
+    assert case["rx_visual"]["source_sha256"] == (
+        case["output_sha256"]["rx"]
+    )
+
+    expected_path, expected_sha256 = scene_condition_batch.output_path(
+        queued["batch_id"],
+        case_id,
+        "rx",
+    )
+    expected_payload = expected_path.read_bytes()
+    client = _isolated_batch_client()
+    response = client.get(
+        f"{BATCH_PREFIX}/{queued['batch_id']}/cases/{case_id}/outputs/rx"
+    )
+    assert response.status_code == 200
+    assert response.content == expected_payload
+    assert response.headers["content-type"].startswith("audio/wav")
+    assert response.headers["etag"] == f'"{expected_sha256}"'
 
 
 def test_tx_endpoint_rejects_mismatched_tx_and_report_hash(
@@ -853,3 +977,18 @@ def test_scene_condition_batch_routes_are_mounted_on_the_product_app():
         for route in product_app.routes
     }
     assert BATCH_PREFIX in paths
+
+# The synthetic V1 loader predates the multi-mode requested_mode argument.
+# Adapt the fixture signature while preserving its original 20-case payload.
+_legacy_synthetic_validated_loader = _validated_loader
+
+
+def _validated_loader(dataset, contracts):
+    original = _legacy_synthetic_validated_loader(dataset, contracts)
+
+    def load(dataset_id, *, requested_scene=None, requested_mode=None):
+        if requested_mode not in (None, MODE):
+            raise ValueError("场景条件批次的业务模式不一致")
+        return original(dataset_id, requested_scene=requested_scene)
+
+    return load

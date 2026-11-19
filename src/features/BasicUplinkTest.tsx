@@ -21,13 +21,31 @@ import {
   Upload,
   XCircle,
 } from "lucide-react";
-import { chainPresets } from "./enhancement-chain-model";
+import {
+  algorithmClusterById,
+  algorithmClusterGroupsForMode,
+  algorithmClusterLabel,
+  algorithmClustersForMode,
+  isAlgorithmClusterSupportedForMode,
+  sampleRateForBusinessMode,
+} from "./rate-algorithm-clusters";
 import {
   FIVE_SIGNAL_MODES,
   type FiveSignalMode,
 } from "./five-signal-flow-model";
+import AlgorithmClusterSummary from "./AlgorithmClusterSummary";
+import { businessModeLabel as modeLabel } from "../domain/business-modes.ts";
 import "./basic-uplink-test.css";
 import BasicUplinkTree from "./BasicUplinkTree";
+import DatasetCaseRuns from "./DatasetCaseRuns";
+import {
+  assertCaseExecutionSnapshot,
+  readAcceptanceCaseCatalog,
+  readSingleCaseSelection,
+  type AcceptanceCaseCatalog,
+  type CaseRunSnapshot,
+  type SingleCaseSelection,
+} from "./dataset-case-runs-model.ts";
 
 const DATASETS_URL = "/api/alignment/acceptance/datasets";
 const CATALOG_URL = "/api/alignment/acceptance/basic-uplink/catalog";
@@ -39,17 +57,6 @@ const RUN_STORAGE_KEY =
 const POLL_INTERVAL_MS = 2000;
 const BASIC_ITEM_COUNT = 8;
 const MAX_ARCHIVE_BYTES = 256 * 1024 * 1024;
-
-const MODE_LABELS: Record<FiveSignalMode, string> = {
-  "NB-wired": "窄带 · 有线",
-  "NB-wireless": "窄带 · 无线",
-  "NB-bt": "窄带 · 蓝牙",
-  "WB-wired": "宽带 · 有线",
-  "WB-wireless": "宽带 · 无线",
-  "WB-bt": "宽带 · 蓝牙",
-  "SWB-wired": "超宽带 · 有线",
-  "SWB-wireless": "超宽带 · 无线",
-};
 
 const BATCH_STATUSES = [
   "queued",
@@ -164,6 +171,13 @@ export type BasicBatchSnapshot = {
   items: BasicBatchItem[];
   cases?: BasicBatchCase[];
   error?: string | null;
+  execution_scope?: "single_case";
+  selected_case_id?: string;
+  dataset_case_count?: number;
+  dataset_observation_count?: number;
+  preview_condition_group_count?: number;
+  case_count?: number;
+  observation_count?: number;
 };
 
 type BasicBatchSummary = {
@@ -177,6 +191,11 @@ type BasicBatchSummary = {
   selected_mode: FiveSignalMode;
   progress: BasicBatchSnapshot["progress"];
   summary: BasicBatchSnapshot["summary"];
+  execution_scope?: "single_case";
+  selected_case_id?: string;
+  dataset_case_count?: number;
+  dataset_observation_count?: number;
+  preview_condition_group_count?: number;
 };
 
 type BasicBatchSnapshotShape = Omit<
@@ -193,6 +212,13 @@ type ExpectedBatchIdentity = {
   datasetId?: string;
   algorithmClusterId?: string;
   mode?: FiveSignalMode;
+  caseId?: string;
+  datasetCaseCount?: number;
+  datasetObservationCount?: number;
+  previewConditionGroupCount?: number;
+  caseItemIds?: readonly string[];
+  contractItemIds?: readonly string[];
+  allowSingle?: boolean;
 };
 
 type Props = {
@@ -222,9 +248,6 @@ const ITEM_STATUS_LABEL: Record<ItemStatus, string> = {
   invalid: "无效",
 };
 
-const VCP_PRESETS = chainPresets.filter((preset) =>
-  preset.profile.startsWith("vcp"),
-);
 const MODE_SET = new Set<string>(FIVE_SIGNAL_MODES);
 const BATCH_STATUS_SET = new Set<string>(BATCH_STATUSES);
 const ITEM_STATUS_SET = new Set<string>(ITEM_STATUSES);
@@ -469,7 +492,7 @@ function isBasicBatchSnapshotShape(
 function isBasicBatchSummary(
   value: unknown,
 ): value is BasicBatchSummary {
-  return (
+  const shapeValid =
     isRecord(value) &&
     isString(value.batch_id) &&
     isString(value.dataset_id) &&
@@ -481,9 +504,31 @@ function isBasicBatchSummary(
     value.test_scope === "basic_uplink" &&
     isMode(value.selected_mode) &&
     isProgress(value.progress) &&
-    isSummary(value.summary) &&
-    value.progress.total_items === BASIC_ITEM_COUNT &&
-    value.summary.total === BASIC_ITEM_COUNT
+    isSummary(value.summary);
+  if (!shapeValid) return false;
+  const progress =
+    value.progress as BasicBatchSummary["progress"];
+  const summary = value.summary as BasicBatchSummary["summary"];
+  let selection: SingleCaseSelection | null;
+  try {
+    selection = readSingleCaseSelection(value);
+  } catch {
+    return false;
+  }
+  if (selection) {
+    return (
+      progress.total_cases === 1 &&
+      progress.total_items === summary.total &&
+      summary.total > 0 &&
+      summary.total <= BASIC_ITEM_COUNT &&
+      progress.completed_cases <= 1 &&
+      progress.completed_items <= progress.total_items
+    );
+  }
+  return (
+    progress.total_cases > 0 &&
+    progress.total_items === BASIC_ITEM_COUNT &&
+    summary.total === BASIC_ITEM_COUNT
   );
 }
 
@@ -545,15 +590,6 @@ function assertBasicBatchSnapshot(
     throw new Error(`${operation}返回的模式与请求不一致`);
   }
   if (
-    value.items.length !== BASIC_ITEM_COUNT ||
-    value.progress.total_items !== BASIC_ITEM_COUNT ||
-    value.summary.total !== BASIC_ITEM_COUNT
-  ) {
-    throw new Error(
-      `${operation}拒绝：基础上行必须恰好包含 8 个逐项结果`,
-    );
-  }
-  if (
     value.items.some((item) => item.mode !== value.selected_mode)
   ) {
     throw new Error(
@@ -562,9 +598,46 @@ function assertBasicBatchSnapshot(
   }
   if (
     new Set(value.items.map((item) => item.item_id)).size !==
-    BASIC_ITEM_COUNT
+    value.items.length
   ) {
-    throw new Error(`${operation}拒绝：8 个基础上行 item_id 必须唯一`);
+    throw new Error(`${operation}拒绝：基础上行 item_id 必须唯一`);
+  }
+  let selection: SingleCaseSelection | null;
+  try {
+    selection = readSingleCaseSelection(value);
+  } catch (reason) {
+    throw new Error(
+      `${operation}拒绝：${errorMessage(
+        reason,
+        "单组选择元数据无效",
+      )}`,
+    );
+  }
+  if (selection && expected.allowSingle === false) {
+    throw new Error(`${operation}拒绝：完整批次请求不能返回单组快照`);
+  }
+  const expectedCaseId =
+    expected.caseId ?? selection?.selected_case_id;
+  assertCaseExecutionSnapshot(
+    value as unknown as CaseRunSnapshot,
+    {
+      scope: "basic_uplink",
+      mode: value.selected_mode,
+      fullItemCount: BASIC_ITEM_COUNT,
+      caseId: expectedCaseId,
+      datasetCaseCount: expected.datasetCaseCount,
+      datasetObservationCount: expected.datasetObservationCount,
+      caseItemIds: expected.caseItemIds,
+      contractItemIds: expected.contractItemIds,
+    },
+  );
+  if (
+    selection &&
+    expected.previewConditionGroupCount !== undefined &&
+    selection.preview_condition_group_count !==
+      expected.previewConditionGroupCount
+  ) {
+    throw new Error(`${operation}拒绝：单组快照的完整条件组数量不一致`);
   }
   return value as BasicBatchSnapshot;
 }
@@ -715,13 +788,8 @@ function isZipArchive(file: File): boolean {
   );
 }
 
-function modeLabel(mode: FiveSignalMode): string {
-  return `${MODE_LABELS[mode]} · ${mode}`;
-}
-
 function algorithmLabel(id: string): string {
-  const preset = chainPresets.find((item) => item.id === id);
-  return preset ? `${preset.label} · ${preset.id}` : id || "未选择";
+  return id ? algorithmClusterLabel(id) : "未选择";
 }
 
 function conditionLabels(
@@ -768,7 +836,73 @@ function asBatchSummary(
     selected_mode: snapshot.selected_mode,
     progress: snapshot.progress,
     summary: snapshot.summary,
+    ...(snapshot.execution_scope === "single_case"
+      ? {
+          execution_scope: snapshot.execution_scope,
+          selected_case_id: snapshot.selected_case_id,
+          dataset_case_count: snapshot.dataset_case_count,
+          dataset_observation_count:
+            snapshot.dataset_observation_count,
+          preview_condition_group_count:
+            snapshot.preview_condition_group_count,
+        }
+      : {}),
   };
+}
+
+function sameBasicItemIdentity(
+  snapshot: BasicBatchSnapshot,
+  catalog: CatalogResponse | null,
+  cases: AcceptanceCaseCatalog | null,
+): boolean {
+  if (!catalog || catalog.mode !== snapshot.selected_mode) return false;
+  const catalogIds = new Set(catalog.items.map((item) => item.id));
+  let selection: SingleCaseSelection | null;
+  try {
+    selection = readSingleCaseSelection(snapshot);
+  } catch {
+    return false;
+  }
+  if (!selection) {
+    const itemIds = new Set(snapshot.items.map((item) => item.item_id));
+    return (
+      snapshot.items.length === BASIC_ITEM_COUNT &&
+      itemIds.size === BASIC_ITEM_COUNT &&
+      catalog.items.every((item) => itemIds.has(item.id))
+    );
+  }
+  const sourceCase =
+    cases?.cases.find(
+      (entry) => entry.case_id === selection.selected_case_id,
+    ) ?? null;
+  if (
+    cases &&
+    (
+      cases.dataset_id !== snapshot.dataset_id ||
+      cases.mode !== snapshot.selected_mode ||
+      !sourceCase
+    )
+  ) {
+    return false;
+  }
+  const itemIds = new Set(snapshot.items.map((item) => item.item_id));
+  if (
+    itemIds.size !== snapshot.items.length ||
+    snapshot.items.some(
+      (item) =>
+        !catalogIds.has(item.item_id) ||
+        item.evidence_binding?.case_id !== selection.selected_case_id,
+    )
+  ) {
+    return false;
+  }
+  return (
+    !sourceCase ||
+    (
+      sourceCase.item_ids.length === itemIds.size &&
+      sourceCase.item_ids.every((itemId) => itemIds.has(itemId))
+    )
+  );
 }
 
 function ItemStatusBadge({ status }: { status: ItemStatus }) {
@@ -811,6 +945,10 @@ export default function BasicUplinkTest({
   const [catalogError, setCatalogError] = useState("");
   const [catalogRefresh, setCatalogRefresh] = useState(0);
   const [catalogOpen, setCatalogOpen] = useState(true);
+  const [caseCatalog, setCaseCatalog] =
+    useState<AcceptanceCaseCatalog | null>(null);
+  const [caseCatalogLoading, setCaseCatalogLoading] = useState(false);
+  const [caseCatalogError, setCaseCatalogError] = useState("");
 
   const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
   const [datasetsLoading, setDatasetsLoading] = useState(true);
@@ -855,9 +993,19 @@ export default function BasicUplinkTest({
     Boolean(selectedDatasetId) && selectedDataset === null;
   const selectedDatasetIsComplete =
     selectedDataset?.item_count === 336;
-  const algorithmIsSupported = VCP_PRESETS.some(
-    (preset) => preset.id === algorithmClusterId,
+  const modeRateHz = sampleRateForBusinessMode(mode);
+  const availableAlgorithmGroups = algorithmClusterGroupsForMode(mode, {
+    vcpOnly: true,
+  });
+  const availableAlgorithmCount = algorithmClustersForMode(mode, {
+    vcpOnly: true,
+  }).length;
+  const algorithmIsSupported = isAlgorithmClusterSupportedForMode(
+    algorithmClusterId,
+    mode,
+    { vcpOnly: true },
   );
+  const selectedAlgorithmCluster = algorithmClusterById(algorithmClusterId);
   const isBatchActive =
     snapshot?.status === "queued" ||
     snapshot?.status === "running";
@@ -879,6 +1027,11 @@ export default function BasicUplinkTest({
     selectedDatasetIsComplete &&
     Boolean(algorithmClusterId) &&
     algorithmIsSupported;
+  const canRunSingle =
+    canStart &&
+    !caseCatalogLoading &&
+    !caseCatalogError &&
+    Boolean(caseCatalog);
 
   const reportMode = snapshot?.selected_mode ?? null;
   const reportModeMismatch =
@@ -942,6 +1095,26 @@ export default function BasicUplinkTest({
     snapshot?.status === "completed" ||
     snapshot?.status === "failed" ||
     snapshot?.status === "cancelled";
+  const singleCaseSelection = useMemo(() => {
+    if (!snapshot) return null;
+    try {
+      return readSingleCaseSelection(snapshot);
+    } catch {
+      return null;
+    }
+  }, [snapshot]);
+  const catalogIdentityError = useMemo(() => {
+    if (
+      !snapshot ||
+      !catalog ||
+      catalog.mode !== snapshot.selected_mode
+    ) {
+      return "";
+    }
+    return sameBasicItemIdentity(snapshot, catalog, caseCatalog)
+      ? ""
+      : "报告逐项身份与当前合同或单组目录不一致；拒绝把不同条件组显示为本次结果。";
+  }, [caseCatalog, catalog, snapshot]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -969,6 +1142,63 @@ export default function BasicUplinkTest({
       });
     return () => controller.abort();
   }, [catalogRefresh, mode]);
+
+  useEffect(() => {
+    if (
+      !selectedDatasetId ||
+      !catalog ||
+      catalog.mode !== mode ||
+      catalog.items.length !== BASIC_ITEM_COUNT
+    ) {
+      setCaseCatalog(null);
+      setCaseCatalogError("");
+      setCaseCatalogLoading(Boolean(selectedDatasetId));
+      return;
+    }
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      test_scope: "basic_uplink",
+      mode,
+    });
+    setCaseCatalogLoading(true);
+    setCaseCatalogError("");
+    requestJson(
+      `${DATASETS_URL}/${encodeURIComponent(
+        selectedDatasetId,
+      )}/cases?${params}`,
+      { signal: controller.signal },
+      "读取基础上行单组目录",
+    )
+      .then((body) =>
+        readAcceptanceCaseCatalog(body, {
+          datasetId: selectedDatasetId,
+          scope: "basic_uplink",
+          mode,
+          contractItemIds: catalog.items.map((item) => item.id),
+        }),
+      )
+      .then((next) => {
+        if (!controller.signal.aborted) setCaseCatalog(next);
+      })
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted) {
+          setCaseCatalog(null);
+          setCaseCatalogError(
+            errorMessage(reason, "基础上行单组目录读取失败"),
+          );
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setCaseCatalogLoading(false);
+        }
+      });
+    return () => controller.abort();
+  }, [
+    catalog,
+    mode,
+    selectedDatasetId,
+  ]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1151,6 +1381,12 @@ export default function BasicUplinkTest({
     const batchId = current.batch_id;
     const batchMode = current.selected_mode;
     const batchCluster = current.algorithm_cluster_id;
+    const selection = readSingleCaseSelection(current);
+    const selectedCatalogCase = selection
+      ? caseCatalog?.cases.find(
+          (entry) => entry.case_id === selection.selected_case_id,
+        )
+      : undefined;
     let timer: number | undefined;
     let disposed = false;
     let inFlight = false;
@@ -1167,6 +1403,18 @@ export default function BasicUplinkTest({
             datasetId: current.dataset_id,
             algorithmClusterId: batchCluster,
             mode: batchMode,
+            caseId: selection?.selected_case_id,
+            datasetCaseCount: selection?.dataset_case_count,
+            datasetObservationCount:
+              selection?.dataset_observation_count,
+            previewConditionGroupCount:
+              selection?.preview_condition_group_count,
+            caseItemIds: selectedCatalogCase?.item_ids,
+            contractItemIds:
+              catalog?.mode === batchMode
+                ? catalog.items.map((item) => item.id)
+                : undefined,
+            allowSingle: Boolean(selection),
           },
         );
         if (disposed) return;
@@ -1196,6 +1444,8 @@ export default function BasicUplinkTest({
       controller.abort();
     };
   }, [
+    caseCatalog,
+    catalog,
     isBatchActive,
     pollRetry,
     snapshot?.batch_id,
@@ -1304,7 +1554,7 @@ export default function BasicUplinkTest({
     }
   }
 
-  async function handleStart() {
+  async function handleStart(caseId?: string) {
     if (
       !canStart ||
       !selectedDataset ||
@@ -1316,6 +1566,13 @@ export default function BasicUplinkTest({
     const requestedDatasetId = selectedDataset.dataset_id;
     const requestedClusterId = algorithmClusterId;
     const requestedMode = mode;
+    const selectedCase = caseId
+      ? caseCatalog?.cases.find((entry) => entry.case_id === caseId)
+      : undefined;
+    if (caseId && !selectedCase) {
+      setRunError("所选条件组不在当前数据集的单组目录中，拒绝提交。");
+      return;
+    }
     const controller = new AbortController();
     launchAbortRef.current = controller;
     setLaunching(true);
@@ -1333,6 +1590,7 @@ export default function BasicUplinkTest({
             dataset_id: requestedDatasetId,
             algorithm_cluster_id: requestedClusterId,
             mode: requestedMode,
+            ...(caseId ? { case_id: caseId } : {}),
           }),
           signal: controller.signal,
         },
@@ -1345,6 +1603,22 @@ export default function BasicUplinkTest({
           datasetId: requestedDatasetId,
           algorithmClusterId: requestedClusterId,
           mode: requestedMode,
+          caseId,
+          datasetCaseCount: selectedCase
+            ? caseCatalog?.case_count
+            : undefined,
+          datasetObservationCount: selectedCase
+            ? caseCatalog?.observation_count
+            : undefined,
+          previewConditionGroupCount: selectedCase
+            ? caseCatalog?.case_count
+            : undefined,
+          caseItemIds: selectedCase?.item_ids,
+          contractItemIds:
+            catalog.mode === requestedMode
+              ? catalog.items.map((item) => item.id)
+              : undefined,
+          allowSingle: Boolean(caseId),
         },
       );
       if (controller.signal.aborted) return;
@@ -1449,8 +1723,11 @@ export default function BasicUplinkTest({
           {historyChoices.map((row) => (
             <option key={row.batch_id} value={row.batch_id}>
               {formatDate(row.created_at)} ·{" "}
-              {MODE_LABELS[row.selected_mode]} ·{" "}
+              {modeLabel(row.selected_mode)} ·{" "}
               {row.algorithm_cluster_id} ·{" "}
+              {row.execution_scope === "single_case"
+                ? `单组 ${row.selected_case_id ?? ""} · `
+                : ""}
               {BATCH_STATUS_LABEL[row.status]} ·{" "}
               {row.batch_id.slice(0, 8)}
             </option>
@@ -1509,11 +1786,11 @@ export default function BasicUplinkTest({
               </option>
             ))}
           </select>
-          <small>目录与批次都按此模式严格校验。</small>
+          <small>目录与批次都按此模式严格校验。选项为业务参考率，实际输入/处理率依音频与算法确定。</small>
         </label>
 
         <label htmlFor={clusterSelectId}>
-          <span>VCP 算法簇</span>
+          <span>VCP 算法簇（{modeRateHz / 1000} kHz 可选 {availableAlgorithmCount} 项）</span>
           <select
             id={clusterSelectId}
             aria-label="VCP 算法簇"
@@ -1526,20 +1803,24 @@ export default function BasicUplinkTest({
             {!algorithmIsSupported ? (
               <option value={algorithmClusterId}>
                 {algorithmClusterId
-                  ? `${algorithmClusterId}（非 VCP，不可执行）`
+                  ? `${algorithmClusterId}（当前 ${modeRateHz / 1000} kHz 不可执行）`
                   : "未选择算法簇"}
               </option>
             ) : null}
-            {VCP_PRESETS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label} · {preset.id}
-              </option>
+            {availableAlgorithmGroups.map((group) => (
+              <optgroup key={group.id} label={group.label}>
+                {group.clusters.map((cluster) => (
+                  <option key={cluster.id} value={cluster.id}>
+                    {cluster.label} · {cluster.id}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
           <small>
             {algorithmIsSupported
-              ? algorithmLabel(algorithmClusterId)
-              : "基础上行只接受当前目录中的 VCP 算法簇。"}
+              ? `${modeRateHz / 1000} kHz 可选 ${availableAlgorithmCount} 项 · ${algorithmLabel(algorithmClusterId)}`
+              : `基础上行在 ${modeRateHz / 1000} kHz（${mode}）下只接受对应的 VCP 算法簇。`}
           </small>
         </label>
 
@@ -1612,6 +1893,8 @@ export default function BasicUplinkTest({
             切换测试集不会改写已保留的报告。
           </small>
         </div>
+
+        <AlgorithmClusterSummary cluster={selectedAlgorithmCluster} />
       </div>
 
       {datasetError ? (
@@ -1707,6 +1990,16 @@ export default function BasicUplinkTest({
           {buttonLabel}
         </button>
       </div>
+
+      <DatasetCaseRuns
+        dataset={selectedDataset}
+        mode={mode}
+        algorithm={algorithmClusterId}
+        scope="basic_uplink"
+        currentSnapshot={snapshot as CaseRunSnapshot | null}
+        canRun={canRunSingle}
+        onRunCase={(caseId) => handleStart(caseId)}
+      />
 
       {runError ? (
         <div className="basic-uplink-alert" role="alert">
@@ -1866,6 +2159,7 @@ export default function BasicUplinkTest({
                   {showingPreviousSnapshot
                     ? "上次成功快照 · "
                     : ""}
+                  {singleCaseSelection ? "单组结果 · " : ""}
                   {BATCH_STATUS_LABEL[snapshot.status]}
                 </h3>
                 <p>
@@ -1914,12 +2208,17 @@ export default function BasicUplinkTest({
 
             <div className="basic-uplink-progress">
               <div>
-                <strong>
-                  条件组 {snapshot.progress.completed_cases} /{" "}
-                  {snapshot.progress.total_cases}
-                </strong>
+                {singleCaseSelection ? (
+                  <strong>单组{snapshot.progress.completed_cases}/1，完整范围8项</strong>
+                ) : (
+                  <strong>
+                    条件组 {snapshot.progress.completed_cases} /{" "}
+                    {snapshot.progress.total_cases}
+                  </strong>
+                )}
                 <span>
-                  逐项 {snapshot.progress.completed_items} /{" "}
+                  {singleCaseSelection ? "本组逐项" : "逐项"}{" "}
+                  {snapshot.progress.completed_items} /{" "}
                   {snapshot.progress.total_items}
                 </span>
               </div>
@@ -1977,6 +2276,16 @@ export default function BasicUplinkTest({
               </div>
             ) : null}
 
+            {catalogIdentityError ? (
+              <div className="basic-uplink-mismatch" role="alert">
+                <AlertCircle size={18} aria-hidden="true" />
+                <div>
+                  <strong>报告身份隔离</strong>
+                  <p>{catalogIdentityError}</p>
+                </div>
+              </div>
+            ) : null}
+
             {showingPreviousSnapshot ? (
               <p className="basic-uplink-stale" role="status">
                 当前保留最后一次成功快照；恢复、创建或轮询失败不会改写逐项值与状态。
@@ -2011,8 +2320,18 @@ export default function BasicUplinkTest({
               </span>
               <span>
                 测试范围{" "}
-                <code>基础上行 · 8 项</code>
+                <code>
+                  {singleCaseSelection
+                    ? `单组${snapshot.progress.completed_cases}/1，完整范围8项`
+                    : "基础上行 · 8 项"}
+                </code>
               </span>
+              {singleCaseSelection ? (
+                <span>
+                  所选条件组{" "}
+                  <code>{singleCaseSelection.selected_case_id}</code>
+                </span>
+              ) : null}
               <span>
                 业务模式{" "}
                 <code>{modeLabel(snapshot.selected_mode)}</code>
@@ -2095,7 +2414,9 @@ export default function BasicUplinkTest({
                   ITEM EVIDENCE
                 </span>
                 <h3 id="basic-uplink-items-title">
-                  8 项逐项结果
+                  {singleCaseSelection
+                    ? "单组逐项结果"
+                    : "8 项逐项结果"}
                 </h3>
                 <p>
                   展示值是服务端返回的工程代理计算值，不是正式合同测项值；
@@ -2103,13 +2424,20 @@ export default function BasicUplinkTest({
                   发送处理输出（TX）音频链接。
                 </p>
               </div>
-              <span>{snapshot.items.length} / 8</span>
+              <span>
+                {snapshot.items.length} /{" "}
+                {singleCaseSelection
+                  ? snapshot.items.length
+                  : BASIC_ITEM_COUNT}
+              </span>
             </header>
 
             <div className="table-scroll">
               <table className="audio-table basic-uplink-items-table">
                 <caption className="sr-only">
-                  基础上行 8 项逐项工程结果
+                  {singleCaseSelection
+                    ? `基础上行单组 ${singleCaseSelection.selected_case_id} 逐项工程结果`
+                    : "基础上行 8 项逐项工程结果"}
                 </caption>
                 <thead>
                   <tr>

@@ -1,8 +1,11 @@
 #pragma once
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
+
+#include "omlsa_config.hpp"
 
 namespace itu {
 enum class VehicleNsBackend { webrtc, speex, bypass, filterbank, omlsa_imcra, super_gaussian, unified };
@@ -32,6 +35,16 @@ struct VehicleNsConfig {
   // remains independent. Native-rate model failures explicitly use OM-LSA.
   std::string student_model_path;
   float student_spp_mix=.5f,student_snr_mix=.5f,student_speech_floor_db=-3.f;
+  // Explicit native 16 kHz single-head residual model. It is mutually
+  // exclusive with student_model_path and changes synthesis gain only.
+  std::string residual_model_path;
+  float residual_model_mix=1.f,residual_model_floor_db=-9.f;
+  // Native 16 kHz ITUNSR02 gain controller. The model is optional so the
+  // causal pitch post-filter can be evaluated as an explicit DSP-only arm.
+  // Non-empty model paths are mutually exclusive with both legacy model paths.
+  std::string hybrid_v2_model_path;
+  float hybrid_v2_mix=1.f,hybrid_v2_floor_db=-21.f;
+  float hybrid_v2_pitch_strength=0.f;
   // Causal post-backend steady residual attenuation. Zero preserves all
   // existing profiles; only noise-confident output frames are attenuated.
   float residual_max_db=0,residual_speech_guard=.75f;
@@ -85,6 +98,7 @@ struct VehicleNsConfig {
   // selected for frames above the frame-SNR/posterior thresholds.
   float unified_high_snr_bypass_db=0.f;
   float unified_high_snr_probability=.80f;
+  OmlsaTuningConfig omlsa_tuning{};
 };
 struct VehicleNsStatistics {
   bool unified_raw_budget=false;
@@ -127,6 +141,18 @@ struct VehicleNsStatistics {
   bool unified_high_snr_bypass=false;
   std::size_t student_inferences=0,student_fallback_frames=0;
   bool student_applied=false;
+  unsigned residual_model_state=0; // 0 disabled, 1 ready.
+  std::size_t residual_model_inferences=0,residual_model_fallback_frames=0;
+  std::size_t residual_model_applied_frames=0,residual_model_parameters=0;
+  // Independent V2 telemetry. State: 0 disabled, 1 ITUNSR02 ready,
+  // 2 causal-pitch DSP only. Model and pitch counters are never mixed.
+  unsigned hybrid_v2_state=0,hybrid_v2_input_dim=0;
+  std::size_t hybrid_v2_inferences=0,hybrid_v2_fallback_frames=0;
+  std::size_t hybrid_v2_applied_frames=0,hybrid_v2_parameters=0;
+  bool hybrid_v2_applied=false,hybrid_v2_pitch_active=false;
+  std::uint64_t hybrid_v2_pitch_active_frames=0,hybrid_v2_pitch_fallback_frames=0;
+  unsigned hybrid_v2_pitch_lag_samples=0;
+  float hybrid_v2_pitch_periodicity=0,hybrid_v2_raw_mix=0;
   float residual_speech_probability=0,residual_attenuation_db=0;
   float noise_step_probability=0;
   float transient_noise_evidence=0,transient_guard_applied=1;
@@ -149,6 +175,9 @@ class VehicleNsProcessor {
   VehicleNsProcessor(const VehicleNsProcessor&)=delete;
   VehicleNsProcessor& operator=(const VehicleNsProcessor&)=delete;
   bool process(float* samples, unsigned count) noexcept;
+  // Optional capture-only spectral-excess evidence for adaptive OM-LSA.
+  // Other backends ignore it; callers need no labels or external activity API.
+  void set_capture_evidence(float excess_fraction) noexcept;
   unsigned delay_samples() const noexcept;
   unsigned core_rate() const noexcept;
   unsigned core_delay_samples() const noexcept;

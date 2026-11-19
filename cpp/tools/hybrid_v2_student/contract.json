@@ -1,0 +1,76 @@
+{
+  "task": "speech-preserving hybrid NS v2",
+  "model_contract": {
+    "magic": "ITUNSR02",
+    "format_version": 2,
+    "input_dims": [
+      256,
+      320
+    ],
+    "band_count": 64,
+    "projection": 64,
+    "gru_hidden": 64,
+    "head": "64 amplitude residual dB,12*tanh",
+    "parameters": {
+      "256": 45568,
+      "320": 49664
+    },
+    "matrix_mmac_s": {
+      "256": 4.5056,
+      "320": 4.9152
+    },
+    "feature_320": "v1 raw dB256 +20log10(max(column-normalized band projection of linear base_gain257,1e-8))64",
+    "base_floor_db": -9,
+    "final_floor_db": -21
+  },
+  "experiments": [
+    {
+      "name": "oldloss256",
+      "input_dim": 256,
+      "loss": "old",
+      "pitch_strength": 0
+    },
+    {
+      "name": "newloss256",
+      "input_dim": 256,
+      "loss": "speech_preserving",
+      "pitch_strength": 0
+    },
+    {
+      "name": "newloss320",
+      "input_dim": 320,
+      "loss": "speech_preserving",
+      "pitch_strength": 0
+    },
+    {
+      "name": "newloss320-pitch",
+      "input_dim": 320,
+      "loss": "speech_preserving",
+      "pitch_strength": 0.5,
+      "same_weights_as": "newloss320"
+    }
+  ],
+  "training": {
+    "epochs": 20,
+    "seed": 20261117,
+    "batch_size": 8,
+    "chunk_frames": 200,
+    "hidden_carry_full_stream": true,
+    "checkpoint_selection": "same new speech-preserving validation objective for all models; no frozen-score selection",
+    "planned_expansion": "Common Voice independent zh speakers,32train8dev16newtest; original128train24dev reused"
+  },
+  "waveform_contract": {
+    "sample_rate": 16000,
+    "hop": 160,
+    "window": 320,
+    "fft_size": 512,
+    "fixed_delay": 160,
+    "extra_lookahead": 0,
+    "pcm16_input_rounding": "C++lround",
+    "output_subtype": "FLOAT"
+  },
+  "harmonic": "independent causal past-input pitch comb shaping in post-gain/pre-IFFT hook; no PSD/DD update; gain applied once",
+  "data_and_benchmark": "frozen v1 and120 are regression only; newtest uses independent speech/noise takes; preserve scorer model/loudness protocol",
+  "default_changed": false,
+  "implementation_status": "in progress"
+}

@@ -887,7 +887,7 @@ export function AcousticQualification() {
             <input value={compileUnit} onChange={event => setCompileUnit(event.target.value)} />
           </label>
           <label>
-            Reference 路径
+            远端播放信号 / 回声参考路径
             <input
               value={compileReference}
               onChange={event => setCompileReference(event.target.value)}
@@ -1042,7 +1042,7 @@ export function AcousticQualification() {
             ["标准范围", "确认 P.1100/P.1110/P.1120 当前版本和适用带宽；P.1100/P.1110 正文必须可追溯。"],
             ["夹具与车辆", "完成 HATS、P.57 人工耳、HFRP、MRP/DRP、POI 和测量麦克风校准。"],
             ["车辆噪声", "在目标车辆中采集 C1–C4，声明 C5 时也提供 C5；记录 HVAC、车窗、路面、海拔和温度。"],
-            ["下行与参考", "扬声器播放 PCM 仅处理一次，AEC reference 直接抽取；保留播放/采集时间戳。"],
+            ["下行与参考", "扬声器播放 PCM 仅处理一次，远端播放信号 / 回声参考直接抽取；保留播放/采集时间戳。"],
             ["测量方法", "验证 P.501 信号、P.863/POLQA 构建、ETSI TS 103 281 版本及信号哈希。"],
             ["原始 trace", "保存每个测项的输入、输出、仪器设置、自动分析的固定延迟和独立复核记录。"],
           ].map(([title, detail], index) => (

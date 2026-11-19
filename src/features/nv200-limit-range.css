@@ -1,0 +1,132 @@
+.nv200-limit-range {
+  display: inline-grid;
+  gap: 5px;
+  width: 176px;
+  max-width: 100%;
+  min-width: 144px;
+  padding: 3px 0;
+  color: #1e3a5f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  vertical-align: middle;
+  white-space: normal;
+}
+
+.nv200-limit-endpoints {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nv200-limit-endpoints > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.nv200-limit-endpoints small {
+  color: #64748b;
+  font-family: system-ui, sans-serif;
+  font-size: 0.625rem;
+}
+
+.nv200-limit-endpoints strong {
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.nv200-limit-track {
+  position: relative;
+  display: block;
+  height: 7px;
+  margin: 0 2px;
+  border-radius: 2px;
+  background: #e2e8f0;
+}
+
+.nv200-limit-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--limit-start);
+  width: var(--limit-width);
+  min-width: 2px;
+  border-radius: 2px;
+  background: #2563eb;
+}
+
+.nv200-limit-band::before,
+.nv200-limit-band::after {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 11px;
+  border-radius: 1px;
+  background: #1d4ed8;
+  content: "";
+}
+
+.nv200-limit-band::before { left: 0; }
+.nv200-limit-band::after { right: 0; }
+
+.nv200-limit-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #64748b;
+  font-size: 0.625rem;
+}
+
+.nv200-limit-scale > span:nth-child(2) {
+  font-family: system-ui, sans-serif;
+}
+
+.nv200-limit-requirement {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 176px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #f8fafc;
+  color: #334155;
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.nv200-limit-requirement-mark {
+  flex: 0 0 10px;
+  width: 10px;
+  height: 7px;
+  border-top: 2px solid #64748b;
+  border-bottom: 2px solid #64748b;
+}
+
+.nv200-limit-requirement.is-unspecified {
+  border-style: dashed;
+  color: #64748b;
+}
+
+.nv200-limit-requirement.is-unspecified .nv200-limit-requirement-mark {
+  height: 1px;
+  border: 0;
+  background: #64748b;
+}
+
+.metric-mapping-limit:has(.nv200-limit-range) {
+  min-width: 180px;
+  white-space: normal;
+}
+
+@media (forced-colors: active) {
+  .nv200-limit-track { border: 1px solid CanvasText; }
+  .nv200-limit-band,
+  .nv200-limit-band::before,
+  .nv200-limit-band::after { background: Highlight; }
+}

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import type { Server } from "node:http";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,7 +21,6 @@ async function listen(server: Server) {
 
 async function fixture(t: TestContext) {
   const root = await mkdtemp(resolve(tmpdir(), "itu-web-assets-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
   const webRoot = resolve(root, "web");
   const assetsRoot = resolve(root, "public");
   await Promise.all([mkdir(webRoot), mkdir(resolve(assetsRoot, "evaluation/pipeline-cases"), { recursive: true }),

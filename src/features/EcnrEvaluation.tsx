@@ -10,10 +10,10 @@ import "./ecnr-evaluation.css";
 
 const REPORT_URL = "/evaluation/ecnr-v2/report.json";
 const FINAL_URL = "/evaluation/ecnr-v2/final-acceptance.json";
-const PHASE: Record<string, string> = { cold_start_speech: "启动即说话", engine_change: "发动机变化", window_wind: "开窗风噪", radio_and_road: "广播＋路噪", long_radio_path: "长回声路径", reference_clock_drift: "参考时钟漂移", reference_mismatch: "播放参考错配", path_change: "回声路径变化", radio_restart: "广播重启" };
-const SEGMENT: Record<string, string> = { near_only: "近端语音", near_late: "后段近端", double_talk: "双讲", far_only: "远端单讲", far_recovery: "回声恢复", noise_only: "纯噪声", runtime: "逐帧耗时", whole_output: "完整输出", reference: "播放参考" };
+const PHASE: Record<string, string> = { cold_start_speech: "启动即说话", engine_change: "发动机变化", window_wind: "开窗风噪", radio_and_road: "广播＋路噪", long_radio_path: "长回声路径", reference_clock_drift: "远端播放信号时钟漂移", reference_mismatch: "远端播放信号 / 回声参考错配", path_change: "回声路径变化", radio_restart: "广播重启" };
+const SEGMENT: Record<string, string> = { near_only: "近端语音", near_late: "后段近端", double_talk: "双讲", far_only: "远端单讲", far_recovery: "回声恢复", noise_only: "纯噪声", runtime: "逐帧耗时", whole_output: "完整发送处理输出（TX）", reference: "远端播放信号 / 回声参考" };
 const METRIC: Record<string, string> = { raw_sisdr_db: "原始 SI-SDR / dB", stoi_change: "STOI 变化", projection_gain_min_db: "语音增益下限 / dB", projection_gain_max_db: "语音增益上限 / dB", rms_min_dbfs: "RMS 下限 / dBFS", rms_max_dbfs: "RMS 上限 / dBFS", total_attenuation_db: "总衰减 / dB", attenuation_lower_bound_db: "PCM16 衰减下界 / dB", linear_erle_engineering_db: "线性 ERLE / dB", clipping_percent: "削波 / %", peak_dbfs: "峰值 / dBFS" };
-const STAGE: Record<string, string> = { "microphones": "麦克风", "aec-input": "回声消除输入", "linear-aec": "线性回声消除后", "protected-aec": "回声与语音保护后", "final-output": "最终输出", "nr-selected": "降噪选择后", "nr-protected-agc-before": "降噪与语音保护后（增益前）", "agc-after": "语音增益后", "eq-before": "频响补偿前", "eq-after": "频响补偿后", reference: "播放参考", microphone: "麦克风", mic: "麦克风", linear_aec: "线性回声消除后", protected_aec: "语音保护后", nr: "降噪后", eq: "频响补偿后", output: "最终输出" };
+const STAGE: Record<string, string> = { "microphones": "麦克风混合输入（多声道）", "aec-input": "AEC 滤波器输入（麦克风混合输入）", "linear-aec": "线性回声消除后", "protected-aec": "回声与语音保护后", "final-output": "发送处理输出（TX）", "nr-selected": "降噪选择后", "nr-protected-agc-before": "降噪与语音保护后（增益前）", "agc-after": "语音增益后", "eq-before": "频响补偿前", "eq-after": "频响补偿后", reference: "远端播放信号 / 回声参考", microphone: "麦克风混合输入", mic: "麦克风混合输入", linear_aec: "线性回声消除后", protected_aec: "语音保护后", nr: "降噪后", eq: "频响补偿后", output: "发送处理输出（TX）" };
 const fmt = (v: number | null | undefined, n = 2) => v == null || !Number.isFinite(v) ? "—" : v.toFixed(n);
 const signed = (v: number | null | undefined, n = 3) => v == null || !Number.isFinite(v) ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(n)}`;
 const label = (value: string, dictionary: Record<string, string>) => dictionary[value] ?? value;
@@ -66,16 +66,16 @@ function PostPlaybackTails({ events }: { events: EcnrTailEvent[] }) {
   const index = Math.min(selectedEvent, Math.max(0, inSequence.length - 1));
   const event = inSequence[index];
   if (!event) return null;
-  const reasons: Record<string, string> = { reference_restarted: "数字参考恢复，观察被截断", file_end: "文件结束，观察被截断", end_of_file: "文件结束，观察被截断", stream_ended: "连续流结束，观察被截断" };
-  return <div className="ecnr-tail-evidence" aria-label="数字参考暂停后的混合尾迹">
-    <div className="ecnr-tail-heading"><h3>数字参考暂停后的混合尾迹</h3><p>数字参考间隙不代表物理关闭播放；输入和输出尾迹仍可能含近端语音、背景噪声及回声。这里没有评估参考可靠性，也不把混合电平作为纯回声衰减。</p></div>
+  const reasons: Record<string, string> = { reference_restarted: "远端播放信号 / 回声参考恢复，观察被截断", file_end: "文件结束，观察被截断", end_of_file: "文件结束，观察被截断", stream_ended: "连续流结束，观察被截断" };
+  return <div className="ecnr-tail-evidence" aria-label="远端播放信号 / 回声参考暂停后的混合尾迹">
+    <div className="ecnr-tail-heading"><h3>远端播放信号 / 回声参考暂停后的混合尾迹</h3><p>远端播放信号 / 回声参考间隙不代表物理关闭播放；麦克风混合输入与 VCP 处理后的近端输出尾迹仍可能含近端语音、背景噪声及回声。这里没有评估回声参考可靠性，也不把混合电平作为纯回声衰减。</p></div>
     <div className="ecnr-stage-controls">
       <label>连续流<select aria-label="尾迹连续流" value={sequence} onChange={e => { setSelectedSequence(e.target.value); setSelectedEvent(0); }}>{ids.map(id => <option key={id} value={id}>{id}</option>)}</select></label>
-      <label>数字参考停止事件<select aria-label="数字参考停止事件" value={index} onChange={e => setSelectedEvent(Number(e.target.value))}>{inSequence.map((item, i) => <option key={i} value={i}>{fmt(item.details.stop_s, 2)} s · 静音间隙 {fmt(item.details.quiet_reference_duration_s, 2)} s{item.side === "baseline" ? " · 基线" : " · 候选"}</option>)}</select></label>
+      <label>远端播放信号 / 回声参考停止事件<select aria-label="远端播放信号 / 回声参考停止事件" value={index} onChange={e => setSelectedEvent(Number(e.target.value))}>{inSequence.map((item, i) => <option key={i} value={i}>{fmt(item.details.stop_s, 2)} s · 静音间隙 {fmt(item.details.quiet_reference_duration_s, 2)} s{item.side === "baseline" ? " · 基线" : " · 候选"}</option>)}</select></label>
     </div>
     <p className="ecnr-note">事件时刻 {fmt(event.details.stop_s, 2)} s 使用共同输入时间；下表时长从该时刻开始。只显示所选事件，完整证据保留在实验报告。</p>
-    <p className="ecnr-tail-scroll-hint">横向滑动表格，查看输入、输出电平及观察状态。</p>
-    <div className="table-scroll"><table className="audio-table"><caption>所选参考停止事件的实际观察电平</caption><thead><tr><th>目标观察时长</th><th>实际观察时长</th><th>输入 RMS / dBFS</th><th>输出 RMS / dBFS</th><th>观察状态</th></tr></thead><tbody>{[...event.details.scans].sort((a, b) => a.horizon_s - b.horizon_s).map(scan => <tr key={scan.horizon_s}><td>{fmt(scan.horizon_s, 1)} s</td><td>{fmt(scan.observed_duration_s, 3)} s</td><td>{tailRmsText(scan.before)}</td><td>{tailRmsText(scan.after)}</td><td>{scan.complete ? "完整观察" : reasons[scan.truncation_reason ?? ""] ?? (scan.truncation_reason ? `截断：${scan.truncation_reason}` : "观察不完整")}</td></tr>)}</tbody></table></div>
+    <p className="ecnr-tail-scroll-hint">横向滑动表格，查看麦克风混合输入、VCP 处理后的近端输出电平及观察状态。</p>
+    <div className="table-scroll"><table className="audio-table"><caption>所选远端播放信号 / 回声参考停止事件的实际观察电平</caption><thead><tr><th>目标观察时长</th><th>实际观察时长</th><th>麦克风混合输入 RMS / dBFS</th><th>VCP 处理后的近端输出 RMS / dBFS</th><th>观察状态</th></tr></thead><tbody>{[...event.details.scans].sort((a, b) => a.horizon_s - b.horizon_s).map(scan => <tr key={scan.horizon_s}><td>{fmt(scan.horizon_s, 1)} s</td><td>{fmt(scan.observed_duration_s, 3)} s</td><td>{tailRmsText(scan.before)}</td><td>{tailRmsText(scan.after)}</td><td>{scan.complete ? "完整观察" : reasons[scan.truncation_reason ?? ""] ?? (scan.truncation_reason ? `截断：${scan.truncation_reason}` : "观察不完整")}</td></tr>)}</tbody></table></div>
     <p className="ecnr-note">数字静音没有有限的 RMS dBFS 值，单独标记；不可测值不会填成 0。截断窗口只报告实际观察长度。</p>
   </div>;
 }
@@ -121,11 +121,11 @@ export function EcnrReportView({ report, finalAcceptance }: { report: EcnrReport
     </section>
     <section className="panel ecnr-section" aria-label="极低电平窗口诊断">
       <div className="panel-heading"><div><h2>极低电平窗口诊断</h2><p>同时查看绝对电平和原始电平比；接近量化边界时，比值仅供诊断，原失败仍计入统计。</p></div></div>
-      {report.audits?.nearzero_windows?.length ? <div className="table-scroll"><table className="audio-table"><thead><tr><th>连续流 / 场景 / 窗口</th><th>输入 / dBFS</th><th>输出 / dBFS</th><th>电平比 / dB</th><th>诊断依据</th></tr></thead><tbody>{report.audits.nearzero_windows.map((a, i) => <tr key={`${a.sequence_id}-${i}`}><td><span className="ecnr-id">{a.sequence_id}</span>{label(a.label, PHASE)} · {label(a.segment, SEGMENT)}</td><td>{tailRmsText(a.details?.before ?? { rms_dbfs: a.input_dbfs })}</td><td>{tailRmsText(a.details?.after ?? { rms_dbfs: a.output_dbfs })}</td><td>{fmt(a.total_attenuation_db, 3)}</td><td>{a.reason === "near_zero_denominator" ? "输入接近量化边界或为数字静音，电平比仅供诊断。" : a.reason ?? "绝对电平诊断"}{a.details?.before?.quantization_dbfs != null ? <small className="ecnr-id">量化参考 {fmt(a.details.before.quantization_dbfs, 3)} dBFS</small> : null}</td></tr>)}</tbody></table></div> : <Pending>极低电平窗口尚未审计。</Pending>}
+      {report.audits?.nearzero_windows?.length ? <div className="table-scroll"><table className="audio-table"><thead><tr><th>连续流 / 场景 / 窗口</th><th>麦克风混合输入 / dBFS</th><th>VCP 处理后的近端输出 / dBFS</th><th>电平比 / dB</th><th>诊断依据</th></tr></thead><tbody>{report.audits.nearzero_windows.map((a, i) => <tr key={`${a.sequence_id}-${i}`}><td><span className="ecnr-id">{a.sequence_id}</span>{label(a.label, PHASE)} · {label(a.segment, SEGMENT)}</td><td>{tailRmsText(a.details?.before ?? { rms_dbfs: a.input_dbfs })}</td><td>{tailRmsText(a.details?.after ?? { rms_dbfs: a.output_dbfs })}</td><td>{fmt(a.total_attenuation_db, 3)}</td><td>{a.reason === "near_zero_denominator" ? "麦克风混合输入接近量化边界或为数字静音，电平比仅供诊断。" : a.reason ?? "绝对电平诊断"}{a.details?.before?.quantization_dbfs != null ? <small className="ecnr-id">量化参考 {fmt(a.details.before.quantization_dbfs, 3)} dBFS</small> : null}</td></tr>)}</tbody></table></div> : <Pending>极低电平窗口尚未审计。</Pending>}
       {report.audits?.post_playback_tails?.length ? <PostPlaybackTails events={report.audits.post_playback_tails} /> : null}
     </section>
     <section className="panel ecnr-section" aria-label="阶段音频证据">
-      <div className="panel-heading"><div><h2>阶段音频证据</h2><p>参考、麦克风与各处理阶段使用声明的固定时间映射。阶段试听为已导出的证据子集，覆盖范围以所列连续流为准。</p></div></div>
+      <div className="panel-heading"><div><h2>阶段音频证据</h2><p>干净近端参考、麦克风混合输入、远端播放信号 / 回声参考与各处理阶段使用声明的固定时间映射。阶段试听为已导出的证据子集，覆盖范围以所列连续流为准。</p></div></div>
       {report.sequences?.length ? <StageEvidence sequences={report.sequences} /> : <Pending>阶段音频按需导出后显示。</Pending>}
     </section>
   </div>;

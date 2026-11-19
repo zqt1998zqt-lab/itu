@@ -15,7 +15,7 @@ export default function AudioCompare({ report }: { report: AudioReport }) {
   const series = report.pairs
     .filter((p) => p.response)
     .map((p) => ({
-      label: p.role === "before" ? "处理前" : "处理后",
+      label: p.role === "before" ? "麦克风混合输入" : "处理后发送输出",
       color: p.role === "before" ? "#c48c38" : "#2563eb",
       x: p.response!.frequency,
       y: p.response!.gain_db,
@@ -25,7 +25,7 @@ export default function AudioCompare({ report }: { report: AudioReport }) {
       <div className={`audio-info ${tradeoff ? "amber" : ""}`}>
         {tradeoff
           ? "检测到权衡：噪声变小，但 SI-SDR 下降。请同时检查语音失真与整体增益。"
-          : "先比较噪声与语音保真，再判断改善是否有代价。所有结果使用同一干净参考；缺少有效条件时不计算变化量。"}
+          : "先比较噪声与语音保真，再判断改善是否有代价。所有结果使用同一干净近端参考；缺少有效条件时不计算变化量。"}
       </div>
       <div className="comparison-cards">
         {[
@@ -55,8 +55,8 @@ export default function AudioCompare({ report }: { report: AudioReport }) {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <h2>处理前 / 处理后</h2>
-            <p>时延正值表示晚于参考；SI-SDR 与 STOI 越高通常越好。</p>
+            <h2>麦克风混合输入 / 处理后发送输出</h2>
+            <p>时延正值表示晚于干净近端参考；SI-SDR 与 STOI 越高通常越好。</p>
           </div>
         </div>
         <div className="table-scroll">
@@ -64,8 +64,8 @@ export default function AudioCompare({ report }: { report: AudioReport }) {
             <thead>
               <tr>
                 <th>指标</th>
-                <th>处理前</th>
-                <th>处理后</th>
+                <th>麦克风混合输入</th>
+                <th>处理后发送输出</th>
                 <th>解释</th>
               </tr>
             </thead>
@@ -75,7 +75,7 @@ export default function AudioCompare({ report }: { report: AudioReport }) {
                 ["sisdr", "SI-SDR", "dB", "去除整体增益影响后比较残差"],
                 ["gain", "相对增益", "dB", "已对齐 RMS 电平比，含噪声与失真"],
                 ["stoi", "STOI", "", "可懂度估计，不等于 MOS"],
-                ["noise", "噪声片段 RMS", "dBFS", "需无语音、无回声片段"],
+                ["noise", "独立噪声输入片段 RMS", "dBFS", "需无语音、无回声片段"],
                 [
                   "snr",
                   "片段估计 SNR",
@@ -106,11 +106,11 @@ export default function AudioCompare({ report }: { report: AudioReport }) {
       <section className="panel comparison-spectrum">
         <div className="panel-heading">
           <div>
-            <h2>处理前后的传递函数</h2>
+            <h2>麦克风混合输入与处理后发送输出的传递函数</h2>
             <p>统一分析采样率 · 已对齐片段 · 未套用标准掩模</p>
           </div>
         </div>
-        <SpectrumPlot series={series} unit="dB" label="处理前后传递函数对比" />
+        <SpectrumPlot series={series} unit="dB" label="麦克风混合输入与处理后发送输出的传递函数对比" />
       </section>
     </>
   );

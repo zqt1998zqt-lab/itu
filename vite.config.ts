@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import type { Connect, ResolvedConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import compression from "compression";
 import { resolve } from "node:path";
 import { writeFile } from "node:fs/promises";
 import { buildAssetManifest, copyPublicShell, historicalRoutes, serveEvaluation, verifyWebAssets } from "./scripts/evaluation-assets.ts";
@@ -16,7 +17,25 @@ const evaluationProxy = Object.fromEntries(historicalRoutes.map(route => [route.
 let thisConfig: ResolvedConfig;
 
 export default defineConfig({
-  plugins: [react(), {
+  plugins: [{
+    name: "compress-development-text",
+    configureServer(server) {
+      // compression uses the Connect request/response contract at runtime;
+      // its declaration exposes the wider Express RequestHandler type.
+      server.middlewares.use(compression({
+        level: 4,
+        threshold: 1024,
+        filter(request, response) {
+          // API compression belongs to the API; leave WAV/Range/streaming
+          // responses alone and compress the large Vite module graph.
+          if (request.url?.startsWith("/api") || request.headers.range) return false;
+          const type = String(response.getHeader("Content-Type") ?? "");
+          return /^(?:text\/|application\/(?:javascript|json)|image\/svg\+xml)/i.test(type)
+            && compression.filter(request, response);
+        },
+      }) as unknown as Connect.NextHandleFunction);
+    },
+  }, react(), {
     name: "evaluation-assets",
     configureServer(server) { server.middlewares.use(evaluationMiddleware); },
     async configurePreviewServer(server) {

@@ -1,4 +1,5 @@
 #include "itu/audio_engine.hpp"
+#include <chrono>
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/environment/environment_factory.h"
 #include "rtc_base/logging.h"
@@ -14,10 +15,12 @@
 #include "native_pipeline.hpp"
 #include "speex_ns.hpp"
 #include "speex_aec_pipeline.hpp"
+#include "localvqe_aec.hpp"
 #include "rate_converter.hpp"
 #include "speech_gain.hpp"
 #include "utterance_gain.hpp"
 #include "legacy_utterance_gain.hpp"
+#include "bounded_speech_gain.hpp"
 #include "min_stat_noise.hpp"
 #include "eq_processor.hpp"
 #include "linear_phase_eq.hpp"
@@ -59,11 +62,70 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
   if(!c.reference_channels || c.reference_channels>8)
     throw std::invalid_argument("render channels must be 1..8");
   if(c.aec_backend!=AecBackend::webrtc && c.aec_backend!=AecBackend::speex &&
-     c.aec_backend!=AecBackend::speex_fused)
+     c.aec_backend!=AecBackend::speex_fused_cpu && c.aec_backend!=AecBackend::speex_fused_dsp &&
+     c.aec_backend!=AecBackend::computer_pf_cpu &&
+     c.aec_backend!=AecBackend::localvqe_aec200k)
     throw std::invalid_argument("unknown AEC backend");
-  if(c.aec && c.aec_backend==AecBackend::speex_fused &&
+  if(c.aec && c.aec_backend==AecBackend::localvqe_aec200k) {
+    if(c.reference_channels!=1 || (!c.beamforming && c.microphones!=1))
+      throw std::invalid_argument("localvqe_aec200k requires mono reference and mono capture or BF before AEC");
+    if(c.speex_residual_suppression)
+      throw std::invalid_argument("localvqe_aec200k must receive raw capture, not Speex RES output");
+    c.speex_coherence_residual_suppression=false;
+    c.speex_multirender_context=false;
+    c.speex_post_context=false;
+    c.coherence_dtd=false;
+    const auto capability=aec_backend_capability(c.aec_backend);
+    if(!capability.available) throw std::invalid_argument(capability.reason);
+  }
+  if(c.aec && c.aec_backend==AecBackend::speex_fused_dsp) {
+    if(c.sample_rate!=16000 || c.frame_size!=160 || c.reference_channels!=1 ||
+       (!c.beamforming && c.microphones!=1))
+      throw std::invalid_argument("speex_fused_dsp requires 16 kHz / 160 samples, mono reference and mono capture or BF before AEC");
+    if(c.speex_residual_suppression)
+      throw std::invalid_argument("speex_fused_dsp must receive raw MDF residual, not Speex RES output");
+    if(!complex_pf_model_id(c.speex_fused_dsp_model_id))
+      throw std::invalid_argument("speex_fused_dsp requires a registered model ID");
+    // DSP is MDF + Complex_PF. CPU shadow/RES controls must not leak here.
+    c.speex_coherence_residual_suppression=false;
+    c.speex_multirender_context=false;
+    c.speex_native_conditioning=true;
+    c.speex_post_context=true;
+    const auto capability=aec_backend_capability(c.aec_backend,c.speex_fused_dsp_model_id);
+    if(!capability.available) throw std::invalid_argument(capability.reason);
+  }
+  if(c.aec && c.aec_backend==AecBackend::speex_fused_cpu &&
       ((!c.beamforming && c.microphones!=1) || c.speex_residual_suppression))
     throw std::invalid_argument("fused Speex AEC requires a mono MDF input (or BF before AEC) and no MDF RES");
+  if(c.aec && c.aec_backend==AecBackend::computer_pf_cpu) {
+    if(c.sample_rate!=16000 || c.frame_size!=160 || c.reference_channels!=1 ||
+       (!c.beamforming && c.microphones!=1))
+      throw std::invalid_argument("computer_pf_cpu requires 16 kHz / 160 samples, mono reference and mono capture or BF before AEC");
+    if(c.speex_residual_suppression)
+      throw std::invalid_argument("computer_pf_cpu must receive raw MDF residual, not Speex RES output");
+    if(!c.complex_pf_cpu_pcm || c.complex_pf_cpu_pcm->empty() ||
+       c.complex_pf_cpu_pcm->size()%c.frame_size)
+      throw std::invalid_argument("computer_pf_cpu requires non-empty 160-sample PCM blocks");
+    if(std::any_of(c.complex_pf_cpu_pcm->begin(),c.complex_pf_cpu_pcm->end(),
+        [](float v){return !std::isfinite(v) || std::abs(v)>1.f;}))
+      throw std::invalid_argument("computer_pf_cpu PCM must be finite and within [-1, 1]");
+    // The CPU result replaces only the MDF output. Its producing route already
+    // owns the nonlinear model; no native shadow, coherence or multi-render
+    // estimator may run a second time here.
+    c.speex_coherence_residual_suppression=false;
+    c.coherence_dtd=false;
+    c.speex_multirender_context=false;
+    c.speex_native_conditioning=true;
+    c.speex_post_context=true;
+  }
+  if(c.complex_pf_residual_capture || c.complex_pf_reference_capture) {
+    if(!c.complex_pf_residual_capture || !c.complex_pf_reference_capture)
+      throw std::invalid_argument("Complex_PF export requires both residual and reference capture buffers");
+    if(!c.aec || c.aec_backend!=AecBackend::speex || c.sample_rate!=16000 ||
+       c.frame_size!=160 || c.reference_channels!=1 ||
+       (!c.beamforming && c.microphones!=1) || c.speex_residual_suppression)
+      throw std::invalid_argument("Complex_PF export requires mono native 16 kHz Speex MDF without RES");
+  }
   if(c.speex_echo_tail_ms<100 || c.speex_echo_tail_ms>500)
     throw std::invalid_argument("Speex MDF tail must be 100..500 ms");
   if(c.speex_multirender_context &&
@@ -74,7 +136,7 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
   if(c.speex_active_echo_suppression_db>0 || c.speex_active_echo_suppression_db<-30)
     throw std::invalid_argument("Speex active echo suppression must be -30..0 dB");
   if(c.speex_coherence_residual_suppression &&
-     c.aec_backend!=AecBackend::speex && c.aec_backend!=AecBackend::speex_fused) {
+     c.aec_backend!=AecBackend::speex && c.aec_backend!=AecBackend::speex_fused_cpu) {
     if(c.mode==ProcessingMode::vehicle_stream) c.speex_coherence_residual_suppression=false;
     else throw std::invalid_argument("coherence residual suppression requires Speex MDF");
   }
@@ -104,20 +166,131 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
     c.analyze_linear_noise=false; c.correlation_delay=false;
     if(c.multirender_speech_protection) c.linear_speech_protection=true;
   }
-  if((c.aec_backend==AecBackend::speex || c.aec_backend==AecBackend::speex_fused) &&
+  if((c.aec_backend==AecBackend::speex || c.aec_backend==AecBackend::speex_fused_cpu ||
+      c.aec_backend==AecBackend::speex_fused_dsp || c.aec_backend==AecBackend::computer_pf_cpu ||
+      c.aec_backend==AecBackend::localvqe_aec200k) &&
       (c.multirender_nearend_policy || c.multirender_speech_protection || c.linear_output_diagnostic))
     throw std::invalid_argument("AEC3 diagnostic protection options require the WebRTC AEC backend");
   if(c.noise_backend!=NoiseBackend::webrtc && c.noise_backend!=NoiseBackend::rnnoise && c.noise_backend!=NoiseBackend::speex && c.noise_backend!=NoiseBackend::ulunas && c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian && c.noise_backend!=NoiseBackend::unified)
     throw std::invalid_argument("unknown noise backend");
+  const bool external_stream=static_cast<bool>(c.ns_stream_process);
+  if(external_stream && c.post_ns_pcm)
+    throw std::invalid_argument(
+        "streaming and offline post-NS sources are mutually exclusive");
+  if(c.post_ns_delay_samples && !c.post_ns_pcm)
+    throw std::invalid_argument("post-NS delay requires external post-NS PCM");
+  if(c.ns_stream_delay_samples && !external_stream)
+    throw std::invalid_argument(
+        "external streaming NS delay requires a stream callback");
+  if(external_stream) {
+    if(!c.noise_suppression)
+      throw std::invalid_argument(
+          "external streaming NS requires enabled noise suppression");
+    const bool supported_geometry=
+        (c.sample_rate==16000 || c.sample_rate==48000) &&
+        c.frame_size==c.sample_rate/100;
+    if(!supported_geometry)
+      throw std::invalid_argument(
+          "external streaming NS requires native 16/48 kHz 10 ms frames");
+    if(c.ns_stream_delay_samples>10*c.frame_size ||
+       c.ns_stream_delay_samples%c.frame_size)
+      throw std::invalid_argument(
+          "external streaming NS delay must be a 10 ms frame multiple in 0..100 ms");
+    const bool standalone=!c.aec && !c.beamforming && c.microphones==1;
+    const bool localvqe=c.aec && c.aec_backend==AecBackend::localvqe_aec200k;
+    const bool aec3=c.aec && c.aec_backend==AecBackend::webrtc;
+    if(!standalone && !localvqe && !aec3)
+      throw std::invalid_argument(
+          "external streaming NS requires AEC-off mono, AEC3, or LocalVQE AEC");
+  }
+  if(c.post_ns_pcm) {
+    if(!c.noise_suppression)
+      throw std::invalid_argument("external post-NS PCM requires enabled noise suppression");
+    if(c.post_ns_delay_samples>10*c.frame_size ||
+       c.post_ns_delay_samples%c.frame_size)
+      throw std::invalid_argument(
+          "external post-NS delay must be a 10 ms frame multiple in 0..100 ms");
+    if(c.post_ns_pcm->size()<c.frame_size || c.post_ns_pcm->size()%c.frame_size)
+      throw std::invalid_argument(
+          "external post-NS PCM must cover complete 10 ms callbacks");
+    const bool standalone=!c.aec && !c.beamforming && c.microphones==1;
+    const bool localvqe=c.aec && c.aec_backend==AecBackend::localvqe_aec200k;
+    const bool aec3=c.aec && c.aec_backend==AecBackend::webrtc;
+    if(!standalone && !localvqe && !aec3)
+      throw std::invalid_argument(
+          "external post-NS PCM requires AEC-off mono, AEC3, or LocalVQE AEC");
+    if(std::any_of(c.post_ns_pcm->begin(),c.post_ns_pcm->end(),
+        [](float v){return !std::isfinite(v);}))
+      throw std::invalid_argument("external post-NS PCM must be finite");
+  }
+  const auto& omlsa_tuning=c.vehicle_ns.omlsa_tuning;
+  if(!std::isfinite(omlsa_tuning.noise_update_scale) ||
+     omlsa_tuning.noise_update_scale<.1f || omlsa_tuning.noise_update_scale>1.f ||
+     !std::isfinite(omlsa_tuning.speech_recovery) ||
+     omlsa_tuning.speech_recovery<0.f || omlsa_tuning.speech_recovery>1.f ||
+     !std::isfinite(omlsa_tuning.release_ms) ||
+     omlsa_tuning.release_ms<0.f || omlsa_tuning.release_ms>200.f ||
+     !std::isfinite(omlsa_tuning.speech_floor_db) ||
+     omlsa_tuning.speech_floor_db< -40.f || omlsa_tuning.speech_floor_db>0.f)
+    throw std::invalid_argument("invalid OM-LSA tuning range");
+  const bool omlsa_numeric_tuning_enabled=omlsa_tuning.noise_update_scale<1.f ||
+                                 omlsa_tuning.speech_recovery>0.f || omlsa_tuning.speech_floor_db> -40.f;
+  const bool omlsa_adaptive_enabled=omlsa_tuning.adaptive_noise_tracking ||
+                                   omlsa_tuning.high_snr_transparency ||
+                                   omlsa_tuning.low_band_protection;
+  if(omlsa_numeric_tuning_enabled &&
+     (!c.noise_suppression || c.noise_backend!=NoiseBackend::omlsa_imcra))
+    throw std::invalid_argument("OM-LSA tuning requires enabled native OM-LSA NS");
+  if(omlsa_adaptive_enabled && c.noise_suppression &&
+     c.noise_backend!=NoiseBackend::omlsa_imcra)
+    throw std::invalid_argument("OM-LSA adaptive options require enabled native OM-LSA NS");
+  if(omlsa_tuning.noise_update_scale<1.f && c.vehicle_ns.noise_step_recovery>0.f)
+    throw std::invalid_argument("OM-LSA noise tuning and broadband-step recovery are mutually exclusive");
   if(!c.vehicle_ns.student_model_path.empty()) {
     if(!c.noise_suppression || c.noise_backend!=NoiseBackend::omlsa_imcra)
       throw std::invalid_argument("hybrid NS model requires enabled OM-LSA NS");
     if(c.sample_rate==24000 && c.aec && c.aec_backend==AecBackend::webrtc)
       throw std::invalid_argument("native24 hybrid NS cannot use AEC3's 48 kHz bridge; use native Speex AEC or standalone NS");
   }
+  if(!std::isfinite(c.vehicle_ns.residual_model_mix+
+                    c.vehicle_ns.residual_model_floor_db) ||
+     c.vehicle_ns.residual_model_mix<0.f ||
+     c.vehicle_ns.residual_model_mix>1.f ||
+     c.vehicle_ns.residual_model_floor_db< -40.f ||
+     c.vehicle_ns.residual_model_floor_db>0.f)
+    throw std::invalid_argument("invalid residual NS model mix or floor");
+  if(!c.vehicle_ns.residual_model_path.empty()) {
+    if(!c.noise_suppression || c.noise_backend!=NoiseBackend::omlsa_imcra)
+      throw std::invalid_argument("residual NS model requires enabled native OM-LSA NS");
+    if(c.sample_rate!=16000 || c.frame_size!=160)
+      throw std::invalid_argument("residual NS model requires native 16 kHz / 160-sample frames");
+    if(!c.vehicle_ns.student_model_path.empty())
+      throw std::invalid_argument("residual NS model and hybrid student are mutually exclusive");
+  }
+  if(!std::isfinite(c.vehicle_ns.hybrid_v2_mix +
+                    c.vehicle_ns.hybrid_v2_floor_db +
+                    c.vehicle_ns.hybrid_v2_pitch_strength) ||
+     c.vehicle_ns.hybrid_v2_mix < 0.f || c.vehicle_ns.hybrid_v2_mix > 1.f ||
+     c.vehicle_ns.hybrid_v2_floor_db < -40.f ||
+     c.vehicle_ns.hybrid_v2_floor_db > 0.f ||
+     c.vehicle_ns.hybrid_v2_pitch_strength < 0.f ||
+     c.vehicle_ns.hybrid_v2_pitch_strength > 1.f)
+    throw std::invalid_argument("invalid hybrid V2 mix, floor or pitch strength");
+  if(!c.vehicle_ns.hybrid_v2_model_path.empty() &&
+     (!c.vehicle_ns.student_model_path.empty() ||
+      !c.vehicle_ns.residual_model_path.empty()))
+    throw std::invalid_argument(
+        "hybrid V2 model and legacy model paths are mutually exclusive");
+  if(!c.vehicle_ns.hybrid_v2_model_path.empty() ||
+     c.vehicle_ns.hybrid_v2_pitch_strength > 0.f) {
+    if(!c.noise_suppression || c.noise_backend != NoiseBackend::omlsa_imcra)
+      throw std::invalid_argument("hybrid V2 requires enabled native OM-LSA NS");
+    if(c.sample_rate != 16000 || c.frame_size != 160)
+      throw std::invalid_argument("hybrid V2 requires native 16 kHz / 160-sample frames");
+  }
   if(c.speex_suppression_db>0 || c.speex_suppression_db<-40) throw std::invalid_argument("Speex suppression must be -40..0 dB");
-  if(!std::isfinite(c.speex_fused_learning_rate) || c.speex_fused_learning_rate<.005f || c.speex_fused_learning_rate>.5f ||
-     c.speex_fused_shadow_taps_ms<1 || c.speex_fused_shadow_taps_ms>64)
+  if(!std::isfinite(c.speex_fused_cpu_learning_rate) || c.speex_fused_cpu_learning_rate<.005f || c.speex_fused_cpu_learning_rate>.5f ||
+     c.speex_fused_cpu_shadow_taps_ms<1 || c.speex_fused_cpu_shadow_taps_ms>64)
     throw std::invalid_argument("fused AEC learning rate/taps out of range");
   if(c.hybrid_speech_suppression_db>0 || c.hybrid_speech_suppression_db<-40)
     throw std::invalid_argument("hybrid speech suppression must be -40..0 dB");
@@ -129,6 +302,13 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
   if(c.ecnr_v3_g1_control && !c.ecnr_v2_control)
     throw std::invalid_argument("G1 requires explicitly selected ecnr v2 control");
   if(c.ecnr_v2_control) {c.ecnr_coordinated_control=true; c.ecnr_v2_double_evidence=true;}
+  detail::BoundedSpeechGain check_gain({c.bounded_gain_max_db,c.bounded_gain_rise_db_per_second,
+                                      c.bounded_gain_fall_db_per_second,c.bounded_gain_hold_ms});
+  (void)check_gain;
+  // Report effective use: fixed/adaptive gain and explicit AGC bypass do not
+  // execute this utterance envelope.
+  if(!c.automatic_gain || !c.speech_gain_policy || c.adaptive_gain || !c.continuous_vehicle_policy)
+    c.bounded_speech_gain=false;
   auto range=[](float v,float lo,float hi){return std::isfinite(v) && v>=lo && v<=hi;};
   auto valid_drc=[](const DrcConfig& d,auto range_fn){
     return range_fn(d.threshold_dbfs,-40.f,0.f) &&
@@ -153,6 +333,14 @@ Config checked(Config c,unsigned maximum_beam_samples=4096) {
       !range(c.output_ceiling,.01f,1.f)) throw std::invalid_argument("invalid WebRTC gain or level configuration");
   for(float d:c.beam_delays_samples) if(!range(d,0.f,float(maximum_beam_samples)))
     throw std::invalid_argument("BF delays must be causal, finite, 0..4096 samples");
+  if(c.mild_near_only_ns && c.aec) {
+    // The near-only candidate did not meet the far-only residual gate.
+    // Keep the calibrated full-duplex NS at configuration time, without
+    // introducing runtime backend switching or resetting live estimators.
+    c.noise_backend=NoiseBackend::webrtc;
+    c.vehicle_ns_control=false;
+    c.vehicle_ns.omlsa_tuning={}; // Also clears every adaptive OM-LSA flag.
+  }
   return c;
 }
 float rms(const float* x,std::size_t n) noexcept {
@@ -165,6 +353,47 @@ webrtc::ProcessingConfig streams(unsigned microphones,unsigned rate,unsigned ren
   p.reverse_input_stream()=p.reverse_output_stream()=webrtc::StreamConfig(rate,render);
   return p;
 }
+}
+const char* aec_backend_id(AecBackend b) {
+  switch(b) {
+    case AecBackend::webrtc:return "webrtc";
+    case AecBackend::speex:return "speex";
+    case AecBackend::speex_fused_cpu:return "speex_fused_cpu";
+    case AecBackend::speex_fused_dsp:return "speex_fused_dsp";
+    case AecBackend::computer_pf_cpu:return "computer_pf_cpu";
+    case AecBackend::localvqe_aec200k:return "localvqe_aec200k";
+  }
+  throw std::invalid_argument("unknown AEC backend");
+}
+const char* aec_backend_report_name(AecBackend b) {
+  switch(b) {
+    case AecBackend::webrtc:return "webrtc_aec3";
+    case AecBackend::speex:return "speex_mdf";
+    case AecBackend::speex_fused_cpu:return "speex_mdf_nlms_fused_cpu";
+    case AecBackend::speex_fused_dsp:return "speex_mdf_complex_pf_dsp";
+    case AecBackend::computer_pf_cpu:return "speex_mdf_complex_pf_cpu";
+    case AecBackend::localvqe_aec200k:return "localvqe_aec200k_cpu";
+  }
+  throw std::invalid_argument("unknown AEC backend");
+}
+AecBackendCapability aec_backend_capability(AecBackend b,const std::string& model_id) {
+  if(b==AecBackend::speex_fused_dsp) return complex_pf_dsp_capability(model_id);
+  if(b==AecBackend::localvqe_aec200k) return localvqe_detail::capability();
+  if(b==AecBackend::computer_pf_cpu) {
+    AecBackendCapability c;
+    c.id="computer_pf_cpu";
+    c.available=false;
+    c.reason="computer_pf_cpu requires the CPU offline model runner";
+    c.architecture="mdf_complex_pf_cpu";
+    c.execution_provider="cpu";
+    c.device_id="host_cpu";
+    return c;
+  }
+  AecBackendCapability c;
+  c.id=aec_backend_id(b);c.available=true;c.execution_provider="cpu";c.device_id="host_cpu";
+  c.architecture=b==AecBackend::webrtc ? "webrtc_aec3" :
+      b==AecBackend::speex ? "speex_mdf" : "speex_mdf_gcc_phat_nlms";
+  return c;
 }
 Config referenced_radio_config() {
   Config c;
@@ -216,6 +445,67 @@ Config barrot_vcp_config() {
   c.min_stat_ns=false;
   return c;
 }
+Config barrot_vcp_mild_config() {
+  auto c=barrot_vcp_config();
+  // Native statistical NS owns one bounded gain path; no legacy NS-local floor.
+  c.noise_backend=NoiseBackend::omlsa_imcra;
+  c.noise_level=0;
+  c.vehicle_ns.omlsa_tuning.noise_update_scale=.5f;
+  c.vehicle_ns.omlsa_tuning.speech_recovery=.7f;
+  c.vehicle_ns.omlsa_tuning.release_ms=120.f;
+  c.bounded_speech_gain=true;
+  c.mild_near_only_ns=true;
+  return c;
+}
+Config barrot_vcp_adaptive_config() {
+  auto c=barrot_vcp_mild_config();
+  c.vehicle_ns.omlsa_tuning.adaptive_noise_tracking=true;
+  c.vehicle_ns.omlsa_tuning.high_snr_transparency=true;
+  c.vehicle_ns.omlsa_tuning.low_band_protection=true;
+  return c;
+}
+Config barrot_vcp_c64_config() {
+  auto c=barrot_vcp_mild_config();
+  c.sample_rate=16000;
+  c.frame_size=160;
+  c.microphones=1;
+  c.aec=false;
+  c.noise_backend=NoiseBackend::omlsa_imcra;
+  c.noise_level=0;
+  c.vehicle_ns_control=true;
+  c.vehicle_ns.backend=VehicleNsBackend::omlsa_imcra;
+  c.vehicle_ns.strength=0;
+  c.vehicle_ns.policy="aligned";
+  c.vehicle_ns.dry_max=0.f;
+  c.vehicle_ns.startup_ms=0;
+  c.vehicle_ns.quiet_floor_db=-300.f;
+  c.vehicle_ns.noise_gain=1.f;
+  c.vehicle_ns.repair_mode=0;
+  c.vehicle_ns.rumble_hz=0.f;
+  c.vehicle_ns.adaptive_rumble=false;
+  c.vehicle_ns.rumble_recovery=0.f;
+  c.vehicle_ns.rumble_adaptive_hz=0.f;
+  c.vehicle_ns.spectral_dry_guard=0.f;
+  c.vehicle_ns.weak_speech_recovery=0.f;
+  c.vehicle_ns.speech_band_recovery=0.f;
+  c.vehicle_ns.noise_step_recovery=0.f;
+  c.vehicle_ns.transient_dry_guard=0.f;
+  c.vehicle_ns.transient_spectral_guard_db=0.f;
+  c.vehicle_ns.residual_max_db=0.f;
+  c.vehicle_ns.omlsa_tuning={};
+  c.vehicle_ns.student_model_path.clear();
+  c.vehicle_ns.residual_model_path.clear();
+  c.mild_near_only_ns=false;
+  return c;
+}
+Config barrot_vcp_hybrid_v2_config() {
+  auto c=barrot_vcp_c64_config();
+  c.vehicle_ns.hybrid_v2_model_path.clear();
+  c.vehicle_ns.hybrid_v2_mix=1.f;
+  c.vehicle_ns.hybrid_v2_floor_db=-21.f;
+  c.vehicle_ns.hybrid_v2_pitch_strength=0.f;
+  return c;
+}
 void apply_vcp_joint_control(Config& c) {
   c.speex_multirender_context=true;
   c.vehicle_ns_control=true;
@@ -236,9 +526,9 @@ Config barrot_vcp_joint_config() {
 }
 Config barrot_vcp_fused_aec_config() {
   auto c=barrot_vcp_config();
-  c.aec_backend=AecBackend::speex_fused;
-  c.speex_fused_learning_rate=.12f;
-  c.speex_fused_shadow_taps_ms=32;
+  c.aec_backend=AecBackend::speex_fused_cpu;
+  c.speex_fused_cpu_learning_rate=.12f;
+  c.speex_fused_cpu_shadow_taps_ms=32;
   c.speex_coherence_residual_suppression=true;
   return c;
 }
@@ -258,6 +548,15 @@ Config barrot_vcp_unified_config() {
   return c;
 }
 struct AudioEngine::Impl {
+  struct StreamNsEvidence {
+    float control=0,pre_ns_level=0,independent_near=0;
+    double gain_qualification_power=0;
+    float microphone_rms=0,speech_probability=0;
+    float linear_speech_probability=0,nonlinear_speech_probability=0;
+    float input_excess_control=0;
+    unsigned reference_state=0,near_hangover=0;
+    bool far_active=false,post_far_active=false,fullband_near=false,render_active=false;
+  };
   Config c;
   unsigned aec_delay,linear_delay,ns_delay,lowcut_delay;
   std::vector<std::unique_ptr<RateConverter>> monitor_down,nonlinear_down,linear_up;
@@ -273,6 +572,7 @@ struct AudioEngine::Impl {
 #endif
   std::unique_ptr<NativePipeline> native;
   std::unique_ptr<SpeexAecPipeline> speex_aec;
+  std::unique_ptr<LocalVqeAecPipeline> localvqe_aec;
   std::unique_ptr<EqProcessor> output_eq;
   std::unique_ptr<UnifiedEqAgc> unified_eq_agc;
   std::unique_ptr<SpatialFrontend> spatial;
@@ -343,6 +643,7 @@ struct AudioEngine::Impl {
   SpeechGain speech_gain;
   UtteranceGain utterance_gain;
   LegacyUtteranceGain legacy_utterance_gain;
+  std::unique_ptr<detail::BoundedSpeechGain> bounded_gain;
   MinStatNoise min_stat_ns_gate;
   float applied_gain_db=0;
   float previous_commanded_gain_db=0;
@@ -384,17 +685,21 @@ struct AudioEngine::Impl {
   unsigned coherence_delay_samples=~0u,coherence_settle_frames=0;
   float coherence_baseline=1,coherence_smoothed=1;
   std::vector<float> planar, taps, bf_history, mono;
+  std::vector<float> stream_input, stream_output;
   std::vector<std::array<float,160>> linear;
   std::array<const float*,kMaxMicrophones> inputs{};
   std::array<float*,kMaxMicrophones> outputs{};
   unsigned beam_size=1, beam_head=0;
   std::uint64_t frames=0;
+  std::array<StreamNsEvidence,10> stream_evidence{};
+  unsigned stream_evidence_head=0;
   int failed_backend_error=0;
   bool internal_pcm=false;
   unsigned maximum_beam_samples=4096;
   explicit Impl(Config config,unsigned maximum_beam=4096,bool allow_internal_pcm=false):c(checked(config,maximum_beam)),
       aec_delay(c.sample_rate==48000 ? 912 : 128),linear_delay(c.sample_rate==48000 ? 216 : 64),
-      ns_delay(c.noise_backend==NoiseBackend::rnnoise ? 960 :
+      ns_delay(c.ns_stream_process ? c.ns_stream_delay_samples :
+          c.post_ns_pcm ? c.post_ns_delay_samples : c.noise_backend==NoiseBackend::rnnoise ? 960 :
           c.hybrid_speech_ns && c.speech_preserving_low_cut && c.linear_phase_low_cut &&
           c.noise_backend==NoiseBackend::webrtc ? c.frame_size :
           c.sample_rate==48000 ? 336 : 96),lowcut_delay(0),
@@ -402,10 +707,13 @@ struct AudioEngine::Impl {
       moderate_output(c.frame_size),ns_dry_history(ns_delay),ns_dry_output(c.frame_size),
       vad_audio(c.frame_size),filtered_reference(c.frame_size*c.reference_channels),lowband_output(c.frame_size),
       lowband_ns_history(ns_delay),planar(c.frame_size*c.microphones),
-      taps(planar.size()),mono(c.frame_size),linear(c.microphones),
+      taps(planar.size()),mono(c.frame_size),stream_input(c.frame_size),
+      stream_output(c.frame_size),linear(c.microphones),
       internal_pcm(allow_internal_pcm),maximum_beam_samples(maximum_beam) {
     webrtc::LogMessage::LogToDebug(webrtc::LS_NONE);
     webrtc::LogMessage::SetLogToStderr(false);
+    const bool external_ns=
+        static_cast<bool>(c.ns_stream_process) || static_cast<bool>(c.post_ns_pcm);
     if(c.rx_processing || c.rx_config.enabled) {
       for(unsigned ch=0;ch<c.reference_channels;++ch)
         downlink_pipeline.emplace_back(std::make_unique<DownlinkPipeline>(c.sample_rate,c.frame_size,c.rx_config));
@@ -416,17 +724,25 @@ struct AudioEngine::Impl {
       return;
     }
     if(c.tx_drc.enabled) tx_drc=std::make_unique<DynamicRangeCompressor>(c.sample_rate,c.tx_drc);
+    if(c.bounded_speech_gain)
+      bounded_gain=std::make_unique<detail::BoundedSpeechGain>(detail::BoundedSpeechGain::Settings{
+          c.bounded_gain_max_db,c.bounded_gain_rise_db_per_second,
+          c.bounded_gain_fall_db_per_second,c.bounded_gain_hold_ms});
     if(c.adaptive_controller) {
       const unsigned policy_rate=c.policy_sample_rate ? c.policy_sample_rate : c.sample_rate;
       adaptive_controller=std::make_unique<AdaptiveController>(AdaptiveController::Context{
           c.mode,policy_rate,c.frame_size,c.microphones,c.reference_channels});
     }
-    if(c.aec && (c.aec_backend==AecBackend::speex || c.aec_backend==AecBackend::speex_fused)) {
+    if(c.aec && (c.aec_backend==AecBackend::speex || c.aec_backend==AecBackend::speex_fused_cpu ||
+        c.aec_backend==AecBackend::speex_fused_dsp || c.aec_backend==AecBackend::computer_pf_cpu)) {
       speex_aec=std::make_unique<SpeexAecPipeline>(c); return;
+    }
+    if(c.aec && c.aec_backend==AecBackend::localvqe_aec200k) {
+      localvqe_aec=std::make_unique<LocalVqeAecPipeline>(c); return;
     }
     // The standalone OM-LSA path and Speex MDF's native post chain retain
     // native 24 kHz. AEC3 still owns its explicit legacy 48 kHz bridge.
-    if((c.sample_rate==24000 && ((c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian && c.noise_backend!=NoiseBackend::unified) || c.aec)) || (c.sample_rate==16000 && c.noise_backend==NoiseBackend::rnnoise)) {
+    if(!external_ns && ((c.sample_rate==24000 && ((c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian && c.noise_backend!=NoiseBackend::unified) || c.aec)) || (c.sample_rate==16000 && c.noise_backend==NoiseBackend::rnnoise))) {
       if(c.vehicle_ns_control && c.vehicle_ns.native_24)
         throw std::invalid_argument("AudioEngine uses the 48 kHz core at 24 kHz; native24 is available through VehicleNsProcessor");
       native=std::make_unique<NativePipeline>(c);
@@ -436,7 +752,7 @@ struct AudioEngine::Impl {
       unified_eq_agc=std::make_unique<UnifiedEqAgc>(c.output_eq,c.sample_rate,c.frame_size);
     else if(ParametricEq::enabled(c.output_eq))
       output_eq=std::make_unique<EqProcessor>(c.output_eq,c.sample_rate);
-    if((c.vehicle_ns_control || c.noise_backend==NoiseBackend::omlsa_imcra || c.noise_backend==NoiseBackend::super_gaussian || c.noise_backend==NoiseBackend::unified) && c.noise_suppression) {
+    if(!external_ns && (c.vehicle_ns_control || c.noise_backend==NoiseBackend::omlsa_imcra || c.noise_backend==NoiseBackend::super_gaussian || c.noise_backend==NoiseBackend::unified) && c.noise_suppression) {
       if(c.noise_backend!=NoiseBackend::webrtc && c.noise_backend!=NoiseBackend::speex && c.noise_backend!=NoiseBackend::omlsa_imcra && c.noise_backend!=NoiseBackend::super_gaussian && c.noise_backend!=NoiseBackend::unified)
         throw std::invalid_argument("vehicle NS supports WebRTC, Speex, OM-LSA/IMCRA, Super-Gaussian or unified fusion");
       auto options=c.vehicle_ns;
@@ -451,7 +767,7 @@ struct AudioEngine::Impl {
           !(internal_pcm && c.policy_sample_rate==24000));
       ns_delay=vehicle_ns->delay_samples();
     }
-    if(c.noise_suppression && c.noise_backend==NoiseBackend::ulunas) {
+    if(!external_ns && c.noise_suppression && c.noise_backend==NoiseBackend::ulunas) {
       neural=std::make_unique<NeuralNs>(c.sample_rate,c.neural_model_path);
       ns_delay=neural->delay(); lowband_ns_history.resize(ns_delay);
     }
@@ -459,7 +775,7 @@ struct AudioEngine::Impl {
       spatial=std::make_unique<SpatialFrontend>(c.sample_rate,c.frame_size,c.microphones,c.spatial_mvdr,c.wind_noise_control,c.spatial_fixed_steering,c.spatial_continuous_covariance);
       spatial_capture.resize(planar.size()); spatial_linear.resize(planar.size()); spatial_low.resize(planar.size());
     }
-    if(c.noise_transition_control && c.noise_suppression && !vehicle_ns) {
+    if(!external_ns && c.noise_transition_control && c.noise_suppression && !vehicle_ns) {
       transition_dry.resize(c.frame_size);
       transition_history.resize(c.noise_backend==NoiseBackend::speex ? c.frame_size : ns_delay);
     }
@@ -602,9 +918,9 @@ struct AudioEngine::Impl {
       if(!aec || aec->Initialize(streams(c.microphones,c.sample_rate,c.reference_channels))!=0)
         throw std::runtime_error("WebRTC AEC3 initialization failed");
     }
-    if(c.noise_suppression && c.noise_backend==NoiseBackend::speex && !vehicle_ns)
+    if(!external_ns && c.noise_suppression && c.noise_backend==NoiseBackend::speex && !vehicle_ns)
       speex=std::make_unique<SpeexNs>(c.sample_rate,c.speex_suppression_db);
-    if(c.noise_suppression && c.noise_backend==NoiseBackend::rnnoise) {
+    if(!external_ns && c.noise_suppression && c.noise_backend==NoiseBackend::rnnoise) {
 #ifdef ITU_HAS_RNNOISE
       rn=rnnoise_create(nullptr);
       if(!rn || rnnoise_get_frame_size()!=480) throw std::runtime_error("RNNoise initialization failed");
@@ -612,7 +928,7 @@ struct AudioEngine::Impl {
       throw std::invalid_argument("RNNoise not built");
 #endif
     }
-    if(c.noise_suppression && c.noise_backend==NoiseBackend::webrtc && !vehicle_ns) {
+    if(!external_ns && c.noise_suppression && c.noise_backend==NoiseBackend::webrtc && !vehicle_ns) {
       webrtc::NsConfig ns_config;
       ns_config.target_level=static_cast<webrtc::NsConfig::SuppressionLevel>(c.noise_level);
       ns=std::make_unique<webrtc::NoiseSuppressor>(ns_config,c.sample_rate,1);
@@ -687,7 +1003,7 @@ std::size_t AudioEngine::working_memory_bytes() const noexcept {
       s.protected_capture.capacity()+s.aligned_linear.capacity()+
       s.fullband_history.capacity()+s.fullband_capture.capacity()+s.lowband_bf_history.capacity()+
       s.linear_history.capacity()+s.linear_bf_history.capacity()+
-      s.linear_mono.capacity())*sizeof(float);
+      s.linear_mono.capacity()+s.stream_input.capacity()+s.stream_output.capacity())*sizeof(float);
   bytes+=s.linear.capacity()*sizeof(std::array<float,160>);
   bytes+=(s.fullband_ns_output.capacity()+s.fullband_dry_history.capacity()+s.moderate_output.capacity()+
       s.ns_dry_history.capacity()+s.ns_dry_output.capacity()+s.vad_audio.capacity()+s.filtered_reference.capacity()+
@@ -711,6 +1027,7 @@ std::size_t AudioEngine::working_memory_bytes() const noexcept {
   if(s.subspace_delay) bytes+=s.subspace_delay->memory_bytes();
   if(s.noise_profile) bytes+=s.noise_profile->memory_bytes();
   if(s.speex_aec) bytes+=s.speex_aec->memory_bytes();
+  if(s.localvqe_aec) bytes+=s.localvqe_aec->memory_bytes();
   if(s.ns_residual_profile) bytes+=s.ns_residual_profile->memory_bytes();
   if(s.repeated_tone) bytes+=s.repeated_tone->memory_bytes();
   return bytes;
@@ -718,6 +1035,13 @@ std::size_t AudioEngine::working_memory_bytes() const noexcept {
 Status AudioEngine::process(const float* mic,std::size_t mic_n,const float* ref,std::size_t ref_n,
     float* out,std::size_t out_n,FrameInfo& info,float* aec_tap,float* bf_tap,float* linear_tap,float* aec_input_tap) noexcept {
   return process_impl(mic,mic_n,ref,ref_n,out,out_n,info,aec_tap,bf_tap,linear_tap,aec_input_tap,nullptr);
+}
+AecRouteDiagnostics AudioEngine::aec_route_diagnostics() const {
+  if(!impl_) return {};
+  if(impl_->pre_aec) return impl_->pre_aec->aec_route_diagnostics();
+  if(impl_->speex_aec) return impl_->speex_aec->aec_route_diagnostics();
+  if(impl_->localvqe_aec) return impl_->localvqe_aec->aec_route_diagnostics();
+  return {};
 }
 Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float* ref,std::size_t ref_n,
     float* out,std::size_t out_n,FrameInfo& info,float* aec_tap,float* bf_tap,float* linear_tap,float* aec_input_tap,
@@ -752,6 +1076,15 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
     }
     return status;
   }
+  if(s.localvqe_aec) {
+    DenormalScope denormals;
+    const auto status=s.localvqe_aec->process(mic,ref,out,info,aec_tap,bf_tap,linear_tap,aec_input_tap);
+    if(status==Status::backend_error) {
+      s.failed_backend_error=info.backend_error ? info.backend_error : -1005;
+      info.backend_error=s.failed_backend_error;
+    }
+    return status;
+  }
   if(s.native) {
     const auto status=s.native->process(mic,ref,out,info,aec_tap,bf_tap,linear_tap,aec_input_tap,context);
     if(status==Status::backend_error) {
@@ -763,7 +1096,7 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
   DenormalScope denormals;
   info.frame_index=s.frames; info.microphone_rms=rms(mic,mic_n);
   info.aec_capture_channels=m;
-  const bool render_active=ref && std::pow(rms(ref,ref_n),2)>c.activity_floor;
+  bool render_active=ref && std::pow(rms(ref,ref_n),2)>c.activity_floor;
   if(render_active) s.render_hangover=100;
   else if(s.render_hangover) --s.render_hangover;
   info.far_active=s.render_hangover>0;
@@ -786,7 +1119,7 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
   const bool has_aec=c.aec || context;
   // An unrelated reference is still physically active, but cannot classify
   // local speech as echo or freeze the post-chain noise observation.
-  const bool post_far_active=info.far_active && (!context || context->reference_state!=2);
+  bool post_far_active=info.far_active && (!context || context->reference_state!=2);
   const bool joint_multirender=context && context->multirender_context && c.reference_channels>1;
   const bool joint_reference_unknown=joint_multirender && context->near_state==0;
   // Render activity alone cannot prove echo-only during startup or path changes.
@@ -1231,7 +1564,7 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
   }
   constexpr float kWindLowbandFloor=.25f;
   info.control_evidence_probability=control;
-  const float pre_ns_level=rms(s.mono.data(),h);
+  float pre_ns_level=rms(s.mono.data(),h);
   info.pre_ns_rms=pre_ns_level;
   if(c.continuous_vehicle_policy && m==1 && !s.lowband_bf_history.empty()) {
     // 300 Hz second-order Butterworth low pass over the already high-passed
@@ -1287,10 +1620,10 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
   }
   info.lowband_restore_mix=s.lowband_restore_mix;
   info.coherence_learning_frames=s.echo_subspaces.empty() ? s.coherence_learning_frames : s.echo_subspaces[0]->frames();
-  const bool fullband_near=c.speech_preserving_low_cut && !post_far_active &&
+  bool fullband_near=c.speech_preserving_low_cut && !post_far_active &&
       (!s.lowband_bf_history.empty() || context);
   bool high_snr_dry=false;
-  const float independent_near=(context && !post_far_active) || (c.repair_stage>=4 && !has_aec) ?
+  float independent_near=(context && !post_far_active) || (c.repair_stage>=4 && !has_aec) ?
       control : info.linear_speech_probability;
   double gain_qualification_power=double(pre_ns_level)*pre_ns_level;
   if(c.ecnr_coordinated_control && fullband_near) {
@@ -1424,18 +1757,215 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
     info.fullband_ns_mix=s.fullband_ns_mix;
     info.fullband_noise_power=s.fullband_noise_power;
   }
+  if(c.diagnostic_stages) {
+    for(unsigned i=0;i<h;++i)
+      c.diagnostic_stages->experiment_ns_input[i]=
+          s.mono[i]+(fullband_near || context ? s.lowband_output[i]:0.f);
+  }
   AdaptiveController::Decision adaptive_decision{};
   adaptive_decision.gain_limit_db=c.max_gain_db;
+  struct SavedAecIdentity {
+    float microphone_rms=0,speech_probability=0;
+    float linear_speech_probability=0,nonlinear_speech_probability=0;
+    float input_excess_control=0;
+    bool far_active=false;
+    unsigned info_reference_state=0,s_reference_state=0;
+    unsigned info_near_hangover=0,s_near_hangover=0;
+  } saved_identity;
+  bool restore_stream_identity=false;
+  if(c.ns_stream_process) {
+    const unsigned delay_frames=c.ns_stream_delay_samples/h;
+    const unsigned ring_capacity=std::max(1u,delay_frames);
+    Impl::StreamNsEvidence current;
+    current.control=control;
+    current.pre_ns_level=pre_ns_level;
+    current.independent_near=independent_near;
+    current.gain_qualification_power=gain_qualification_power;
+    current.microphone_rms=info.microphone_rms;
+    current.speech_probability=info.speech_probability;
+    current.linear_speech_probability=info.linear_speech_probability;
+    current.nonlinear_speech_probability=info.nonlinear_speech_probability;
+    current.input_excess_control=s.input_excess_control;
+    current.reference_state=info.reference_state;
+    current.near_hangover=s.near_hangover;
+    current.far_active=info.far_active;
+    current.post_far_active=post_far_active;
+    current.fullband_near=fullband_near;
+    current.render_active=render_active;
+    Impl::StreamNsEvidence downstream=current;
+    if(delay_frames) {
+      if(s.frames>=delay_frames) {
+        const unsigned index=(s.stream_evidence_head+ring_capacity-delay_frames)%
+            ring_capacity;
+        downstream=s.stream_evidence[index];
+      } else {
+        downstream={};
+      }
+      s.stream_evidence[s.stream_evidence_head]=current;
+      s.stream_evidence_head=(s.stream_evidence_head+1)%ring_capacity;
+    }
+    for(unsigned i=0;i<h;++i)
+      s.stream_input[i]=s.mono[i]+
+          (fullband_near || context ? s.lowband_output[i] : 0.f);
+    bool stream_ok=false;
+    const auto stream_started=c.profile_stages ? std::chrono::steady_clock::now() :
+        std::chrono::steady_clock::time_point{};
+    try {
+      stream_ok=c.ns_stream_process(s.stream_input.data(),s.stream_output.data(),h);
+    } catch(...) {
+      s.failed_backend_error=info.backend_error=-1006;
+      return Status::backend_error;
+    }
+    if(c.profile_stages)
+      info.ns_stream_roundtrip_ms=std::chrono::duration<float,std::milli>(
+          std::chrono::steady_clock::now()-stream_started).count();
+    if(!stream_ok) {
+      s.failed_backend_error=info.backend_error=-1006;
+      return Status::backend_error;
+    }
+    if(std::any_of(s.stream_output.begin(),s.stream_output.end(),
+        [](float value){return !std::isfinite(value);})) {
+      s.failed_backend_error=info.backend_error=-1007;
+      return Status::non_finite;
+    }
+    std::copy_n(s.stream_output.data(),h,s.mono.begin());
+    info.ns_external_stream_enabled=true;
+    info.ns_external_applied_frames=s.frames+1;
+    info.ns_external_delay_samples=c.ns_stream_delay_samples;
+    info.ns_external_fallback_frames=0;
+    if(c.diagnostic_stages)
+      std::copy_n(s.mono.data(),h,c.diagnostic_stages->nr_selected.data());
+    saved_identity.microphone_rms=info.microphone_rms;
+    saved_identity.speech_probability=info.speech_probability;
+    saved_identity.linear_speech_probability=info.linear_speech_probability;
+    saved_identity.nonlinear_speech_probability=info.nonlinear_speech_probability;
+    saved_identity.far_active=info.far_active;
+    saved_identity.info_reference_state=info.reference_state;
+    saved_identity.s_reference_state=s.reference_state;
+    saved_identity.info_near_hangover=info.near_protection_hold_frames;
+    saved_identity.s_near_hangover=s.near_hangover;
+    saved_identity.input_excess_control=s.input_excess_control;
+    control=downstream.control;
+    pre_ns_level=downstream.pre_ns_level;
+    independent_near=downstream.independent_near;
+    gain_qualification_power=downstream.gain_qualification_power;
+    render_active=downstream.render_active;
+    post_far_active=downstream.post_far_active;
+    fullband_near=downstream.fullband_near;
+    info.microphone_rms=downstream.microphone_rms;
+    info.speech_probability=downstream.speech_probability;
+    info.linear_speech_probability=downstream.linear_speech_probability;
+    info.nonlinear_speech_probability=downstream.nonlinear_speech_probability;
+    info.far_active=downstream.far_active;
+    info.reference_state=downstream.reference_state;
+    info.near_protection_hold_frames=downstream.near_hangover;
+    s.reference_state=downstream.reference_state;
+    s.near_hangover=downstream.near_hangover;
+    s.input_excess_control=downstream.input_excess_control;
+    restore_stream_identity=true;
+  } else if(c.post_ns_pcm) {
+    const auto& external_pcm=*c.post_ns_pcm;
+    const std::size_t cursor=static_cast<std::size_t>(s.frames)*h;
+    if(cursor>external_pcm.size() || h>external_pcm.size()-cursor)
+      return Status::invalid_length;
+    std::copy_n(external_pcm.data()+cursor,h,s.mono.data());
+    const unsigned delay_frames=c.post_ns_delay_samples/h;
+    if(delay_frames) {
+      const unsigned ring_capacity=std::max(1u,delay_frames);
+      Impl::StreamNsEvidence current;
+      current.control=control;
+      current.pre_ns_level=pre_ns_level;
+      current.independent_near=independent_near;
+      current.gain_qualification_power=gain_qualification_power;
+      current.microphone_rms=info.microphone_rms;
+      current.speech_probability=info.speech_probability;
+      current.linear_speech_probability=info.linear_speech_probability;
+      current.nonlinear_speech_probability=info.nonlinear_speech_probability;
+      current.input_excess_control=s.input_excess_control;
+      current.reference_state=info.reference_state;
+      current.near_hangover=s.near_hangover;
+      current.far_active=info.far_active;
+      current.post_far_active=post_far_active;
+      current.fullband_near=fullband_near;
+      current.render_active=render_active;
+      Impl::StreamNsEvidence downstream=current;
+      if(s.frames>=delay_frames) {
+        const unsigned index=(s.stream_evidence_head+ring_capacity-delay_frames)%
+            ring_capacity;
+        downstream=s.stream_evidence[index];
+      } else {
+        downstream={};
+      }
+      s.stream_evidence[s.stream_evidence_head]=current;
+      s.stream_evidence_head=(s.stream_evidence_head+1)%ring_capacity;
+      saved_identity.microphone_rms=info.microphone_rms;
+      saved_identity.speech_probability=info.speech_probability;
+      saved_identity.linear_speech_probability=info.linear_speech_probability;
+      saved_identity.nonlinear_speech_probability=info.nonlinear_speech_probability;
+      saved_identity.far_active=info.far_active;
+      saved_identity.info_reference_state=info.reference_state;
+      saved_identity.s_reference_state=s.reference_state;
+      saved_identity.info_near_hangover=info.near_protection_hold_frames;
+      saved_identity.s_near_hangover=s.near_hangover;
+      saved_identity.input_excess_control=s.input_excess_control;
+      control=downstream.control;
+      pre_ns_level=downstream.pre_ns_level;
+      independent_near=downstream.independent_near;
+      gain_qualification_power=downstream.gain_qualification_power;
+      render_active=downstream.render_active;
+      post_far_active=downstream.post_far_active;
+      fullband_near=downstream.fullband_near;
+      info.microphone_rms=downstream.microphone_rms;
+      info.speech_probability=downstream.speech_probability;
+      info.linear_speech_probability=downstream.linear_speech_probability;
+      info.nonlinear_speech_probability=downstream.nonlinear_speech_probability;
+      info.far_active=downstream.far_active;
+      info.reference_state=downstream.reference_state;
+      info.near_protection_hold_frames=downstream.near_hangover;
+      s.reference_state=downstream.reference_state;
+      s.near_hangover=downstream.near_hangover;
+      s.input_excess_control=downstream.input_excess_control;
+      restore_stream_identity=true;
+    }
+    info.ns_external_pcm_enabled=true;
+    info.ns_external_applied_frames=s.frames+1;
+    info.ns_external_delay_samples=c.post_ns_delay_samples;
+    info.ns_external_fallback_frames=0;
+    if(c.diagnostic_stages)
+      std::copy_n(s.mono.data(),h,c.diagnostic_stages->nr_selected.data());
+  } else {
   if(s.vehicle_ns) {
     // Consume the fullband post-AEC residual once. All NS-local wet/dry paths
     // and their common delay live in this component; no later raw restoration.
     if(fullband_near || context) for(unsigned i=0;i<h;++i) s.mono[i]+=s.lowband_output[i];
+    if(c.vehicle_ns.omlsa_tuning.adaptive_noise_tracking ||
+       c.vehicle_ns.omlsa_tuning.high_snr_transparency ||
+       c.vehicle_ns.omlsa_tuning.low_band_protection)
+      s.vehicle_ns->set_capture_evidence(s.spectral_excess ? info.input_excess_fraction:-1.f);
     if(!s.vehicle_ns->process(s.mono.data(),h)) return Status::backend_error;
     const auto state=s.vehicle_ns->statistics();
     info.hybrid_ns_state=state.student_state;
     info.hybrid_ns_inferences=state.student_inferences;
     info.hybrid_ns_fallback_frames=state.student_fallback_frames;
     info.hybrid_ns_applied=state.student_applied;
+    info.residual_model_state=state.residual_model_state;
+    info.residual_model_inferences=state.residual_model_inferences;
+    info.residual_model_fallback_frames=state.residual_model_fallback_frames;
+    info.residual_model_applied_frames=state.residual_model_applied_frames;
+    info.residual_model_parameters=state.residual_model_parameters;
+    info.hybrid_v2_state=state.hybrid_v2_state;
+    info.hybrid_v2_inferences=state.hybrid_v2_inferences;
+    info.hybrid_v2_fallback_frames=state.hybrid_v2_fallback_frames;
+    info.hybrid_v2_applied_frames=state.hybrid_v2_applied_frames;
+    info.hybrid_v2_parameters=state.hybrid_v2_parameters;
+    info.hybrid_v2_input_dim=state.hybrid_v2_input_dim;
+    info.hybrid_v2_applied=state.hybrid_v2_applied;
+    info.hybrid_v2_pitch_active=state.hybrid_v2_pitch_active;
+    info.hybrid_v2_pitch_active_frames=state.hybrid_v2_pitch_active_frames;
+    info.hybrid_v2_pitch_fallback_frames=state.hybrid_v2_pitch_fallback_frames;
+    info.hybrid_v2_pitch_lag_samples=state.hybrid_v2_pitch_lag_samples;
+    info.hybrid_v2_pitch_periodicity=state.hybrid_v2_pitch_periodicity;
+    info.hybrid_v2_raw_mix=state.hybrid_v2_raw_mix;
     info.vehicle_ns_rumble_corner_hz=state.rumble_corner_hz;
     info.vehicle_ns_rumble_low_ratio_db=state.rumble_low_ratio_db;
     info.vehicle_ns_raw_mix_budget=state.raw_mix_budget;
@@ -1600,7 +2130,10 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
       for(unsigned i=0;i<h;++i) s.mono[i]=(s.noise_speech_mix*speech_gain+(1-s.noise_speech_mix)*.42f)*s.mono[i];
     }
   }
-  if(fullband_near && !s.ns && !s.vehicle_ns) for(unsigned i=0;i<h;++i) s.mono[i]+=s.wind_lowband_gain*s.lowband_output[i];
+  if(!c.ns_stream_process && !c.post_ns_pcm &&
+     fullband_near && !s.ns && !s.vehicle_ns)
+    for(unsigned i=0;i<h;++i)
+      s.mono[i]+=s.wind_lowband_gain*s.lowband_output[i];
   if(s.speex) {
     if(c.speex_speech_policy) s.speex->suppression(!post_far_active && control>.5f ? -6 : c.speex_suppression_db);
     s.speex->process(s.mono.data());
@@ -1630,7 +2163,8 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
   }
   if(c.diagnostic_stages && !s.ns)
     std::copy_n(s.mono.data(),h,c.diagnostic_stages->nr_selected.data());
-  if(!s.speex && !s.vehicle_ns && !s.lowband_bf_history.empty()) {
+  if(!c.ns_stream_process && !c.post_ns_pcm &&
+     !s.speex && !s.vehicle_ns && !s.lowband_bf_history.empty()) {
     const float eff_low_mix=(c.continuous_vehicle_policy && fullband_near && s.fullband_speech_hold) ? 1.f : s.noise_speech_mix;
     const float speech_gain=c.noise_suppression && (c.adaptive_noise_policy || c.continuous_vehicle_policy) ?
         eff_low_mix*(c.continuous_vehicle_policy || s.reference_state==2 || s.observed_peak>.65f ? 1.f : 1.258925f)+(1-eff_low_mix)*(c.continuous_vehicle_policy ? s.floor_gain_smoothed : .42f) : 1.f;
@@ -1655,11 +2189,12 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
     info.tone_concentration=s.repeated_tone->concentration();
     info.tone_repeats=s.repeated_tone->repeats();
   }
-  if(c.min_stat_ns) {
+  if(c.min_stat_ns && !c.ns_stream_process && !c.post_ns_pcm) {
     double p=0; for(unsigned i=0;i<h;++i) p+=double(s.mono[i])*s.mono[i];
     const float g=s.min_stat_ns_gate.observe(float(p/std::max(h,1u)),control);
     if(g<1.f) for(unsigned i=0;i<h;++i) s.mono[i]*=g;
     info.min_stat_gain=g;
+  }
   }
   info.post_ns_rms=rms(s.mono.data(),h);
   if(c.diagnostic_stages) std::copy_n(s.mono.data(),h,c.diagnostic_stages->nr_protected.data());
@@ -1727,7 +2262,9 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
         info.gain_hold_db=s.legacy_utterance_gain.hold_gain();
       }
       const float step=c.max_gain_change_db_per_second/100.f;
-      const float commanded=context ? s.applied_gain_db+std::clamp(target-s.applied_gain_db,-step,step) : target;
+      const float commanded=s.bounded_gain ?
+          s.bounded_gain->process(target,utterance_qualified,info.far_active) :
+          context ? s.applied_gain_db+std::clamp(target-s.applied_gain_db,-step,step) : target;
       float applied=commanded;
       if(c.gain_fault==GainFault::previous_frame) applied=s.previous_commanded_gain_db;
       else if(c.gain_fault==GainFault::inverted) applied=-commanded;
@@ -1793,6 +2330,21 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
           info.linear_speech_probability,info.nonlinear_speech_probability,
           post_far_active,adaptive_decision.near_confidence);
     } else if(s.output_eq) s.output_eq->process(out,h);
+    if(c.diagnostic_stages) std::copy_n(out,h,c.diagnostic_stages->post_eq.data());
+  }
+  if(restore_stream_identity) {
+    // AGC/EQ consumed evidence delayed with the worker-owned audio. Restore
+    // the current AEC-frame identity before publishing FrameInfo.
+    info.microphone_rms=saved_identity.microphone_rms;
+    info.speech_probability=saved_identity.speech_probability;
+    info.linear_speech_probability=saved_identity.linear_speech_probability;
+    info.nonlinear_speech_probability=saved_identity.nonlinear_speech_probability;
+    info.far_active=saved_identity.far_active;
+    info.reference_state=saved_identity.info_reference_state;
+    info.near_protection_hold_frames=saved_identity.info_near_hangover;
+    s.reference_state=saved_identity.s_reference_state;
+    s.near_hangover=saved_identity.s_near_hangover;
+    s.input_excess_control=saved_identity.input_excess_control;
   }
   const bool tx_drc_apply=c.tx_drc.enabled && s.tx_drc &&
       !(info.unified_ns_high_snr_bypass && s.tx_drc->delay_samples()==0);
@@ -1801,7 +2353,7 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
   } else if(tx_drc_apply) {
     s.tx_drc->process(out,h);
   }
-  if(c.diagnostic_stages && !c.eq_before_agc) std::copy_n(out,h,c.diagnostic_stages->post_eq.data());
+  if(c.diagnostic_stages) std::copy_n(out,h,c.diagnostic_stages->post_drc.data());
   for(unsigned i=0;i<h;++i) if(c.limiter && std::abs(out[i])>c.output_ceiling) {
     out[i]=std::copysign(c.output_ceiling,out[i]); ++info.limited_samples;
   }
@@ -1814,7 +2366,8 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
       info.nonlinear_speech_probability<.05f;
   // VehicleNsProcessor already owns the delayed wet/dry timeline. Current
   // input silence cannot qualify its still-valid delayed output as a tail.
-  if(quiet_boundary && !s.vehicle_ns) {
+  if(quiet_boundary && !s.vehicle_ns && !c.post_ns_pcm &&
+     !c.ns_stream_process) {
     float quiet_peak=0;
     for(unsigned i=0;i<h;++i) quiet_peak=std::max(quiet_peak,std::abs(out[i]));
     if(quiet_peak<5e-4f) std::fill_n(out,h,0.f);
@@ -1830,7 +2383,9 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
   info.linear_aec_delay_samples=c.aec ? (kLinearAecDelaySamples+info.aec_input_delay_samples)*16000/c.sample_rate : 0;
   // Report the backend delay on the selected output path. The causal low-cut
   // contributes zero fixed samples; hybrid/Speex NS keeps its frame contract.
-  info.ns_delay_samples=c.noise_suppression ? (s.speex ? h : kNsDelaySamples) : 0;
+  info.ns_delay_samples=c.ns_stream_process ? c.ns_stream_delay_samples :
+      c.post_ns_pcm ? c.post_ns_delay_samples :
+      c.noise_suppression ? (s.speex ? h : kNsDelaySamples) : 0;
   info.tx_drc_delay_samples=(c.tx_drc.enabled && s.tx_drc) ?
       static_cast<unsigned>(s.tx_drc->delay_samples()) : 0;
   const unsigned eq_delay=s.unified_eq_agc ? s.unified_eq_agc->delay() :
@@ -1844,7 +2399,14 @@ Status AudioEngine::process_impl(const float* mic,std::size_t mic_n,const float*
     auto& taps=*c.diagnostic_stages;
     taps.core_sample_rate=taps.eq_sample_rate=c.sample_rate;
     taps.core_frame_size=taps.eq_frame_size=h;
-    taps.core_delay_samples=taps.eq_delay_samples=info.latency_samples;
+    const unsigned base_delay=info.latency_samples-eq_delay-info.tx_drc_delay_samples;
+    taps.core_delay_samples=base_delay;
+    taps.experiment_ns_input_delay_samples=base_delay-info.ns_delay_samples;
+    taps.agc_delay_samples=base_delay+(c.eq_before_agc ? eq_delay : 0);
+    taps.pre_eq_delay_samples=base_delay;
+    taps.post_eq_delay_samples=base_delay+eq_delay;
+    taps.eq_delay_samples=taps.post_eq_delay_samples;
+    taps.drc_delay_samples=info.latency_samples;
     taps.nr_selected_available=c.noise_suppression;
   }
   ++s.frames;
@@ -1861,15 +2423,43 @@ Status AudioEngine::process_downlink(const float* rx_input, std::size_t rx_sampl
   if(s.downlink_pipeline.empty()) {
     std::copy_n(rx_input,rx_samples,rx_speaker_output);
     if(aec_reference_output) std::copy_n(rx_input,rx_samples,aec_reference_output);
+    if(c.diagnostic_stages) {
+      auto& taps=*c.diagnostic_stages;
+      for(unsigned ch=0;ch<c.reference_channels;++ch) {
+        for(unsigned i=0;i<c.frame_size;++i) {
+          const float sample=rx_input[i*c.reference_channels+ch];
+          taps.rx_nr[ch*480+i]=sample;
+          taps.rx_eq[ch*480+i]=sample;
+          taps.rx_drc[ch*480+i]=sample;
+        }
+      }
+      taps.rx_sample_rate=c.sample_rate;
+      taps.rx_frame_size=c.frame_size;
+      taps.rx_channels=c.reference_channels;
+      taps.rx_drc_delay_samples=0;
+      taps.rx_available=true;
+    }
     return Status::ok;
   }
   for(unsigned ch=0;ch<c.reference_channels;++ch) {
     for(unsigned i=0;i<c.frame_size;++i) s.downlink_input[i]=rx_input[i*c.reference_channels+ch];
-    s.downlink_pipeline[ch]->process(s.downlink_input.data(),s.downlink_output.data(),nullptr,c.frame_size);
+    float* rx_nr=c.diagnostic_stages ? c.diagnostic_stages->rx_nr.data()+ch*480 : nullptr;
+    float* rx_eq=c.diagnostic_stages ? c.diagnostic_stages->rx_eq.data()+ch*480 : nullptr;
+    float* rx_drc=c.diagnostic_stages ? c.diagnostic_stages->rx_drc.data()+ch*480 : nullptr;
+    s.downlink_pipeline[ch]->process(s.downlink_input.data(),s.downlink_output.data(),nullptr,
+        c.frame_size,rx_nr,rx_eq,rx_drc);
     for(unsigned i=0;i<c.frame_size;++i) {
       rx_speaker_output[i*c.reference_channels+ch]=s.downlink_output[i];
       if(aec_reference_output) aec_reference_output[i*c.reference_channels+ch]=s.downlink_output[i];
     }
+  }
+  if(c.diagnostic_stages) {
+    auto& taps=*c.diagnostic_stages;
+    taps.rx_sample_rate=c.sample_rate;
+    taps.rx_frame_size=c.frame_size;
+    taps.rx_channels=c.reference_channels;
+    taps.rx_drc_delay_samples=s.downlink_pipeline[0]->delay_samples();
+    taps.rx_available=true;
   }
   return Status::ok;
 }

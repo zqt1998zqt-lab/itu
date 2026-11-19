@@ -88,13 +88,54 @@
           "note": "VCP 默认 MDF、原生 conditioning、相干残差门控与 live post-AEC context；VCP 默认多参考回退未门控 MDF；联合方案使用多参考上下文。"
         },
         {
-          "id": "speex_fused",
-          "label": "Speex MDF + GCC-PHAT / NLMS 融合",
+          "id": "speex_fused_cpu",
+          "label": "Speex MDF + GCC-PHAT / NLMS 融合 · CPU",
           "flags": [
             "--aec-backend",
-            "speex_fused"
+            "speex_fused_cpu"
           ],
-          "note": "主 MDF、GCC-PHAT 延迟检测、短尾 NLMS shadow 与路径突变恢复。"
+          "note": "CPU 实现：主 MDF、GCC-PHAT 延迟检测、短尾 NLMS shadow 与路径突变恢复。"
+        },
+        {
+          "id": "speex_fused_dsp",
+          "label": "Speex MDF + Complex_PF · HiFi DSP",
+          "flags": [
+            "--aec-backend",
+            "speex_fused_dsp"
+          ],
+          "note": "HiFi DSP 实现：需要 HiFi provider 与有效的 Complex_PF 权重；目标型号待定，缺少依赖时不得静默回退 CPU。",
+          "requires": [
+            "hifi_dsp",
+            "complex_pf_model"
+          ],
+          "candidate": true
+        },
+        {
+          "id": "computer_pf_cpu",
+          "label": "MDF + Complex_PF · CPU · 离线实验",
+          "flags": [
+            "--aec-backend",
+            "computer_pf_cpu"
+          ],
+          "note": "离线实验性 CPU 实现：MDF 前端 + 本地训练的 Complex_PF 后滤波，执行身份 CPU / host_cpu，后端报告名 speex_mdf_complex_pf_cpu；不是官方预训练权重，也不保证优于现有 CPU 融合路线。",
+          "requires": [
+            "complex_pf_model"
+          ],
+          "candidate": true
+        },
+        {
+          "id": "localvqe_aec200k",
+          "label": "LocalVQE v1.4-AEC 203K · CPU",
+          "flags": [
+            "--aec-backend",
+            "localvqe_aec200k"
+          ],
+          "note": "LocalVQE 自身 DAF + 203K neural mask；输入为麦克风混合输入与单路远端播放信号 / 回声参考，输出继续进入 VCP 的 NS/EQ/AGC/DRC/Limiter。固定 16 kHz 模型、CPU host_cpu，实验工程代理，不是正式 ITU-T 合规。",
+          "requires": [
+            "localvqe_cpu",
+            "localvqe_aec200k"
+          ],
+          "candidate": true
         },
         {
           "id": "aec3",
@@ -178,6 +219,46 @@
             "unified"
           ],
           "note": "OM-LSA Gaussian、Super-Gaussian、Wiener 与 Conservative 专家按因果证据融合。"
+        },
+        {
+          "id": "cofilite",
+          "label": "CoFi-Lite · ONNX CPU 流式",
+          "flags": [
+            "--ns-backend",
+            "webrtc"
+          ],
+          "note": "16 kHz CPU 流式降噪；原始 CoFi-Lite FP32 权重通过 ONNX Runtime 单线程执行，卷积与 GRU 状态跨 10 ms 回调保留；固定缓冲 30 ms，非零前瞻。",
+          "candidate": true
+        },
+        {
+          "id": "dpdfnet2",
+          "label": "DPDFNet-2 · CPU",
+          "flags": [
+            "--ns-backend",
+            "webrtc"
+          ],
+          "note": "16 kHz CPU 文件降噪；使用 DPDFNet-2 流式模型，模型固定延时 40 ms。",
+          "candidate": true
+        },
+        {
+          "id": "dpdfnet2_48k_hr",
+          "label": "DPDFNet-2 48 kHz HR · CPU",
+          "flags": [
+            "--ns-backend",
+            "webrtc"
+          ],
+          "note": "原生 48 kHz 全带降噪；960 点窗、480 点 hop、40 ms 固定算法延迟，仅接受 AEC3 上游和离线 post-NS 回放。",
+          "candidate": true
+        },
+        {
+          "id": "hybrid_v2_pitch",
+          "label": "V2＋谐波 · CPU",
+          "flags": [
+            "--ns-backend",
+            "webrtc"
+          ],
+          "note": "16 kHz CPU 文件降噪；OM-LSA + V2 增益控制 + 谐波保护，模型固定延时 10 ms。",
+          "candidate": true
         },
         {
           "id": "off",
@@ -450,6 +531,147 @@
       }
     },
     {
+      "id": "speex_fused_cpu",
+      "label": "VCP · Speex CPU 融合 AEC",
+      "description": "在 VCP 默认链路上仅将 AEC 切换为 Speex MDF + GCC-PHAT / NLMS CPU 融合后端。",
+      "profile": "vcp",
+      "selection": {
+        "bf": "das",
+        "aec": "speex_fused_cpu",
+        "ns": "webrtc",
+        "eq": "off",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "speex_fused_dsp",
+      "label": "VCP · Speex DSP Complex_PF",
+      "description": "在 VCP 默认链路上仅将 AEC 请求切换为 Speex MDF + Complex_PF HiFi DSP；实际执行由后端设备能力与模型权重准入决定。",
+      "profile": "vcp",
+      "selection": {
+        "bf": "das",
+        "aec": "speex_fused_dsp",
+        "ns": "webrtc",
+        "eq": "off",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "computer_pf_cpu",
+      "label": "VCP · Complex_PF CPU（离线实验）",
+      "description": "在 VCP 默认链路上仅将 AEC 切换为 MDF + Complex_PF 的离线实验性 CPU 路由；使用本地训练权重，不继承官方预训练或旧 CPU 融合评测。",
+      "profile": "vcp",
+      "selection": {
+        "bf": "das",
+        "aec": "computer_pf_cpu",
+        "ns": "webrtc",
+        "eq": "off",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "localvqe_aec200k",
+      "label": "VCP · LocalVQE 203K AEC",
+      "description": "LocalVQE v1.4-AEC 203K（DAF + neural mask），默认启用三段语音形状 EQ；NS/EQ/AGC/DRC/Limiter 保持独立。当前固定 CPU 工程代理，不继承 Speex MDF 或正式合规证据。",
+      "profile": "vcp",
+      "candidate": true,
+      "extra_flags": [
+        "--localvqe-reference-channel",
+        "0"
+      ],
+      "selection": {
+        "bf": "das",
+        "aec": "localvqe_aec200k",
+        "ns": "webrtc",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "localvqe_cofilite",
+      "label": "VCP · LocalVQE 203K AEC + CoFi-Lite · ONNX CPU 流式",
+      "description": "LocalVQE 203K AEC 后接有状态 CoFi-Lite，原始 FP32 权重由 ONNX Runtime 单线程执行；NS 固定缓冲 30 ms，默认启用三段语音形状 EQ。页面仍使用文件测试，未接设备实时采集。",
+      "profile": "vcp",
+      "candidate": true,
+      "extra_flags": [
+        "--localvqe-reference-channel",
+        "0"
+      ],
+      "selection": {
+        "bf": "das",
+        "aec": "localvqe_aec200k",
+        "ns": "cofilite",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "localvqe_dpdfnet2",
+      "label": "VCP · LocalVQE 203K AEC + DPDFNet-2 · CPU",
+      "description": "保留 LocalVQE 203K AEC 和其余处理级，仅将降噪替换为 DPDFNet-2；默认启用三段语音形状 EQ，16 kHz CPU 文件处理。",
+      "profile": "vcp",
+      "candidate": true,
+      "extra_flags": [
+        "--localvqe-reference-channel",
+        "0"
+      ],
+      "selection": {
+        "bf": "das",
+        "aec": "localvqe_aec200k",
+        "ns": "dpdfnet2",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "localvqe_hybrid_v2_pitch",
+      "label": "VCP · LocalVQE 203K AEC + V2＋谐波 · CPU",
+      "description": "保留 LocalVQE 203K AEC 和其余处理级，仅将降噪替换为 V2＋谐波；默认启用三段语音形状 EQ，16 kHz CPU 文件处理。",
+      "profile": "vcp",
+      "candidate": true,
+      "extra_flags": [
+        "--localvqe-reference-channel",
+        "0"
+      ],
+      "selection": {
+        "bf": "das",
+        "aec": "localvqe_aec200k",
+        "ns": "hybrid_v2_pitch",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
+      "id": "vcp_aec3_dpdfnet2_48k_hr",
+      "label": "质量路线：AEC3 → DPDFNet2 48 kHz HR",
+      "description": "WebRTC AEC3 在原生 48 kHz / 480 点帧上完成回声消除，冻结的 DPDFNet2 HR ONNX 通过持久 worker 在 tx_ns_input 边界逐回调进行全带降噪，并保持跨帧模型状态。模型算法延迟 40 ms，另需 10 ms 首窗启动缓冲，在线总回调延迟 50 ms；输出进入同一 AEC 尾部的 EQ、AGC、DRC 与限幅。当前由文件输入驱动真实回调，设备采集仍需目标硬件验收，不等于正式 ITU-T 合规。",
+      "profile": "vcp",
+      "candidate": true,
+      "selection": {
+        "bf": "das",
+        "aec": "aec3",
+        "ns": "dpdfnet2_48k_hr",
+        "eq": "three_band",
+        "agc": "guarded5",
+        "drc": "default",
+        "limiter": "on"
+      }
+    },
+    {
       "id": "vcp_joint",
       "label": "VCP 联合优化 · 工程可选",
       "profile": "vcp_joint",
@@ -471,7 +693,7 @@
       "profile": "vcp_unified",
       "selection": {
         "bf": "das",
-        "aec": "speex_fused",
+        "aec": "speex_fused_cpu",
         "ns": "unified",
         "eq": "off",
         "agc": "guarded5",
@@ -486,7 +708,7 @@
       "profile": "vcp_unified",
       "selection": {
         "bf": "das",
-        "aec": "speex_fused",
+        "aec": "speex_fused_cpu",
         "ns": "unified",
         "eq": "three_band",
         "agc": "guarded5",

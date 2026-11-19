@@ -125,9 +125,9 @@ export default function AecPipeline() {
       <section className="nsp-intro">
         <div>
           <span>ACOUSTIC ECHO CANCELLATION</span>
-          <h2>从播放参考出发，看回声怎样被估计、消除和保护</h2>
+          <h2>从远端播放信号 / 回声参考出发，看回声怎样被估计、消除和保护</h2>
           <p>
-            本页只覆盖 AEC。网页生成的 VCP 档位默认使用 Speex MDF；底层 Config 默认使用 AEC3。两种后端、前置波束和多参考保护分别展开，保留延迟估计、线性滤波、非线性残差与近端保护的测量边界。
+            本页只覆盖 AEC。网页生成的 VCP 档位默认使用 Speex MDF；底层 Config 默认使用 AEC3。两种后端、前置波束和多路远端播放信号 / 回声参考保护分别展开，保留延迟估计、线性滤波、非线性残差与近端保护的测量边界。
           </p>
         </div>
         <div className="nsp-summary" aria-label="AEC 链路数量">
@@ -170,7 +170,7 @@ export default function AecPipeline() {
           <GitBranch size={17} />
           <p>
             <strong>边界：</strong>
-            AEC 接收麦克风与同步播放参考，输出消除后的 uplink PCM；NR、EQ、AGC 和 ITU-T 指标计算在本页只作为下游出现。灰线为音频，蓝线为延迟或近端判断，金色虚线为显式开关的增强路径。
+            AEC 接收麦克风混合输入与同步的远端播放信号 / 回声参考，输出消除后的发送处理输出（TX） PCM；NR、EQ、AGC 和 ITU-T 指标计算在本页只作为下游出现。灰线为音频，蓝线为延迟或近端判断，金色虚线为显式开关的增强路径。
           </p>
         </div>
         <div className="nsp-legend-inline" aria-label="连线图例">
@@ -195,7 +195,7 @@ export default function AecPipeline() {
             <span>ECHO PATH INDEX</span>
             <h2 id="aec-catalog-title">项目内 AEC 后端与信号路径</h2>
             <p>
-              网页默认 VCP 路径为 Speex MDF + Coherence RES：500 ms 尾长、原生输入调理、单参考相干残差门控与共享后级上下文。底层 Config 保留 WebRTC AEC3 默认值；多参考输入自动回退为未门控 MDF。冻结对照结果不代表当前 VCP 整链已通过验收。
+              网页默认 VCP 路径为 Speex MDF + Coherence RES：500 ms 尾长、原生输入调理、单路远端播放信号 / 回声参考的相干残差门控与共享后级上下文。底层 Config 保留 WebRTC AEC3 默认值；多路远端播放信号 / 回声参考输入自动回退为未门控 MDF。冻结对照结果不代表当前 VCP 整链已通过验收。
             </p>
           </div>
           <div className="nsp-filters" role="group" aria-label="筛选 AEC 类别">
