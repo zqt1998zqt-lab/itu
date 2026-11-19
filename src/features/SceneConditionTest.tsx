@@ -36,6 +36,7 @@ import {
 } from "./five-signal-flow-model.ts";
 import ScopedAcousticWaveforms from "./ScopedAcousticWaveforms";
 import ScopedDatasetVisualization, {
+  type RuntimeMicrophoneTrackState,
   type ScopedCaseRenderContext,
 } from "./ScopedDatasetVisualization";
 import {
@@ -63,6 +64,7 @@ import {
   SCENE_CONDITION_DATASETS_URL,
   readSceneConditionBatch,
   readSceneConditionBatchHistory,
+  sceneConditionCaseDynamicMicrophoneEvidence,
   sceneConditionCaseRxEvidence,
   sceneConditionCaseTxEvidence,
   type SceneConditionBatch,
@@ -1816,6 +1818,58 @@ export default function SceneConditionTest({
     );
   }
 
+  const sceneConditionCasesById = useMemo(() => {
+    const map = new Map<
+      string,
+      { batch: SceneConditionBatch; caseRecord: SceneConditionCase }
+    >();
+    for (const [caseId, entry] of latestCaseResults.entries()) {
+      map.set(caseId, { batch: entry.batch, caseRecord: entry.caseRecord });
+    }
+    return map;
+  }, [latestCaseResults]);
+
+  function getRuntimeMicrophone(
+    previewCase: ScopedInputPreviewCase,
+    context: ScopedCaseRenderContext,
+  ): RuntimeMicrophoneTrackState {
+    const candidate = latestCaseResults.get(previewCase.case_id) ?? null;
+    if (
+      !candidate
+      || !caseIdentityMatches(
+        candidate.batch,
+        candidate.caseRecord,
+        previewCase,
+        context,
+        algorithmClusterId,
+      )
+    ) {
+      return {
+        ready: false,
+        reason:
+          "待执行 · 点击「运行本组」或批量执行后，先经 VCP RX 生成回声参考，再实时合成麦克风波形",
+      };
+    }
+    const evidence = sceneConditionCaseDynamicMicrophoneEvidence(
+      previewCase,
+      candidate.batch,
+      candidate.batch.dataset_manifest_sha256,
+    );
+    if (!evidence.ready || !evidence.visual) {
+      return {
+        ready: false,
+        reason: evidence.reason,
+      };
+    }
+    return {
+      ready: true,
+      visual: evidence.visual,
+      audioUrl: evidence.url,
+      sha256: evidence.sha256,
+      captureGain: evidence.captureGain,
+    };
+  }
+
   function renderCaseResult(
     previewCase: ScopedInputPreviewCase,
     context: ScopedCaseRenderContext,
@@ -2046,6 +2100,8 @@ export default function SceneConditionTest({
               setDatasetRefresh((current) => current + 1)
             }
             onOpenWaveforms={() => showSceneSubpage("waveforms")}
+            runtimeMicrophoneMode
+            getRuntimeMicrophone={getRuntimeMicrophone}
             renderCaseActions={renderCaseActions}
             renderCaseResult={renderCaseResult}
           />
@@ -2618,6 +2674,7 @@ export default function SceneConditionTest({
           <ScopedAcousticWaveforms
             active={activeWaveforms}
             sceneConditionBatch={currentSnapshot}
+            sceneConditionCasesById={sceneConditionCasesById}
             definition={waveformDefinition}
             datasetId={datasetId}
             mode={mode}

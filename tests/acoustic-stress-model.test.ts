@@ -23,6 +23,7 @@ import {
   readStressBatch,
   readStressDatasets,
   readStressPreview,
+  stressDynamicMicrophoneEvidence,
   stressRxEvidence,
   stressSampleRate,
   stressTxEvidence,
@@ -1893,4 +1894,143 @@ test("single-case stress selection is all-or-none and rejects forged totals", ()
   deletedRows.cases = [deletedRows.cases[0]];
   deletedRows.items = [deletedRows.items[0]];
   assert.throws(() => readStressBatch(deletedRows, expected));
+});
+
+
+test("stressDynamicMicrophoneEvidence validates runtime post-RX microphone and NB8 beamforming", () => {
+  const preview = readStressPreview(makePreview("echo", "WB-wired"), {
+    scope: "echo",
+    mode: "WB-wired",
+    datasetId: datasetId("echo", "WB-wired"),
+    contracts: scopedRows(selectedContractRows("echo", "WB-wired")),
+  });
+  const selectedCase = preview.cases[0];
+  const expected = {
+    scope: "echo" as const,
+    mode: "WB-wired" as const,
+    datasetId: preview.dataset_id,
+    algorithmClusterId: ALGORITHM_ID,
+    contracts: preview.contracts,
+    caseId: selectedCase.case_id,
+  };
+
+  // Historical TX-only batch stays readable and dynamic mic evidence is not ready
+  const legacySingle = makeSingleBatch(preview, selectedCase.case_id);
+  const parsedLegacy = readStressBatch(legacySingle, expected);
+  const legacyEvidence = stressDynamicMicrophoneEvidence(
+    selectedCase,
+    parsedLegacy,
+    preview.dataset_manifest_sha256,
+  );
+  assert.equal(legacyEvidence.ready, false);
+
+  // Batch with RX but without dynamic_microphone stays readable and reports missing dynamic mic
+  const withRxOnly = structuredClone(legacySingle) as Record<string, any>;
+  const rxSha = sha("rx-after-wb-echo-01");
+  withRxOnly.cases[0].output_sha256 = {
+    tx: withRxOnly.cases[0].output_sha256.tx,
+    rx: rxSha,
+  };
+  withRxOnly.cases[0].rx_visual = {
+    ...withRxOnly.cases[0].tx_visual,
+    source_sha256: rxSha,
+  };
+  withRxOnly.cases[0].execution = {
+    ...(withRxOnly.cases[0].execution ?? {}),
+    echo_reference: {
+      source: "vcp_rx_processed",
+      processed_output: "rx",
+      processed_sha256: rxSha,
+      tx_echo_argument_sha256: rxSha,
+    },
+  };
+  withRxOnly.items[0].evidence_binding.output_sha256 = {
+    tx: withRxOnly.cases[0].output_sha256.tx,
+    rx: rxSha,
+  };
+  const parsedRxOnly = readStressBatch(withRxOnly, expected);
+  const rxOnlyEvidence = stressDynamicMicrophoneEvidence(
+    selectedCase,
+    parsedRxOnly,
+    preview.dataset_manifest_sha256,
+  );
+  assert.equal(rxOnlyEvidence.ready, false);
+  assert.match(rxOnlyEvidence.reason, /未记录运行时合成麦克风/);
+
+  // Batch with dynamic_microphone + visual + effective_input_sha256 passes and resolves URL
+  const withDynamic = structuredClone(withRxOnly) as Record<string, any>;
+  const dynSha = sha("dynamic-mic-wb-echo-01");
+  withDynamic.cases[0].dynamic_microphone = {
+    source: "post_rx_runtime_mix",
+    path: "/tmp/tx.dynamic-microphone.wav",
+    sha256: dynSha,
+    sample_rate: 16_000,
+    channels: 2,
+    frames: 192_000,
+    capture_gain: 0.94,
+    playback_sha256: rxSha,
+  };
+  withDynamic.cases[0].dynamic_microphone_visual = {
+    source_sha256: dynSha,
+    duration_s: 12,
+    sample_rate: 16_000,
+    channels: 2,
+    peak: 0.42,
+    wave_scale: 1,
+    wave_min_i16: WAVE_BASE64,
+    wave_max_i16: WAVE_BASE64,
+    mel_i16: MEL_BASE64,
+    mel_ceiling_db: -18,
+  };
+  withDynamic.cases[0].effective_input_sha256 = {
+    microphone: dynSha,
+    reference: withDynamic.cases[0].signals_sha256.reference,
+    noise: withDynamic.cases[0].signals_sha256.noise,
+    far_end: rxSha,
+  };
+  const parsedDynamic = readStressBatch(withDynamic, expected);
+  const dynamicEvidence = stressDynamicMicrophoneEvidence(
+    selectedCase,
+    parsedDynamic,
+    preview.dataset_manifest_sha256,
+  );
+  assert.equal(dynamicEvidence.ready, true);
+  assert.equal(dynamicEvidence.sha256, dynSha);
+  assert.equal(dynamicEvidence.visual?.source_sha256, dynSha);
+  assert.ok(
+    dynamicEvidence.url.includes(
+      `/cases/${encodeURIComponent(selectedCase.case_id)}/inputs/dynamic-microphone?v=${dynSha}`,
+    ),
+  );
+
+  // NB8 native path: echo_reference.source=native_nb8_rx_processed and beamformed effective mic hash
+  const withNb8Beam = structuredClone(withDynamic) as Record<string, any>;
+  const bfSha = sha("nb8-beamformed-mic");
+  withNb8Beam.cases[0].execution.echo_reference.source = "native_nb8_rx_processed";
+  withNb8Beam.cases[0].execution.native_preprocessing = {
+    beamforming: {
+      source_sha256: dynSha,
+      output_sha256: bfSha,
+    },
+  };
+  withNb8Beam.cases[0].effective_input_sha256.microphone = bfSha;
+  const parsedNb8 = readStressBatch(withNb8Beam, expected);
+  assert.equal(
+    stressDynamicMicrophoneEvidence(
+      selectedCase,
+      parsedNb8,
+      preview.dataset_manifest_sha256,
+    ).ready,
+    true,
+  );
+
+  // Tampered visual hash fails closed
+  const badVisual = structuredClone(withDynamic) as Record<string, any>;
+  badVisual.cases[0].dynamic_microphone_visual.source_sha256 = sha("tampered");
+  assert.throws(() => readStressBatch(badVisual, expected));
+
+  // Orphan visual without dynamic_microphone fails closed
+  const orphanVisual = structuredClone(withDynamic) as Record<string, any>;
+  delete orphanVisual.cases[0].dynamic_microphone;
+  assert.throws(() => readStressBatch(orphanVisual, expected));
 });

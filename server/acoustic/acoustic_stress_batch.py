@@ -185,12 +185,28 @@ def execution_case(
             delays = [0.0] * int(info.channels)
         else:
             delays = [0.0]
+    render_metadata = provenance.get("render_metadata")
+    has_echo_spec = isinstance(render_metadata, dict) and (
+        (
+            isinstance(render_metadata.get("echo_path_segments"), list)
+            and len(render_metadata["echo_path_segments"]) > 0
+        )
+        or isinstance(render_metadata.get("echo_paths"), list)
+    )
+    dynamic_microphone_from_post_rx = (
+        case["conditions"].get("direction") != "receive"
+        and isinstance(render_metadata, dict)
+        and isinstance(render_metadata.get("near_arrival_delays_samples"), list)
+        and isinstance(render_metadata.get("noise_spatial"), dict)
+        and has_echo_spec
+    )
     return {
         "id": case["case_id"],
         "conditions": deepcopy(case["conditions"]),
         "item_ids": list(case["contract_item_ids"]),
         "beam_delays_ms": list(delays),
         "analysis_start_s": float(provenance.get("analysis_start_s", 0.0)),
+        "dynamic_microphone_from_post_rx": dynamic_microphone_from_post_rx,
         "provenance": deepcopy(provenance),
     }
 
@@ -607,6 +623,39 @@ def validate_snapshot(snapshot: dict[str, Any]) -> None:
                 or case["execution"].get("input_sha256") != input_sha
             ):
                 raise ValueError("stress case execution identity differs")
+            dynamic_microphone = case["execution"].get("dynamic_microphone")
+            if dynamic_microphone is not None:
+                dynamic_visual = case.get("dynamic_microphone_visual")
+                effective_inputs = case.get("effective_input_sha256")
+                if (
+                    not isinstance(dynamic_microphone, dict)
+                    or case.get("dynamic_microphone") != dynamic_microphone
+                    or not isinstance(dynamic_visual, dict)
+                    or set(dynamic_visual) != set(engine.TX_VISUAL_FIELDS)
+                    or dynamic_visual.get("source_sha256")
+                    != dynamic_microphone.get("sha256")
+                    or not isinstance(effective_inputs, dict)
+                    or set(effective_inputs)
+                    != {"microphone", "reference", "noise", "far_end"}
+                    or any(
+                        not _is_sha256(value)
+                        for value in effective_inputs.values()
+                    )
+                    or case["execution"].get("effective_input_sha256")
+                    != effective_inputs
+                    or effective_inputs.get("far_end") != output.get("rx")
+                ):
+                    raise ValueError(
+                        "completed stress case runtime dynamic microphone evidence is invalid"
+                    )
+            elif (
+                case.get("dynamic_microphone") is not None
+                or case.get("dynamic_microphone_visual") is not None
+                or case.get("effective_input_sha256") is not None
+            ):
+                raise ValueError(
+                    "stress case declares dynamic microphone without execution proof"
+                )
             _validate_output_alignment(case["execution"])
             _validate_case_diagnostics(case, profile=profile)
         elif case.get("status") == "failed":
@@ -833,6 +882,12 @@ def validate_assessment(
         or assessment.get("provenance") != case_record.get("provenance")
         or assessment.get("stress_diagnostics")
         != case_record.get("stress_diagnostics")
+        or assessment.get("dynamic_microphone")
+        != case_record.get("dynamic_microphone")
+        or assessment.get("dynamic_microphone_visual")
+        != case_record.get("dynamic_microphone_visual")
+        or assessment.get("effective_input_sha256")
+        != case_record.get("effective_input_sha256")
     ):
         raise engine.ArtifactIntegrityError(
             "stress assessment identity differs"

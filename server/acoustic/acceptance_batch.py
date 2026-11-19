@@ -28,7 +28,10 @@ from .acceptance_scope import (
     TEST_SCOPES,
     select_batch_scope,
 )
-from .dynamic_microphone import synthesize_post_rx_microphone
+from .dynamic_microphone import (
+    synthesize_post_rx_microphone,
+    synthesize_scoped_post_rx_microphone,
+)
 from .receive_configuration import normalize_receive_configuration, receive_configuration_sha256
 from server.aec_routes import (
     admit_aec_route, aec_route_requires_capability, effective_aec_reference_channels,
@@ -584,15 +587,49 @@ def _write_runtime_microphone(
         if isinstance(case.get("provenance"), dict)
         else None
     )
-    if not isinstance(render_metadata, dict):
+    if isinstance(render_metadata, dict):
+        mix = synthesize_post_rx_microphone(
+            reference[:, 0],
+            noise[:, 0],
+            playback[:, 0],
+            render_metadata,
+            sample_rate=int(reference_info.samplerate),
+        )
+        digest_payload: dict = {
+            "echo_paths": render_metadata.get("echo_paths", []),
+            "near_arrival_delays_samples": render_metadata.get(
+                "near_arrival_delays_samples"
+            ),
+            "noise_spatial": render_metadata.get("noise_spatial"),
+        }
+        if render_metadata.get("echo_path_segments"):
+            digest_payload["echo_path_segments"] = render_metadata[
+                "echo_path_segments"
+            ]
+            digest_payload["echo_gain_linear"] = render_metadata.get(
+                "echo_gain_linear"
+            )
+    elif case.get("dynamic_microphone_allow_scoped_default") is True:
+        mic_channels = int(sf.info(prepared_paths["microphone"]).channels)
+        mix = synthesize_scoped_post_rx_microphone(
+            reference[:, 0],
+            noise[:, 0],
+            playback[:, 0],
+            sample_rate=int(reference_info.samplerate),
+            channels=mic_channels,
+            beam_delays_ms=case.get("beam_delays_ms"),
+            case_id=str(case.get("id", "")),
+        )
+        digest_payload = {
+            "mode": "scoped_runtime_default",
+            "channels": mic_channels,
+            "sample_rate": int(reference_info.samplerate),
+            "beam_delays_ms": case.get("beam_delays_ms"),
+            "case_id": str(case.get("id", "")),
+            "echo_gain_linear": 0.25,
+        }
+    else:
         raise ValueError("运行时混音缺少 render_metadata")
-    mix = synthesize_post_rx_microphone(
-        reference[:, 0],
-        noise[:, 0],
-        playback[:, 0],
-        render_metadata,
-        sample_rate=int(reference_info.samplerate),
-    )
 
     microphone_path = destination / "tx.dynamic-microphone.wav"
     sf.write(
@@ -624,16 +661,9 @@ def _write_runtime_microphone(
         dynamic_paths["reference"] = reference_path
         dynamic_paths["noise"] = noise_path
 
-    echo_paths = render_metadata.get("echo_paths", [])
     echo_paths_sha256 = hashlib.sha256(
         json.dumps(
-            {
-                "echo_paths": echo_paths,
-                "near_arrival_delays_samples": render_metadata.get(
-                    "near_arrival_delays_samples"
-                ),
-                "noise_spatial": render_metadata.get("noise_spatial"),
-            },
+            digest_payload,
             sort_keys=True,
             separators=(",", ":"),
             ensure_ascii=False,
@@ -1460,7 +1490,17 @@ def run_batch(identifier: str) -> dict:
                 for role, path in receive_ir_paths.items():
                     if _sha(path) != receive_ir_sha256[role]:
                         raise ValueError(f"数据集 {role} IR 文件身份已改变")
-                outputs, execution = _run_cli(case, paths, destination, snapshot["algorithm_cluster_id"])
+                run_case = case
+                if (
+                    snapshot.get("test_scope") == "background_noise"
+                    and case["conditions"].get("direction") != "receive"
+                ):
+                    run_case = {
+                        **case,
+                        "dynamic_microphone_from_post_rx": True,
+                        "dynamic_microphone_allow_scoped_default": True,
+                    }
+                outputs, execution = _run_cli(run_case, paths, destination, snapshot["algorithm_cluster_id"])
                 validate_execution_identity(snapshot, execution)
                 execution.update(
                     batch_id=identifier,
@@ -1475,6 +1515,16 @@ def run_batch(identifier: str) -> dict:
                 for role, digest in execution["input_sha256"].items():
                     if digest != dataset["assets"][case["signals"][role]]["sha256"]:
                         raise ValueError("执行期间数据集输入身份发生变化")
+                effective_paths = dict(paths)
+                dynamic_microphone = execution.get("dynamic_microphone")
+                dynamic_microphone_visual = None
+                if isinstance(dynamic_microphone, dict):
+                    effective_paths["microphone"] = Path(dynamic_microphone["path"])
+                    effective_paths["reference"] = Path(dynamic_microphone["reference_path"])
+                    effective_paths["noise"] = Path(dynamic_microphone["noise_path"])
+                    rx_path = outputs.get("rx")
+                    if rx_path is not None:
+                        effective_paths["far_end"] = rx_path
                 calculate_kwargs = {"report_id": report_id}
                 if "receive_simulation" in dataset["manifest"]:
                     calculate_kwargs.update(
@@ -1482,14 +1532,26 @@ def run_batch(identifier: str) -> dict:
                         receive_ir_paths=receive_ir_paths,
                     )
                 rows = calculate_case_items(
-                    case,
-                    paths,
+                    run_case,
+                    effective_paths,
                     outputs,
                     execution,
                     **calculate_kwargs,
                 )
                 if any(_sha(path) != execution["input_sha256"].get(role) for role, path in paths.items()):
                     raise ValueError("计算期间输入文件身份发生变化")
+                if isinstance(dynamic_microphone, dict):
+                    if _sha(Path(dynamic_microphone["path"])) != dynamic_microphone["sha256"]:
+                        raise ValueError("计算期间运行时动态麦克风身份发生变化")
+                    from .acceptance_scene_condition_api import _visual_track
+                    from .scene_condition_batch import _compact_visual
+
+                    dynamic_microphone_visual = _compact_visual(
+                        _visual_track(
+                            Path(dynamic_microphone["path"]),
+                            dynamic_microphone["sha256"],
+                        )
+                    )
                 if any(_sha(path) != execution["output_sha256"].get(role) for role, path in outputs.items()):
                     raise ValueError("计算期间 VCP 输出身份发生变化")
                 if any(_sha(path) != receive_ir_sha256[role] for role, path in receive_ir_paths.items()):
@@ -1516,10 +1578,26 @@ def run_batch(identifier: str) -> dict:
                         row["status"] = "review_required"
                     snapshot["items"][by_id[row["item_id"]]].update(row)
                 case_report = {"report_id": report_id, "case_id": case["id"], "execution": execution, "items": rows}
+                if isinstance(dynamic_microphone, dict):
+                    case_report["dynamic_microphone"] = dynamic_microphone
+                    case_report["effective_input_sha256"] = execution.get("effective_input_sha256", {})
+                if dynamic_microphone_visual is not None:
+                    case_report["dynamic_microphone_visual"] = dynamic_microphone_visual
                 (destination / "assessment.json").write_text(json.dumps(case_report, ensure_ascii=False, indent=2, allow_nan=False))
-                snapshot["cases"].append({"case_id": case["id"], "report_id": report_id,
-                                          "conditions": case["conditions"], "status": "completed",
-                                          "assessment_sha256": _sha(destination / "assessment.json"), "execution": execution})
+                case_entry = {
+                    "case_id": case["id"],
+                    "report_id": report_id,
+                    "conditions": case["conditions"],
+                    "status": "completed",
+                    "assessment_sha256": _sha(destination / "assessment.json"),
+                    "execution": execution,
+                }
+                if isinstance(dynamic_microphone, dict):
+                    case_entry["dynamic_microphone"] = dynamic_microphone
+                    case_entry["effective_input_sha256"] = execution.get("effective_input_sha256", {})
+                if dynamic_microphone_visual is not None:
+                    case_entry["dynamic_microphone_visual"] = dynamic_microphone_visual
+                snapshot["cases"].append(case_entry)
             except Exception as error:
                 if isinstance(error, OSError) and error.errno == errno.ENOSPC:
                     raise

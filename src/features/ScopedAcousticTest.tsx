@@ -35,8 +35,13 @@ import {
   type FiveSignalMode,
 } from "./five-signal-flow-model";
 import ScopedAcousticTree from "./ScopedAcousticTree";
-import ScopedAcousticWaveforms from "./ScopedAcousticWaveforms";
-import ScopedDatasetVisualization from "./ScopedDatasetVisualization";
+import OutputAudioPreview from "./OutputAudioPreview.tsx";
+import ScopedAcousticWaveforms, {
+  PrecomputedAudioFigures,
+} from "./ScopedAcousticWaveforms";
+import ScopedDatasetVisualization, {
+  type RuntimeMicrophoneTrackState,
+} from "./ScopedDatasetVisualization";
 import {
   SCENE_SUBPAGES,
   SCENE_SUBPAGE_LABELS,
@@ -285,7 +290,7 @@ function storeBatchId(key: string, batchId: string) {
 function batchCaseUrl(
   batchId: string,
   caseId: string,
-  leaf: "assessment" | OutputLeaf,
+  leaf: "assessment" | OutputLeaf | "inputs/dynamic-microphone",
 ): string {
   return `${BATCHES_URL}/${encodeURIComponent(
     batchId,
@@ -457,6 +462,7 @@ function ResultItem({
   snapshot,
   caseStatus,
   caseError,
+  dynamicMicSha256,
 }: {
   item: ScopedResultItem;
   catalogItem: ScopedItem | undefined;
@@ -464,6 +470,7 @@ function ResultItem({
   snapshot: ScopedSnapshot;
   caseStatus: string | undefined;
   caseError: string | undefined;
+  dynamicMicSha256?: string;
 }) {
   const sourceId = item.id ?? catalogItem?.id ?? item.item_id;
   const sourceCell =
@@ -614,6 +621,19 @@ function ResultItem({
                 >
                   {outputLabel}
                 </a>
+                {dynamicMicSha256 ? (
+                  <a
+                    href={`${batchCaseUrl(
+                      snapshot.batch_id,
+                      binding.case_id,
+                      "inputs/dynamic-microphone",
+                    )}?v=${encodeURIComponent(dynamicMicSha256)}`}
+                    download={`${binding.case_id}-dynamic-microphone.wav`}
+                    aria-label={`下载条件组 ${binding.case_id} 运行时合成麦克风`}
+                  >
+                    运行时麦克风
+                  </a>
+                ) : null}
               </div>
             ) : caseFailed ? (
               <div className="scoped-acoustic-case-failure" role="status">
@@ -711,6 +731,7 @@ export default function ScopedAcousticTest({
     sceneSubpageFromHash(window.location.hash, definition.route),
   );
   const [waveformSource, setWaveformSource] = useState<"execution" | "extended">("extended");
+  const [runtimeMicPlaybackKey, setRuntimeMicPlaybackKey] = useState("");
 
   useEffect(() => {
     if (!isScenePage) return;
@@ -1862,6 +1883,49 @@ export default function ScopedAcousticTest({
             showSceneSubpage("waveforms");
           }}
           extendedPreviewCount={idle20Preview ? 20 : undefined}
+          runtimeMicrophoneMode={definition.scope === "background_noise"}
+          getRuntimeMicrophone={(previewCase): RuntimeMicrophoneTrackState => {
+            if (
+              !snapshot
+              || snapshot.selected_mode !== mode
+              || snapshot.algorithm_cluster_id !== algorithmClusterId
+              || snapshot.dataset_id !== selectedDataset?.dataset_id
+            ) {
+              return {
+                ready: false,
+                reason:
+                  "待执行 · 点击执行后先经 VCP RX，再实时合成麦克风波形",
+              };
+            }
+            const record = snapshot.cases.find(
+              (entry) => entry.case_id === previewCase.case_id,
+            );
+            if (
+              !record
+              || record.status !== "completed"
+              || !record.dynamic_microphone
+              || !record.dynamic_microphone_visual
+              || record.dynamic_microphone_visual.source_sha256
+                !== record.dynamic_microphone.sha256
+            ) {
+              return {
+                ready: false,
+                reason:
+                  "待执行 · 点击执行后先经 VCP RX，再实时合成麦克风波形",
+              };
+            }
+            return {
+              ready: true,
+              visual: record.dynamic_microphone_visual,
+              audioUrl: `${batchCaseUrl(
+                snapshot.batch_id,
+                record.case_id,
+                "inputs/dynamic-microphone",
+              )}?v=${encodeURIComponent(record.dynamic_microphone.sha256)}`,
+              sha256: record.dynamic_microphone.sha256,
+              captureGain: record.dynamic_microphone.capture_gain,
+            };
+          }}
         />
       ) : null}
 
@@ -2128,7 +2192,9 @@ export default function ScopedAcousticTest({
             <p>
               {isScenePage
                 ? `使用本页自动匹配的场景测试集与 VCP 预设后执行。说明子页面固定展示当前模式的 ${expectedItemCount} 行合同目录，不预填通过、数值或状态。`
-                : `选择完整 336 项测试集与 VCP 预设后执行。上方固定展示当前模式的 ${expectedItemCount} 行合同目录，不预填通过、数值或状态。`}
+                : definition.scope === "background_noise"
+                  ? `选择完整 336 项测试集与 VCP 预设后执行。麦克风混合输入将在运行时基于 VCP RX 后播放信号、近端参考与噪声实时合成，执行完成后在此展示各条件组运行时合成麦克风波形与试听。`
+                  : `选择完整 336 项测试集与 VCP 预设后执行。上方固定展示当前模式的 ${expectedItemCount} 行合同目录，不预填通过、数值或状态。`}
             </p>
           </div>
         </div>
@@ -2426,6 +2492,9 @@ export default function ScopedAcousticTest({
                         ? reportCatalogById.get(item.id)
                         : undefined);
                     const caseId = item.evidence_binding?.case_id;
+                    const matchedCase = caseId
+                      ? snapshot.cases.find((entry) => entry.case_id === caseId)
+                      : undefined;
                     return (
                       <ResultItem
                         key={item.item_id}
@@ -2439,6 +2508,7 @@ export default function ScopedAcousticTest({
                         caseError={
                           caseId ? caseErrorById.get(caseId) : undefined
                         }
+                        dynamicMicSha256={matchedCase?.dynamic_microphone?.sha256}
                       />
                     );
                   })}
@@ -2446,6 +2516,129 @@ export default function ScopedAcousticTest({
               </table>
             </div>
           </section>
+          {definition.scope === "background_noise" && !isScenePage ? (
+            <section
+              className="basic-uplink-items"
+              aria-label="背景噪声运行时合成麦克风波形"
+            >
+              <header>
+                <div>
+                  <span className="basic-uplink-eyebrow">
+                    RUNTIME MICROPHONE WAVEFORMS
+                  </span>
+                  <h3>运行时合成麦克风波形（RX 后）</h3>
+                  <p>
+                    执行各背景噪声条件组时先经 VCP RX 生成回声参考，再实时合成麦克风输入并生成对应波形；不展示数据集静态预录麦克风。
+                  </p>
+                </div>
+                <span>
+                  {
+                    snapshot.cases.filter(
+                      (entry) =>
+                        entry.status === "completed" &&
+                        Boolean(entry.dynamic_microphone_visual),
+                    ).length
+                  }{" "}
+                  / {snapshot.progress.total_cases} 组已生成
+                </span>
+              </header>
+              <div
+                className="sdv-card-grid"
+                style={{
+                  gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                  padding: "12px 16px 16px",
+                }}
+              >
+                {snapshot.cases.map((entry) => {
+                  const visual = entry.dynamic_microphone_visual;
+                  const dynamicMic = entry.dynamic_microphone;
+                  const ready =
+                    entry.status === "completed" &&
+                    Boolean(visual) &&
+                    Boolean(dynamicMic) &&
+                    visual?.source_sha256 === dynamicMic?.sha256;
+                  const url =
+                    ready && dynamicMic
+                      ? `${batchCaseUrl(
+                          snapshot.batch_id,
+                          entry.case_id,
+                          "inputs/dynamic-microphone",
+                        )}?v=${encodeURIComponent(dynamicMic.sha256)}`
+                      : "";
+                  const playKey = `${snapshot.batch_id}:${entry.case_id}:dynamic-mic`;
+                  return (
+                    <article
+                      key={entry.case_id}
+                      className={`sdv-card ${ready ? "is-runtime-ready" : "is-runtime-pending"}`}
+                      data-case-id={entry.case_id}
+                      data-signal-role="microphone"
+                      data-runtime-microphone={ready ? "ready" : "pending"}
+                    >
+                      <div className="sdv-card-heading">
+                        <h3>{entry.case_id}</h3>
+                        <span
+                          className={`sdv-runtime-badge ${ready ? "is-ready" : "is-pending"}`}
+                        >
+                          {ready ? "运行时已合成" : "待生成 / 历史无记录"}
+                        </span>
+                      </div>
+                      {ready && visual ? (
+                        <>
+                          <p className="sdv-card-meta">
+                            {visual.duration_s.toFixed(2)} s ·{" "}
+                            {(visual.sample_rate / 1000).toFixed(0)} kHz ·{" "}
+                            {visual.channels} 通道
+                          </p>
+                          <PrecomputedAudioFigures
+                            visual={visual}
+                            label={`${entry.case_id} 运行时合成麦克风`}
+                            caseId={entry.case_id}
+                            peakScale={visual.peak}
+                            melCeilingDb={visual.mel_ceiling_db}
+                            showMel={false}
+                          />
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "8px",
+                              alignItems: "center",
+                              marginTop: "6px",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <OutputAudioPreview
+                              caseId={entry.case_id}
+                              label="运行时合成麦克风音频"
+                              url={url}
+                              playing={runtimeMicPlaybackKey === playKey}
+                              onToggle={() =>
+                                setRuntimeMicPlaybackKey((current) =>
+                                  current === playKey ? "" : playKey,
+                                )
+                              }
+                            />
+                            <a
+                              href={url}
+                              download={`${entry.case_id}-dynamic-microphone.wav`}
+                              style={{ fontSize: "11px" }}
+                            >
+                              下载 WAV
+                            </a>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="sdv-waveform is-runtime-pending">
+                          <span className="sdv-runtime-placeholder">
+                            该条件组尚未生成运行时合成麦克风波形，请重新执行批次
+                          </span>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
         </>
       )}
       </SceneSubpagePanel>

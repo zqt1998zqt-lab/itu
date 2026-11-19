@@ -18,10 +18,13 @@ import {
   type FiveSignalMode,
 } from "./five-signal-flow-model";
 import {
+  effectiveMicrophoneMatchesDynamic,
+  sceneConditionCaseDynamicMicrophoneEvidence,
   sceneConditionCaseRxEvidence,
   sceneConditionCaseTxEvidence,
   SCENE_CONDITION_BATCHES_URL,
   type SceneConditionBatch,
+  type SceneConditionCase,
 } from "./scene-condition-test-model";
 import {
   isSceneCondition20Preview,
@@ -91,6 +94,10 @@ type Props = {
   active: boolean;
   previewSource?: "execution" | "extended";
   sceneConditionBatch?: SceneConditionBatch | null;
+  sceneConditionCasesById?: ReadonlyMap<
+    string,
+    { batch: SceneConditionBatch; caseRecord: SceneConditionCase }
+  >;
 };
 
 type ConversationFilter = "all" | ConversationMode;
@@ -257,20 +264,20 @@ function conversationComposition(
       farEndSilent
         ? "far_end 为数字静音"
         : "far_end 关系以 provenance 为准"
-    }；microphone 含近端语音与背景噪声。`;
+    }；执行时由 RX 后远端、近端语音与背景噪声实时合成 microphone 及波形。`;
   }
   if (mode === "far_single") {
-    return `far_end 承载远端播放 / 回声参考，${echoPhrase}进入 microphone；${
+    return `far_end 承载 VCP RX 前回声参考；执行时先生成 RX 后参考，再${echoPhrase}与背景噪声实时合成 microphone 波形并送入 TX；${
       nearSilent
         ? "reference 为数字静音"
         : "reference 关系以 provenance 为准"
-    }；背景噪声叠加在麦克风输入中。`;
+    }。`;
   }
   if (mode === "double_talk") {
-    return `reference 与 far_end 同时活动，${echoPhrase}的远端成分和背景噪声共同叠加在 microphone。`;
+    return `reference 与 far_end 同时活动；执行时先生成 RX 后参考，再把${echoPhrase}的远端成分、近端语音与背景噪声实时合成 microphone 波形并送入 TX。`;
   }
   if (mode === "transition") {
-    return `reference 与 far_end 按 provenance 分段切换远端单讲、近端单讲、双讲和噪声尾段；${echoPhrase}只在远端活动区段进入 microphone。`;
+    return `reference 与 far_end 按 provenance 分段切换远端单讲、近端单讲、双讲和噪声尾段；执行时先生成 RX 后参考，再按远端活动区段${echoPhrase}实时合成 microphone 波形并送入 TX。`;
   }
   const preheat = metadataWindow(metadata?.cng_preheat_window_s);
   const observation = metadataWindow(metadata?.noise_observation_window_s);
@@ -402,12 +409,12 @@ function inputUrl(
   )}/cases/${encodeURIComponent(caseId)}/inputs/${encodeURIComponent(role)}${suffix}`;
 }
 
-function dynamicMicrophoneUrl(
+function acceptanceDynamicMicrophoneUrl(
   batchId: string,
   caseId: string,
   version: string,
 ): string {
-  return `${SCENE_CONDITION_BATCHES_URL}/${encodeURIComponent(
+  return `${BATCH_URL}/${encodeURIComponent(
     batchId,
   )}/cases/${encodeURIComponent(caseId)}/inputs/dynamic-microphone?v=${encodeURIComponent(
     version,
@@ -1078,6 +1085,14 @@ function WaveformTrack({
   return (
     <article
       className={`scoped-waveform-track is-${kind} is-role-${signalRole}`}
+      data-signal-role={signalRole}
+      data-runtime-microphone={
+        signalRole === "microphone"
+          ? waveform
+            ? "ready"
+            : "pending"
+          : undefined
+      }
       aria-label={`${caseId} ${label}`}
       style={{ borderTopColor: SIGNAL_COLOR }}
     >
@@ -1300,6 +1315,7 @@ function CaseWaveforms({
   visuals,
   sceneConditionPreview,
   sceneConditionBatch,
+  sceneConditionCasesById,
   caseTitle,
   playbackEpoch,
 }: {
@@ -1316,6 +1332,10 @@ function CaseWaveforms({
   >;
   sceneConditionPreview: boolean;
   sceneConditionBatch?: SceneConditionBatch | null;
+  sceneConditionCasesById?: ReadonlyMap<
+    string,
+    { batch: SceneConditionBatch; caseRecord: SceneConditionCase }
+  >;
   caseTitle: string;
   playbackEpoch: number;
 }) {
@@ -1323,58 +1343,49 @@ function CaseWaveforms({
   const segments = conversationMode
     ? segmentSummary(previewCase)
     : "";
+  const effectiveSceneBatch = (() => {
+    if (!sceneConditionPreview) return null;
+    if (
+      sceneConditionBatch
+      && sceneConditionBatch.algorithm_cluster_id === algorithmClusterId
+      && sceneConditionBatch.cases.some(
+        (candidate) => candidate.case_id === previewCase.case_id,
+      )
+    ) {
+      return sceneConditionBatch;
+    }
+    const perCase = sceneConditionCasesById?.get(previewCase.case_id);
+    if (
+      perCase
+      && perCase.batch.algorithm_cluster_id === algorithmClusterId
+    ) {
+      return perCase.batch;
+    }
+    return sceneConditionBatch?.algorithm_cluster_id === algorithmClusterId
+      ? sceneConditionBatch
+      : null;
+  })();
   const sceneEvidence = sceneConditionPreview
     ? sceneConditionCaseTxEvidence(
         previewCase,
-        sceneConditionBatch?.algorithm_cluster_id === algorithmClusterId
-          ? sceneConditionBatch
-          : null,
+        effectiveSceneBatch,
         datasetManifestSha256,
       )
     : null;
   const sceneRxEvidence = sceneConditionPreview
     ? sceneConditionCaseRxEvidence(
         previewCase,
-        sceneConditionBatch?.algorithm_cluster_id === algorithmClusterId
-          ? sceneConditionBatch
-          : null,
+        effectiveSceneBatch,
         datasetManifestSha256,
       )
     : null;
-  const sceneCaseRecord =
-    sceneConditionPreview
-      && sceneConditionBatch?.algorithm_cluster_id === algorithmClusterId
-      ? sceneConditionBatch.cases.find(
-          (candidate) => candidate.case_id === previewCase.case_id,
-        )
-      : undefined;
-  const dynamicMicrophoneEvidence = (() => {
-    if (
-      !sceneConditionPreview
-      || !sceneConditionBatch
-      || sceneConditionBatch.algorithm_cluster_id !== algorithmClusterId
-      || !sceneCaseRecord
-      || sceneCaseRecord.status !== "completed"
-      || !sceneCaseRecord.dynamic_microphone
-      || !sceneCaseRecord.dynamic_microphone_visual
-      || !sceneCaseRecord.effective_input_sha256
-      || !sceneCaseRecord.output_sha256?.rx
-      || sceneCaseRecord.effective_input_sha256.microphone
-        !== sceneCaseRecord.dynamic_microphone.sha256
-      || sceneCaseRecord.effective_input_sha256.far_end
-        !== sceneCaseRecord.output_sha256.rx
-    ) {
-      return null;
-    }
-    return {
-      url: dynamicMicrophoneUrl(
-        sceneConditionBatch.batch_id,
-        previewCase.case_id,
-        sceneCaseRecord.dynamic_microphone.sha256,
-      ),
-      visual: sceneCaseRecord.dynamic_microphone_visual,
-    };
-  })();
+  const sceneDynamicEvidence = sceneConditionPreview
+    ? sceneConditionCaseDynamicMicrophoneEvidence(
+        previewCase,
+        effectiveSceneBatch,
+        datasetManifestSha256,
+      )
+    : null;
   const matchedSnapshot = sceneConditionPreview
     ? null
     : matchingScopedSnapshot(
@@ -1397,6 +1408,50 @@ function CaseWaveforms({
     inputHashesMatch: inputIdentityMatches,
     txReady: outputIdentityMatches,
   } = evidence;
+  const scopedDynamicMicrophoneEvidence = (() => {
+    if (
+      sceneConditionPreview
+      || !matchedSnapshot
+      || !outputIdentityMatches
+      || !caseRecord
+      || caseRecord.status !== "completed"
+      || !caseRecord.dynamic_microphone
+      || !caseRecord.dynamic_microphone_visual
+      || caseRecord.dynamic_microphone_visual.source_sha256
+        !== caseRecord.dynamic_microphone.sha256
+      || (
+        caseRecord.effective_input_sha256
+        && !effectiveMicrophoneMatchesDynamic(
+          caseRecord.effective_input_sha256.microphone,
+          caseRecord.dynamic_microphone.sha256,
+          caseRecord.execution,
+        )
+      )
+    ) {
+      return null;
+    }
+    return {
+      url: acceptanceDynamicMicrophoneUrl(
+        matchedSnapshot.batch_id,
+        previewCase.case_id,
+        caseRecord.dynamic_microphone.sha256,
+      ),
+      visual: caseRecord.dynamic_microphone_visual,
+    };
+  })();
+  const dynamicMicrophoneEvidence = sceneConditionPreview
+    ? sceneDynamicEvidence?.ready && sceneDynamicEvidence.visual
+      ? {
+          url: sceneDynamicEvidence.url,
+          visual: sceneDynamicEvidence.visual,
+        }
+      : null
+    : scopedDynamicMicrophoneEvidence;
+  const runtimeMicrophonePendingReason = sceneConditionPreview
+    ? (sceneDynamicEvidence?.reason && sceneDynamicEvidence.reason !== "批次缺少该条件组"
+        ? sceneDynamicEvidence.reason
+        : "运行时合成 · 待执行；点击测试后先经 VCP RX，再实时生成麦克风波形与梅尔频谱")
+    : "运行时合成 · 待执行；点击测试后先经 VCP RX，再实时生成麦克风波形与梅尔频谱";
   const outputAudioUrl =
     sceneConditionPreview
       ? sceneEvidence?.ready ? sceneEvidence.url : ""
@@ -1426,15 +1481,13 @@ function CaseWaveforms({
     role: ScopedInputSignalRole,
     version: string,
   ) =>
-    role === "microphone" && dynamicMicrophoneEvidence
-      ? dynamicMicrophoneEvidence.url
+    role === "microphone"
+      ? dynamicMicrophoneEvidence?.url ?? ""
       : inputAssetUrl(role, version);
   const microphone = useWaveform(
-    inputWaveformUrl("microphone", previewCase.signals_sha256.microphone),
+    dynamicMicrophoneEvidence ? dynamicMicrophoneEvidence.url : "",
     refreshToken,
-    dynamicMicrophoneEvidence
-      ? dynamicMicrophoneEvidence.visual
-      : visuals?.microphone,
+    dynamicMicrophoneEvidence ? dynamicMicrophoneEvidence.visual : undefined,
   );
   const farEnd = useWaveform(
     inputAssetUrl("far_end", previewCase.signals_sha256.far_end),
@@ -1545,7 +1598,7 @@ function CaseWaveforms({
             <WaveformTrack
               key={role}
               label={
-                role === "microphone" && dynamicMicrophoneEvidence
+                role === "microphone"
                   ? DYNAMIC_MICROPHONE_LABEL
                   : role === "far_end" && sceneConditionPreview
                   ? "回声参考 · VCP RX 前 · far_end"
@@ -1556,9 +1609,14 @@ function CaseWaveforms({
                 role,
                 previewCase.signals_sha256[role],
               )}
-              kind="input"
+              kind={role === "microphone" ? "output" : "input"}
               signalRole={role}
               peakScale={peakScale}
+              unavailable={
+                role === "microphone" && !dynamicMicrophoneEvidence
+                  ? runtimeMicrophonePendingReason
+                  : undefined
+              }
               waveform={track.waveform}
               melCeilingDb={melCeilingDb}
               melLoading={track.melLoading}
@@ -1675,6 +1733,7 @@ export default function ScopedAcousticWaveforms({
   active,
   previewSource = "extended",
   sceneConditionBatch = null,
+  sceneConditionCasesById,
 }: Props) {
   const titleId = useId().replace(/[^A-Za-z0-9_-]/g, "");
   const scene = definition.scene;
@@ -1889,12 +1948,28 @@ export default function ScopedAcousticWaveforms({
     const ready = new Set<string>();
     if (!visiblePreview) return ready;
     for (const previewCase of visiblePreview.cases) {
+      const perCaseBatch = (() => {
+        if (
+          sceneConditionBatch
+          && sceneConditionBatch.algorithm_cluster_id === algorithmClusterId
+          && sceneConditionBatch.cases.some(
+            (candidate) => candidate.case_id === previewCase.case_id,
+          )
+        ) {
+          return sceneConditionBatch;
+        }
+        const entry = sceneConditionCasesById?.get(previewCase.case_id);
+        if (entry && entry.batch.algorithm_cluster_id === algorithmClusterId) {
+          return entry.batch;
+        }
+        return sceneConditionBatch?.algorithm_cluster_id === algorithmClusterId
+          ? sceneConditionBatch
+          : null;
+      })();
       const isReady = idle20Preview
         ? sceneConditionCaseTxEvidence(
             previewCase,
-            sceneConditionBatch?.algorithm_cluster_id === algorithmClusterId
-              ? sceneConditionBatch
-              : null,
+            perCaseBatch,
             visiblePreview.dataset_manifest_sha256,
           ).ready
         : Boolean(
@@ -1913,6 +1988,7 @@ export default function ScopedAcousticWaveforms({
     idle20Preview,
     matchedSnapshot,
     sceneConditionBatch,
+    sceneConditionCasesById,
     visiblePreview,
   ]);
   const txReadyCases = txReadyCaseIds.size;
@@ -2117,6 +2193,7 @@ export default function ScopedAcousticWaveforms({
                 visuals={visiblePreview.visuals?.cases[previewCase.case_id]}
                 sceneConditionPreview={idle20Preview}
                 sceneConditionBatch={sceneConditionBatch}
+                sceneConditionCasesById={sceneConditionCasesById}
                 caseTitle={
                   caseLabels.get(previewCase.case_id) ?? "测试样本"
                 }

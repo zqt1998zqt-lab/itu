@@ -11,11 +11,16 @@ import soundfile as sf
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from server.acoustic import acceptance_api
 from server.acoustic import acceptance_batch
+from server.acoustic import acoustic_stress_batch
 from server.acoustic import scene_condition_batch_api
+from server.acoustic import service
+from server.acoustic.acceptance_dataset import import_dataset, template_manifest
 from server.acoustic.dynamic_microphone import (
     DynamicMicrophoneError,
     synthesize_post_rx_microphone,
+    synthesize_scoped_post_rx_microphone,
 )
 from server import dpdfnet8, nb8_route
 
@@ -448,3 +453,328 @@ def test_dynamic_microphone_endpoint_fails_closed_on_hash_mismatch(
 
     assert response.status_code == 409
     assert "动态麦克风哈希校验失败" in response.text
+
+
+def test_segmented_echo_matches_stress_signal_design_numerically():
+    import importlib.util
+
+    design_path = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "acoustic_stress_signal_design.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "test_stress_signal_design_mod", design_path
+    )
+    assert spec is not None and spec.loader is not None
+    design_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(design_mod)
+
+    rate = 16_000
+    frames = rate * 2
+    rng = np.random.default_rng(42)
+    reference = rng.normal(scale=0.05, size=frames)
+    noise = rng.normal(scale=0.01, size=frames)
+    playback = rng.normal(scale=0.08, size=frames)
+    render_metadata = {
+        "sample_rate_hz": rate,
+        "near_arrival_delays_samples": [0, 1],
+        "echo_paths": [],
+        "echo_gain_linear": 0.45,
+        "echo_path_segments": [
+            {
+                "start_s": 0.0,
+                "end_s": 1.0,
+                "paths": [
+                    {
+                        "tap_samples": [160, 280],
+                        "tap_gains": [0.7, 0.3],
+                        "echo_gain_linear": 1.0,
+                    },
+                    {
+                        "tap_samples": [200, 320],
+                        "tap_gains": [0.6, 0.4],
+                        "echo_gain_linear": 1.0,
+                    },
+                ],
+            },
+            {
+                "start_s": 1.0,
+                "end_s": 2.0,
+                "paths": [
+                    {
+                        "tap_samples": [320, 480],
+                        "tap_gains": [0.55, 0.45],
+                        "echo_gain_linear": 1.0,
+                    },
+                    {
+                        "tap_samples": [360, 520],
+                        "tap_gains": [0.5, 0.5],
+                        "echo_gain_linear": 1.0,
+                    },
+                ],
+            },
+        ],
+        "noise_spatial": {
+            "channel_1_recipe": {
+                "rho": 0.6,
+                "seed2": 99,
+                "normalizer": 1.0,
+                "noise_channel_scale_linear": 0.01,
+            }
+        },
+    }
+
+    mix = synthesize_post_rx_microphone(
+        reference, noise, playback, render_metadata, sample_rate=rate
+    )
+    expected_echo0 = design_mod._echo_component(playback, render_metadata, 0)
+    expected_echo1 = design_mod._echo_component(playback, render_metadata, 1)
+
+    assert mix.capture_gain == 1.0
+    assert "segmented_FIR" in mix.formula
+    assert np.allclose(mix.microphone[:, 0], reference + expected_echo0 + noise, atol=1e-12)
+    delayed_ref1 = np.r_[0.0, reference[:-1]]
+    noise1_expected = mix.microphone[:, 1] - delayed_ref1 - expected_echo1
+    # Verify channel 1 echo matches design_mod exactly by comparing echo delta
+    zero_playback_mix = synthesize_post_rx_microphone(
+        reference, noise, np.zeros_like(playback), render_metadata, sample_rate=rate
+    )
+    assert np.allclose(
+        mix.microphone[:, 1] - zero_playback_mix.microphone[:, 1],
+        expected_echo1,
+        atol=1e-12,
+    )
+    assert noise1_expected.shape == (frames,)
+
+
+def test_scoped_post_rx_microphone_supports_1ch_and_2ch_deterministically():
+    rate = 16_000
+    frames = 4000
+    t = np.arange(frames) / rate
+    reference = 0.08 * np.sin(2 * np.pi * 440 * t)
+    noise = 0.01 * np.random.default_rng(11).normal(size=frames)
+    playback = 0.10 * np.sin(2 * np.pi * 220 * t)
+
+    mix1 = synthesize_scoped_post_rx_microphone(
+        reference, noise, playback, sample_rate=rate, channels=1, case_id="bg-1ch"
+    )
+    mix1_silent = synthesize_scoped_post_rx_microphone(
+        reference, noise, np.zeros_like(playback), sample_rate=rate, channels=1, case_id="bg-1ch"
+    )
+    assert mix1.channels == 1
+    assert mix1.microphone.shape == (frames, 1)
+    assert not np.allclose(mix1.microphone, mix1_silent.microphone)
+    assert np.allclose(mix1_silent.microphone[:, 0], reference + noise)
+
+    mix2_a = synthesize_scoped_post_rx_microphone(
+        reference,
+        noise,
+        playback,
+        sample_rate=rate,
+        channels=2,
+        beam_delays_ms=[0.0625, 0.0],
+        case_id="bg-2ch",
+    )
+    mix2_b = synthesize_scoped_post_rx_microphone(
+        reference,
+        noise,
+        playback,
+        sample_rate=rate,
+        channels=2,
+        beam_delays_ms=[0.0625, 0.0],
+        case_id="bg-2ch",
+    )
+    assert mix2_a.channels == 2
+    assert mix2_a.microphone.shape == (frames, 2)
+    assert np.array_equal(mix2_a.microphone, mix2_b.microphone)
+
+    # Peak protection scales mic/ref/noise without touching playback
+    loud = synthesize_scoped_post_rx_microphone(
+        np.full(frames, 0.8),
+        np.full(frames, 0.3),
+        playback,
+        sample_rate=rate,
+        channels=1,
+        case_id="loud",
+    )
+    assert loud.capture_gain < 1.0
+    assert np.max(np.abs(loud.microphone)) <= 0.94 + 1e-12
+
+
+def test_stress_execution_case_enables_dynamic_microphone_when_render_metadata_complete():
+    case_with_rm = {
+        "case_id": "echo-WB-wired-steady_echo-01-stress-v1",
+        "conditions": {"mode": "WB-wired", "direction": "send", "scene": "baseline", "volume": "nominal", "window_ms": None, "input_level_db": 0},
+        "contract_item_ids": ["WB-wired:B21"],
+        "provenance": {
+            "beam_delays_ms": [0.0625, 0.0],
+            "analysis_start_s": 0.0,
+            "render_metadata": {
+                "near_arrival_delays_samples": [0, 1],
+                "noise_spatial": {"channel_1_recipe": {"rho": 0.5, "seed2": 1, "normalizer": 1.0, "noise_channel_scale_linear": 0.01}},
+                "echo_path_segments": [{"start_s": 0.0, "end_s": 12.0, "paths": [{"tap_samples": [160], "tap_gains": [1.0], "echo_gain_linear": 1.0}, {"tap_samples": [200], "tap_gains": [1.0], "echo_gain_linear": 1.0}]}],
+                "echo_gain_linear": 0.3,
+            },
+        },
+    }
+    exec_case = acoustic_stress_batch.execution_case(case_with_rm)
+    assert exec_case["dynamic_microphone_from_post_rx"] is True
+
+    case_minimal = {
+        "case_id": "minimal-stress-case",
+        "conditions": {"mode": "WB-wired", "direction": "send", "scene": "baseline", "volume": "nominal", "window_ms": None, "input_level_db": 0},
+        "contract_item_ids": ["WB-wired:B21"],
+        "provenance": {"beam_delays_ms": [0.0, 0.0], "analysis_start_s": 0.0},
+    }
+    assert acoustic_stress_batch.execution_case(case_minimal)["dynamic_microphone_from_post_rx"] is False
+
+
+def test_acceptance_background_noise_batch_generates_and_serves_dynamic_microphone(
+    tmp_path, monkeypatch
+):
+    from io import BytesIO
+    import zipfile
+    from server import alignment_runner
+
+    monkeypatch.setattr(service, "BUILD", tmp_path / "build")
+    monkeypatch.setattr(acceptance_batch, "_ACTIVE", set())
+    monkeypatch.setattr(acceptance_batch, "_LEGACY_ACTIVE", False)
+    submissions: list[tuple[object, tuple[object, ...]]] = []
+
+    class _SyncCapture:
+        def submit(self, fn, *args):
+            submissions.append((fn, args))
+            return None
+
+    monkeypatch.setattr(acceptance_batch, "_EXECUTOR", _SyncCapture())
+
+    rate = 16_000
+    frames = rate * 1
+    t = np.arange(frames) / rate
+    ref_sig = (0.08 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
+    far_sig = (0.06 * np.sin(2 * np.pi * 240 * t)).astype(np.float32)
+    noi_sig = (0.01 * np.random.default_rng(5).normal(size=frames)).astype(np.float32)
+    mic_sig = np.column_stack((ref_sig + noi_sig, ref_sig + noi_sig)).astype(np.float32)
+
+    def _wav_bytes(arr: np.ndarray) -> bytes:
+        buf = BytesIO()
+        sf.write(buf, arr, rate, format="WAV", subtype="PCM_16")
+        return buf.getvalue()
+
+    manifest = template_manifest()
+    for case in manifest["cases"]:
+        case["signals"] = {
+            "microphone": "audio/shared/microphone.wav",
+            "reference": "audio/shared/reference.wav",
+            "far_end": "audio/shared/far_end.wav",
+            "noise": "audio/shared/noise.wav",
+        }
+        case["beam_delays_ms"] = [0.0625, 0.0]
+        case["analysis_start_s"] = 0
+
+    archive_buf = BytesIO()
+    with zipfile.ZipFile(archive_buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False))
+        zf.writestr("audio/shared/microphone.wav", _wav_bytes(mic_sig))
+        zf.writestr("audio/shared/reference.wav", _wav_bytes(ref_sig))
+        zf.writestr("audio/shared/far_end.wav", _wav_bytes(far_sig))
+        zf.writestr("audio/shared/noise.wav", _wav_bytes(noi_sig))
+
+    imported = import_dataset(archive_buf.getvalue())
+    dataset_id = imported["dataset_id"]
+
+    cli = tmp_path / "fake-vcp"
+    cli.write_bytes(b"fake vcp binary for bg test")
+    cli.chmod(0o755)
+    monkeypatch.setattr(alignment_runner, "resolve_cli", lambda: cli)
+    monkeypatch.setattr(
+        alignment_runner,
+        "resolve_algorithm_cluster",
+        lambda cluster: ({"profile": "vcp"}, [], {"profile": "vcp"}, "c" * 64),
+    )
+    monkeypatch.setattr(
+        alignment_runner,
+        "validate_pipeline_artifacts",
+        lambda path, output, profile: (json.loads(path.read_text()), []),
+    )
+    monkeypatch.setattr(
+        acceptance_batch, "aec_route_requires_capability", lambda config: False
+    )
+
+    def fake_run(command, **kwargs):
+        output_prefix = Path(command[command.index("--out") + 1])
+        if "--rx-processing" in command:
+            source = Path(command[command.index("--rx-in") + 1])
+            samples, sr = sf.read(source, always_2d=True)
+            sf.write(Path(f"{output_prefix}.rx-spk.wav"), samples * 0.9, sr, subtype="PCM_16")
+            report = {
+                "processing_profile": "vcp",
+                "rx_processing": True,
+                "rx_processing_frames": 100,
+                "dsp_delay_samples": 0,
+            }
+        else:
+            source = Path(command[command.index("--mic") + 1])
+            assert source.name == "tx.dynamic-microphone.wav"
+            samples, sr = sf.read(source, always_2d=True)
+            sf.write(Path(f"{output_prefix}.after.wav"), samples[:, 0], sr, subtype="PCM_16")
+            report = {"dsp_delay_samples": 0}
+        Path(f"{output_prefix}.json").write_text(json.dumps(report))
+        return SimpleNamespace(stdout="", stderr="", returncode=0)
+
+    monkeypatch.setattr(acceptance_batch.subprocess, "run", fake_run)
+
+    seen_calc_mic_paths: list[str] = []
+
+    def fake_calculate(case, paths, outputs, execution, **kwargs):
+        seen_calc_mic_paths.append(Path(paths["microphone"]).name)
+        return [
+            {
+                "item_id": item_id,
+                "value": 3.5,
+                "status": "review_required",
+                "metric": "dnsmos_ovrl",
+                "reason": "ok",
+            }
+            for item_id in case["item_ids"]
+        ]
+
+    monkeypatch.setattr(acceptance_batch, "calculate_case_items", fake_calculate)
+
+    queued = acceptance_batch.start_batch(
+        dataset_id,
+        "vcp_default",
+        test_scope="background_noise",
+        mode="WB-wired",
+        scene="sce1",
+    )
+    assert len(submissions) == 1
+    completed = acceptance_batch.run_batch(queued["batch_id"])
+    assert completed["status"] == "completed"
+    assert seen_calc_mic_paths and all(
+        name == "tx.dynamic-microphone.wav" for name in seen_calc_mic_paths
+    )
+    case_entry = completed["cases"][0]
+    assert case_entry["dynamic_microphone"]["source"] == "post_rx_runtime_mix"
+    assert case_entry["dynamic_microphone"]["channels"] == 2
+    assert (
+        case_entry["dynamic_microphone_visual"]["source_sha256"]
+        == case_entry["dynamic_microphone"]["sha256"]
+    )
+    assert (
+        case_entry["effective_input_sha256"]["microphone"]
+        == case_entry["dynamic_microphone"]["sha256"]
+    )
+
+    app = FastAPI()
+    app.include_router(acceptance_api.router)
+    client = TestClient(app)
+    resp = client.get(
+        f"/api/alignment/acceptance/batches/{completed['batch_id']}"
+        f"/cases/{case_entry['case_id']}/inputs/dynamic-microphone"
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("audio/wav")
+    assert resp.headers["etag"] == f'"{case_entry["dynamic_microphone"]["sha256"]}"'
+    assert hashlib.sha256(resp.content).hexdigest() == case_entry["dynamic_microphone"]["sha256"]

@@ -8,6 +8,7 @@ reference on the same time base.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import math
 from typing import Any, Mapping
 
@@ -78,6 +79,112 @@ def _fir_component(source: np.ndarray, path: Mapping[str, Any] | None) -> np.nda
     return component * float(echo_gain)
 
 
+def _scale_echo_path(
+    path: Mapping[str, Any] | None,
+    rate_scale: float,
+) -> Mapping[str, Any] | None:
+    if path is None or rate_scale == 1.0:
+        return path
+    offsets = path.get("tap_samples")
+    if not isinstance(offsets, list):
+        raise DynamicMicrophoneError("echo path tap_samples must be a list")
+    scaled_offsets: list[int] = []
+    for raw_offset in offsets:
+        if (
+            isinstance(raw_offset, bool)
+            or not isinstance(raw_offset, int)
+            or raw_offset < 0
+        ):
+            raise DynamicMicrophoneError("echo FIR taps are invalid")
+        scaled_offsets.append(int(round(raw_offset * rate_scale)))
+    return {
+        **path,
+        "tap_samples": scaled_offsets,
+    }
+
+
+def _window_mask(
+    frames: int,
+    sample_rate: int,
+    start_s: float,
+    end_s: float,
+) -> np.ndarray:
+    if not math.isfinite(start_s) or not math.isfinite(end_s) or end_s < start_s:
+        raise DynamicMicrophoneError("echo segment window bounds are invalid")
+    mask = np.zeros(frames, dtype=bool)
+    start = max(0, min(frames, int(round(start_s * sample_rate))))
+    end = max(0, min(frames, int(round(end_s * sample_rate))))
+    mask[start:end] = True
+    return mask
+
+
+def _segmented_echo_components(
+    playback: np.ndarray,
+    segments: list[Any],
+    echo_gain_linear: Any,
+    *,
+    sample_rate: int,
+    rate_scale: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    if (
+        echo_gain_linear is None
+        or isinstance(echo_gain_linear, bool)
+        or not isinstance(echo_gain_linear, (int, float))
+        or not math.isfinite(float(echo_gain_linear))
+        or float(echo_gain_linear) < 0.0
+    ):
+        raise DynamicMicrophoneError(
+            "segmented echo requires finite non-negative echo_gain_linear"
+        )
+    gain = float(echo_gain_linear)
+    echo0 = np.zeros(len(playback), dtype=np.float64)
+    echo1 = np.zeros(len(playback), dtype=np.float64)
+    for segment in segments:
+        if not isinstance(segment, Mapping):
+            raise DynamicMicrophoneError(
+                "echo_path_segments entry must be a mapping"
+            )
+        raw_start = segment.get("start_s")
+        raw_end = segment.get("end_s")
+        if (
+            isinstance(raw_start, bool)
+            or isinstance(raw_end, bool)
+            or not isinstance(raw_start, (int, float))
+            or not isinstance(raw_end, (int, float))
+        ):
+            raise DynamicMicrophoneError(
+                "echo segment requires numeric start_s/end_s"
+            )
+        seg_paths = segment.get("paths")
+        if not isinstance(seg_paths, list) or len(seg_paths) != 2:
+            raise DynamicMicrophoneError(
+                "echo segment requires two channel paths"
+            )
+        mask = _window_mask(
+            len(playback),
+            sample_rate,
+            float(raw_start),
+            float(raw_end),
+        )
+        echo0 += (
+            _fir_component(
+                playback,
+                _scale_echo_path(seg_paths[0], rate_scale),
+            )
+            * mask
+            * gain
+        )
+        echo1 += (
+            _fir_component(
+                playback,
+                _scale_echo_path(seg_paths[1], rate_scale),
+            )
+            * mask
+            * gain
+        )
+    return echo0, echo1
+
+
 def _noise_channel(
     noise0: np.ndarray,
     metadata: Mapping[str, Any],
@@ -142,13 +249,24 @@ def synthesize_post_rx_microphone(
     if (
         not isinstance(delays, list)
         or len(delays) != 2
-        or any(int(value) != value or int(value) < 0 for value in delays)
+        or any(
+            isinstance(value, bool)
+            or int(value) != value
+            or int(value) < 0
+            for value in delays
+        )
     ):
         raise DynamicMicrophoneError(
             "render metadata requires two non-negative near arrival delays"
         )
+    raw_segments = render_metadata.get("echo_path_segments")
+    if raw_segments is not None and not isinstance(raw_segments, list):
+        raise DynamicMicrophoneError(
+            "render metadata echo_path_segments must be a list"
+        )
+    use_segments = isinstance(raw_segments, list) and len(raw_segments) > 0
     paths = render_metadata.get("echo_paths", [])
-    if not isinstance(paths, list) or len(paths) not in (0, 2):
+    if not use_segments and (not isinstance(paths, list) or len(paths) not in (0, 2)):
         raise DynamicMicrophoneError(
             "render metadata echo_paths must contain zero or two paths"
         )
@@ -156,21 +274,38 @@ def synthesize_post_rx_microphone(
     meta_rate = render_metadata.get("sample_rate_hz")
     rate_scale = (
         sample_rate / float(meta_rate)
-        if isinstance(meta_rate, int) and not isinstance(meta_rate, bool) and meta_rate > 0 and meta_rate != sample_rate
+        if isinstance(meta_rate, int)
+        and not isinstance(meta_rate, bool)
+        and meta_rate > 0
+        and meta_rate != sample_rate
         else 1.0
     )
-    scaled_paths = [
-        {
-            **p,
-            "tap_samples": [int(round(int(s) * rate_scale)) for s in p.get("tap_samples", [])],
-        }
-        for p in paths
-    ] if rate_scale != 1.0 else paths
+    delay0 = int(round(int(delays[0]) * rate_scale))
     delay1 = int(round(int(delays[1]) * rate_scale))
-    echo0 = _fir_component(playback, scaled_paths[0] if scaled_paths else None)
-    echo1 = _fir_component(playback, scaled_paths[1] if scaled_paths else None)
+    if use_segments:
+        echo0, echo1 = _segmented_echo_components(
+            playback,
+            raw_segments,
+            render_metadata.get("echo_gain_linear"),
+            sample_rate=sample_rate,
+            rate_scale=rate_scale,
+        )
+        formula = (
+            "microphone[:,0] = delayed_reference_0 + segmented_FIR(post_rx_playback) + noise; "
+            "microphone[:,1] = delayed_reference_1 + segmented_FIR(post_rx_playback) + "
+            "reconstructed_noise_1"
+        )
+    else:
+        scaled_paths = [_scale_echo_path(p, rate_scale) for p in paths]
+        echo0 = _fir_component(playback, scaled_paths[0] if scaled_paths else None)
+        echo1 = _fir_component(playback, scaled_paths[1] if scaled_paths else None)
+        formula = (
+            "microphone[:,0] = reference + FIR(post_rx_playback) + noise; "
+            "microphone[:,1] = delayed_reference + FIR(post_rx_playback) + "
+            "reconstructed_noise_1"
+        )
     noise1 = _noise_channel(noise0, render_metadata, 1)
-    mic0 = near + echo0 + noise0
+    mic0 = _delay(near, delay0) + echo0 + noise0
     mic1 = _delay(near, delay1) + echo1 + noise1
     microphone = np.column_stack((mic0, mic1))
 
@@ -190,11 +325,162 @@ def synthesize_post_rx_microphone(
         capture_gain=float(capture_gain),
         peak_before_gain=peak,
         channels=2,
-        formula=(
-            "microphone[:,0] = reference + FIR(post_rx_playback) + noise; "
-            "microphone[:,1] = delayed_reference + FIR(post_rx_playback) + "
-            "reconstructed_noise_1"
-        ),
+        formula=formula,
+    )
+
+
+_SCOPED_ECHO_OFFSETS_MS = (
+    (20.0, 31.5, 47.0, 73.0),
+    (25.0, 40.5, 59.0, 86.0),
+)
+_SCOPED_ECHO_GAINS = (
+    (0.5555555555555556, 0.25, 0.13333333333333333, 0.06111111111111111),
+    (0.5454545454545454, 0.20454545454545453, 0.16477272727272727, 0.08522727272727272),
+)
+_SCOPED_NOISE_RHO = 0.65
+
+
+def _scoped_echo_path(
+    channel: int,
+    sample_rate: int,
+    echo_gain_linear: float,
+) -> dict[str, Any]:
+    return {
+        "tap_samples": [
+            int(round(offset_ms * sample_rate / 1000.0))
+            for offset_ms in _SCOPED_ECHO_OFFSETS_MS[channel]
+        ],
+        "tap_gains": list(_SCOPED_ECHO_GAINS[channel]),
+        "echo_gain_linear": float(echo_gain_linear),
+    }
+
+
+def synthesize_scoped_post_rx_microphone(
+    reference: np.ndarray,
+    noise: np.ndarray,
+    post_rx_playback: np.ndarray,
+    *,
+    sample_rate: int,
+    channels: int = 1,
+    beam_delays_ms: list[float] | None = None,
+    case_id: str = "",
+    echo_gain_linear: float = 0.25,
+) -> DynamicMicrophoneMix:
+    """Build a deterministic 1- or 2-channel runtime microphone for scoped datasets.
+
+    Used for acceptance datasets (such as the 336-item background-noise suite)
+    that do not carry per-case ``render_metadata``.  ``post_rx_playback`` is
+    never scaled so it stays byte-identical to the RX artifact consumed by TX.
+    """
+    if (
+        isinstance(sample_rate, bool)
+        or not isinstance(sample_rate, int)
+        or sample_rate <= 0
+    ):
+        raise DynamicMicrophoneError("sample_rate must be a positive integer")
+    if isinstance(channels, bool) or channels not in (1, 2):
+        raise DynamicMicrophoneError(
+            "scoped runtime synthesis supports 1 or 2 channels"
+        )
+    if (
+        isinstance(echo_gain_linear, bool)
+        or not isinstance(echo_gain_linear, (int, float))
+        or not math.isfinite(float(echo_gain_linear))
+        or float(echo_gain_linear) < 0.0
+    ):
+        raise DynamicMicrophoneError(
+            "echo_gain_linear must be finite and non-negative"
+        )
+
+    near = _one_dimensional("reference", reference)
+    noise0 = _one_dimensional("noise", noise)
+    playback = _one_dimensional("post_rx_playback", post_rx_playback)
+    if len(near) != len(noise0) or len(near) != len(playback):
+        raise DynamicMicrophoneError(
+            "reference, noise and post-RX playback lengths must match"
+        )
+
+    echo0 = _fir_component(
+        playback,
+        _scoped_echo_path(0, sample_rate, float(echo_gain_linear)),
+    )
+    if channels == 1:
+        microphone = (near + echo0 + noise0)[:, None]
+        formula = "microphone[:,0] = reference + FIR(post_rx_playback) + noise"
+    else:
+        if (
+            isinstance(beam_delays_ms, list)
+            and len(beam_delays_ms) == 2
+            and all(
+                not isinstance(value, bool)
+                and isinstance(value, (int, float))
+                and math.isfinite(float(value))
+                and float(value) >= 0.0
+                for value in beam_delays_ms
+            )
+        ):
+            max_delay = max(float(value) for value in beam_delays_ms)
+            delay0 = int(
+                round((max_delay - float(beam_delays_ms[0])) * sample_rate / 1000.0)
+            )
+            delay1 = int(
+                round((max_delay - float(beam_delays_ms[1])) * sample_rate / 1000.0)
+            )
+        else:
+            delay0, delay1 = 0, 1
+        echo1 = _fir_component(
+            playback,
+            _scoped_echo_path(1, sample_rate, float(echo_gain_linear)),
+        )
+        rms0 = float(np.sqrt(np.mean(np.square(noise0, dtype=np.float64))))
+        if rms0 > 0.0:
+            seed_bytes = hashlib.sha256(
+                f"scoped-runtime-mic:{case_id}:{sample_rate}".encode("utf-8")
+            ).digest()[:8]
+            seed = int.from_bytes(seed_bytes, "little")
+            independent = np.random.default_rng(seed).normal(size=len(noise0))
+            unit0 = noise0 / rms0
+            mixed = (
+                _SCOPED_NOISE_RHO * unit0
+                + math.sqrt(1.0 - _SCOPED_NOISE_RHO * _SCOPED_NOISE_RHO)
+                * independent
+            )
+            mixed_rms = float(
+                np.sqrt(np.mean(np.square(mixed, dtype=np.float64)))
+            )
+            noise1 = (
+                (mixed / mixed_rms * rms0)
+                if mixed_rms > 0.0
+                else np.zeros_like(noise0)
+            )
+        else:
+            noise1 = np.zeros_like(noise0)
+        mic0 = _delay(near, delay0) + echo0 + noise0
+        mic1 = _delay(near, delay1) + echo1 + noise1
+        microphone = np.column_stack((mic0, mic1))
+        formula = (
+            "microphone[:,0] = delayed_reference_0 + FIR(post_rx_playback) + noise; "
+            "microphone[:,1] = delayed_reference_1 + FIR(post_rx_playback) + "
+            "spatial_noise_1"
+        )
+
+    peak = float(np.max(np.abs(microphone)))
+    if not math.isfinite(peak):
+        raise DynamicMicrophoneError("synthesized microphone is non-finite")
+    capture_gain = min(1.0, 0.94 / peak) if peak > 0.94 else 1.0
+    if capture_gain < 1.0:
+        near = near * capture_gain
+        noise0 = noise0 * capture_gain
+        microphone = microphone * capture_gain
+
+    return DynamicMicrophoneMix(
+        microphone=np.asarray(microphone, dtype=np.float64),
+        reference=np.asarray(near, dtype=np.float64),
+        noise=np.asarray(noise0, dtype=np.float64),
+        capture_gain=float(capture_gain),
+        peak_before_gain=peak,
+        channels=channels,
+        formula=formula,
     )
 
 
@@ -202,4 +488,5 @@ __all__ = [
     "DynamicMicrophoneError",
     "DynamicMicrophoneMix",
     "synthesize_post_rx_microphone",
+    "synthesize_scoped_post_rx_microphone",
 ]

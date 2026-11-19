@@ -264,6 +264,17 @@ export type StressDiagnosticsV2 = StressDiagnosticsCommon & {
 
 export type StressDiagnostics = StressDiagnosticsV1 | StressDiagnosticsV2;
 
+export type StressDynamicMicrophone = {
+  source: "post_rx_runtime_mix";
+  path: string;
+  sha256: string;
+  sample_rate: number;
+  channels: number;
+  frames: number;
+  capture_gain: number;
+  playback_sha256: string;
+};
+
 export type StressBatchCase = {
   case_id: string;
   status: "pending" | "running" | "completed" | "failed";
@@ -275,6 +286,9 @@ export type StressBatchCase = {
   signals_sha256: Record<ScopedInputSignalRole, string>;
   input_sha256: Record<ScopedInputSignalRole, string>;
   output_sha256?: { tx: string; rx?: string };
+  dynamic_microphone?: StressDynamicMicrophone;
+  dynamic_microphone_visual?: ScopedPreviewVisualTrack;
+  effective_input_sha256?: Record<ScopedInputSignalRole, string>;
   tx_visual?: ScopedPreviewVisualTrack;
   rx_visual?: ScopedPreviewVisualTrack;
   stress_diagnostics?: StressDiagnostics;
@@ -340,6 +354,11 @@ export type StressTxEvidence = {
 };
 
 export type StressRxEvidence = StressTxEvidence;
+
+export type StressDynamicMicrophoneEvidence = StressTxEvidence & {
+  sha256?: string;
+  captureGain?: number;
+};
 
 export const STRESS_DATASETS_URL =
   "/api/alignment/acceptance/stress-datasets";
@@ -1831,6 +1850,28 @@ function readStressBatchCase(
         expected.mode,
         "noise",
       );
+  const dynamicMicrophone =
+    value.dynamic_microphone === undefined || value.dynamic_microphone === null
+      ? undefined
+      : readStressDynamicMicrophone(value.dynamic_microphone);
+  const dynamicMicrophoneVisual =
+    value.dynamic_microphone_visual === undefined
+    || value.dynamic_microphone_visual === null
+      ? undefined
+      : readVisualTrack(
+          value.dynamic_microphone_visual,
+          dynamicMicrophone?.sha256 ?? "",
+          expected.mode,
+          "microphone",
+        );
+  const effectiveInputSha =
+    value.effective_input_sha256 === undefined
+    || value.effective_input_sha256 === null
+      ? undefined
+      : readInputHashes(
+          value.effective_input_sha256,
+          "stress batch effective_input_sha256 无效",
+        );
   if (value.status === "completed") {
     assert(
       reportId !== null && outputSha !== undefined && txVisual !== undefined,
@@ -1876,11 +1917,37 @@ function readStressBatchCase(
       : undefined;
     assert(
       isRecord(echoReference)
-        && echoReference.source === "vcp_rx_processed"
+        && (
+          echoReference.source === "vcp_rx_processed"
+          || echoReference.source === "native_nb8_rx_processed"
+        )
         && echoReference.processed_output === "rx"
         && echoReference.processed_sha256 === outputSha.rx
         && echoReference.tx_echo_argument_sha256 === outputSha.rx,
       "stress TX 未绑定 RX 处理后回声参考",
+    );
+  }
+  if (dynamicMicrophone !== undefined) {
+    assert(
+      dynamicMicrophoneVisual !== undefined
+        && dynamicMicrophoneVisual.source_sha256 === dynamicMicrophone.sha256,
+      "stress 动态麦克风缺少绑定的波形与梅尔频谱",
+    );
+    assert(
+      effectiveInputSha !== undefined
+        && effectiveStressMicrophoneMatches(
+          effectiveInputSha.microphone,
+          dynamicMicrophone.sha256,
+          value.execution,
+        )
+        && outputSha?.rx !== undefined
+        && effectiveInputSha.far_end === outputSha.rx,
+      "stress 动态麦克风未绑定 post-RX 输入身份",
+    );
+  } else {
+    assert(
+      dynamicMicrophoneVisual === undefined && effectiveInputSha === undefined,
+      "stress 动态麦克风证据缺少主字段",
     );
   }
   return {
@@ -1896,6 +1963,11 @@ function readStressBatchCase(
     signals_sha256: signalsSha,
     input_sha256: inputSha,
     ...(outputSha ? { output_sha256: outputSha } : {}),
+    ...(dynamicMicrophone ? { dynamic_microphone: dynamicMicrophone } : {}),
+    ...(dynamicMicrophoneVisual
+      ? { dynamic_microphone_visual: dynamicMicrophoneVisual }
+      : {}),
+    ...(effectiveInputSha ? { effective_input_sha256: effectiveInputSha } : {}),
     ...(txVisual ? { tx_visual: txVisual } : {}),
     ...(rxVisual ? { rx_visual: rxVisual } : {}),
     ...(diagnostics ? { stress_diagnostics: diagnostics } : {}),
@@ -2426,6 +2498,118 @@ export function stressRxEvidence(
       candidate.case_id,
     )}/outputs/rx?v=${encodeURIComponent(rxSha256)}`,
     visual: candidate.rx_visual,
+    reason: "",
+  };
+}
+
+function readStressDynamicMicrophone(
+  value: unknown,
+): StressDynamicMicrophone {
+  assert(isRecord(value), "stress 动态麦克风格式无效");
+  assert(
+    value.source === "post_rx_runtime_mix"
+      && typeof value.path === "string"
+      && value.path.length > 0
+      && isCount(value.sample_rate)
+      && isCount(value.channels)
+      && value.channels > 0
+      && isCount(value.frames)
+      && value.frames > 0
+      && isFiniteNumber(value.capture_gain)
+      && value.capture_gain > 0
+      && value.capture_gain <= 1,
+    "stress 动态麦克风来源或参数无效",
+  );
+  return {
+    source: "post_rx_runtime_mix",
+    path: value.path,
+    sha256: readSha(value.sha256, "stress 动态麦克风哈希无效"),
+    sample_rate: value.sample_rate,
+    channels: value.channels,
+    frames: value.frames,
+    capture_gain: value.capture_gain,
+    playback_sha256: readSha(
+      value.playback_sha256,
+      "stress 动态麦克风 post-RX playback 哈希无效",
+    ),
+  };
+}
+
+function effectiveStressMicrophoneMatches(
+  effectiveMicSha: string | undefined,
+  dynamicMicSha: string,
+  execution: unknown,
+): boolean {
+  if (effectiveMicSha === dynamicMicSha) return true;
+  if (!isRecord(execution) || !isRecord(execution.native_preprocessing)) {
+    return false;
+  }
+  const beamforming = execution.native_preprocessing.beamforming;
+  return (
+    isRecord(beamforming)
+    && beamforming.source_sha256 === dynamicMicSha
+    && beamforming.output_sha256 === effectiveMicSha
+  );
+}
+
+export function stressDynamicMicrophoneEvidence(
+  caseRecord: StressPreviewCase,
+  batch: StressBatch | null,
+  manifestSha256: string,
+): StressDynamicMicrophoneEvidence {
+  const rxEvidence = stressRxEvidence(caseRecord, batch, manifestSha256);
+  if (!rxEvidence.ready || !batch) {
+    return {
+      ready: false,
+      url: "",
+      visual: undefined,
+      reason:
+        batch && rxEvidence.reason !== "批次缺少该 stress case"
+          ? rxEvidence.reason
+          : "尚未执行；点击「运行本组」或「运行 100 组」后，先经 VCP RX 生成回声参考，再实时合成麦克风波形",
+    };
+  }
+  const candidate = batch.cases.find(
+    (entry) => entry.case_id === caseRecord.case_id,
+  );
+  const dynamic = candidate?.dynamic_microphone;
+  const visual = candidate?.dynamic_microphone_visual;
+  const effective = candidate?.effective_input_sha256;
+  const rxSha = candidate?.output_sha256?.rx;
+  if (!dynamic || !visual || !effective || !rxSha) {
+    return {
+      ready: false,
+      url: "",
+      visual: undefined,
+      reason: "该历史 stress 批次未记录运行时合成麦克风波形，请重新执行以生成",
+    };
+  }
+  if (
+    visual.source_sha256 !== dynamic.sha256
+    || effective.far_end !== rxSha
+    || !effectiveStressMicrophoneMatches(
+      effective.microphone,
+      dynamic.sha256,
+      candidate.execution,
+    )
+  ) {
+    return {
+      ready: false,
+      url: "",
+      visual: undefined,
+      reason: "stress 运行时动态麦克风身份哈希不一致",
+    };
+  }
+  return {
+    ready: true,
+    url: `${STRESS_BATCHES_URL}/${encodeURIComponent(
+      batch.batch_id,
+    )}/cases/${encodeURIComponent(
+      candidate.case_id,
+    )}/inputs/dynamic-microphone?v=${encodeURIComponent(dynamic.sha256)}`,
+    visual,
+    sha256: dynamic.sha256,
+    captureGain: dynamic.capture_gain,
     reason: "",
   };
 }

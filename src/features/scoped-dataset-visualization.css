@@ -1048,3 +1048,53 @@
     min-height: 130px;
   }
 }
+
+.sdv-runtime-badge {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.sdv-runtime-badge.is-pending {
+  color: #5b6d82;
+  background: #f1f5f9;
+  border: 1px dashed #c4d2e0;
+}
+
+.sdv-runtime-badge.is-ready {
+  color: #1f5c43;
+  background: #ebf7f1;
+  border: 1px solid #b8e0cb;
+}
+
+.sdv-card.is-runtime-pending {
+  background: #fbfcfe;
+  border-style: dashed;
+  border-color: #cbd8e6;
+}
+
+.sdv-waveform.is-runtime-pending {
+  padding: 4px 10px;
+  background: #f4f7fb;
+  border-style: dashed;
+  border-color: #d2deeb;
+}
+
+.sdv-runtime-placeholder {
+  color: #5d728a;
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.sdv-runtime-audio-note {
+  margin: 6px 0 0;
+  color: #7b8c9f;
+  font-size: 10px;
+  line-height: 1.4;
+}

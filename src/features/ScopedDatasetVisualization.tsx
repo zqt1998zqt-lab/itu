@@ -80,6 +80,15 @@ export type ScopedCaseRenderContext = {
   farEndVisual?: ScopedPreviewWaveformTrack | null;
 };
 
+export type RuntimeMicrophoneTrackState = {
+  ready: boolean;
+  visual?: ScopedPreviewWaveformTrack | null;
+  audioUrl?: string;
+  sha256?: string;
+  captureGain?: number;
+  reason?: string;
+};
+
 type ScopedPreview =
   | ScopedBackgroundNoisePreview
   | ScopedSceneConditionWaveformPreview;
@@ -98,6 +107,11 @@ type Props = {
   onOpenWaveforms: () => void;
   onOpenExtendedWaveforms?: () => void;
   extendedPreviewCount?: number;
+  runtimeMicrophoneMode?: boolean;
+  getRuntimeMicrophone?: (
+    previewCase: ScopedInputPreviewCase,
+    context: ScopedCaseRenderContext,
+  ) => RuntimeMicrophoneTrackState | null;
   renderCaseActions?: (
     previewCase: ScopedInputPreviewCase,
     context: ScopedCaseRenderContext,
@@ -342,20 +356,20 @@ function conversationComposition(
       farEndSilent
         ? "far_end 为数字静音"
         : "far_end 关系以 provenance 为准"
-    }；microphone 含近端语音与背景噪声。`;
+    }；执行时由 RX 后远端、近端语音与背景噪声实时合成 microphone 及波形。`;
   }
   if (mode === "far_single") {
-    return `far_end 承载 VCP RX 前回声参考，${echoPhrase}进入 microphone；点击测试后生成 RX 后参考并用于 TX；${
+    return `far_end 承载 VCP RX 前回声参考；点击测试后先生成 RX 后参考，再${echoPhrase}与背景噪声实时合成 microphone 波形并送入 TX；${
       nearSilent
         ? "reference 为数字静音"
         : "reference 关系以 provenance 为准"
-    }；背景噪声叠加在麦克风输入中。`;
+    }。`;
   }
   if (mode === "double_talk") {
-    return `reference 与 far_end 同时活动，${echoPhrase}的远端成分和背景噪声共同叠加在 microphone；点击测试后生成 RX 后参考并用于 TX。`;
+    return `reference 与 far_end 同时活动；点击测试后先生成 RX 后参考，再把${echoPhrase}的远端成分、近端语音与背景噪声实时合成 microphone 波形并送入 TX。`;
   }
   if (mode === "transition") {
-    return `reference 与 far_end 按 provenance 分段切换远端单讲、近端单讲、双讲和噪声尾段；${echoPhrase}只在远端活动区段进入 microphone；点击测试后生成 RX 后参考并用于 TX。`;
+    return `reference 与 far_end 按 provenance 分段切换远端单讲、近端单讲、双讲和噪声尾段；点击测试后先生成 RX 后参考，再按远端活动区段${echoPhrase}实时合成 microphone 波形并送入 TX。`;
   }
   const preheat = metadataWindow(metadata?.cng_preheat_window_s);
   const observation = metadataWindow(metadata?.noise_observation_window_s);
@@ -566,6 +580,8 @@ type WaveformUnitProps = {
   playingTrack: PlayingTrack | null;
   waveformA11yId: string;
   variant: "list" | "detail";
+  runtimeMicrophoneMode?: boolean;
+  getRuntimeMicrophone?: Props["getRuntimeMicrophone"];
   renderCaseActions?: Props["renderCaseActions"];
   renderCaseResult?: Props["renderCaseResult"];
   renderContext: ScopedCaseRenderContext;
@@ -584,6 +600,8 @@ function WaveformUnit({
   playingTrack,
   waveformA11yId,
   variant,
+  runtimeMicrophoneMode = false,
+  getRuntimeMicrophone,
   renderCaseActions,
   renderCaseResult,
   renderContext,
@@ -591,13 +609,33 @@ function WaveformUnit({
   onOpenWaveforms,
 }: WaveformUnitProps) {
   const caseVisuals = visuals?.cases[previewCase.case_id];
+  const farEndVisual = caseVisuals?.far_end ?? null;
+  const caseRenderContext: ScopedCaseRenderContext = {
+    ...renderContext,
+    farEndVisual,
+  };
+  const runtimeMicrophone = runtimeMicrophoneMode
+    ? getRuntimeMicrophone?.(previewCase, caseRenderContext) ?? null
+    : null;
+  const runtimeMicrophoneVisual =
+    runtimeMicrophone?.ready && runtimeMicrophone.visual
+      ? runtimeMicrophone.visual
+      : null;
   const waveformTracks = useMemo<RenderedTrack[]>(() => {
     const groupPeak = Math.max(
       0,
-      ...TRACK_ROLES.map((role) => caseVisuals?.[role]?.peak ?? 0),
+      ...TRACK_ROLES.map((role) => {
+        if (role === "microphone" && runtimeMicrophoneMode) {
+          return runtimeMicrophoneVisual?.peak ?? 0;
+        }
+        return caseVisuals?.[role]?.peak ?? 0;
+      }),
     );
     return TRACK_ROLES.map((role) => {
-      const visual = caseVisuals?.[role] ?? null;
+      const visual =
+        role === "microphone" && runtimeMicrophoneMode
+          ? runtimeMicrophoneVisual
+          : caseVisuals?.[role] ?? null;
       if (!visual) {
         return {
           role,
@@ -622,16 +660,13 @@ function WaveformUnit({
         };
       }
     });
-  }, [caseVisuals]);
+  }, [caseVisuals, runtimeMicrophoneMode, runtimeMicrophoneVisual]);
   const allWaveformsAvailable =
     waveformTracks.length === TRACK_ROLES.length &&
-    waveformTracks.every((track) => track.renderable);
-  const farEndVisual =
-    waveformTracks.find((track) => track.role === "far_end")?.visual ?? null;
-  const caseRenderContext: ScopedCaseRenderContext = {
-    ...renderContext,
-    farEndVisual,
-  };
+    waveformTracks.every(
+      (track) =>
+        track.renderable || (runtimeMicrophoneMode && track.role === "microphone"),
+    );
   const category = caseCategory(previewCase);
   const conversationMode = conversationModeOf(previewCase);
   const segments = conversationMode
@@ -699,26 +734,62 @@ function WaveformUnit({
 
       <div className="sdv-card-grid">
         {waveformTracks.map(({ role, visual, path, renderable }) => {
-          const label = ACOUSTIC_SIGNAL_LABELS[role];
+          const isRuntimeMic = runtimeMicrophoneMode && role === "microphone";
+          const isRuntimeMicReady =
+            isRuntimeMic &&
+            Boolean(
+              runtimeMicrophone?.ready &&
+                runtimeMicrophoneVisual &&
+                runtimeMicrophone.audioUrl,
+            );
+          const label = isRuntimeMic
+            ? `${ACOUSTIC_SIGNAL_LABELS[role]} · 运行时合成`
+            : ACOUSTIC_SIGNAL_LABELS[role];
           const titleElementId = `${caseA11yId}-${role}-title`;
           const descriptionElementId = `${caseA11yId}-${role}-description`;
           const isPlaying =
             playingTrack?.requestKey === requestKey &&
             playingTrack?.caseId === previewCase.case_id &&
             playingTrack.role === role;
-          const assetUrl = inputAssetUrl(
-            datasetId,
-            previewCase.case_id,
-            role,
-            previewCase.signals_sha256[role],
-            source,
-          );
+          const assetUrl = isRuntimeMic
+            ? runtimeMicrophone?.audioUrl ?? ""
+            : inputAssetUrl(
+                datasetId,
+                previewCase.case_id,
+                role,
+                previewCase.signals_sha256[role],
+                source,
+              );
+          const runtimePendingMessage =
+            runtimeMicrophone?.reason ||
+            "待执行 · 点击「运行本组」或批量执行后，先经 VCP RX 再实时合成麦克风波形";
           return (
-            <article className="sdv-card" key={role}>
+            <article
+              className={`sdv-card${
+                isRuntimeMic
+                  ? isRuntimeMicReady
+                    ? " is-runtime-ready"
+                    : " is-runtime-pending"
+                  : ""
+              }`}
+              data-signal-role={role}
+              data-runtime-microphone={
+                isRuntimeMic ? (isRuntimeMicReady ? "ready" : "pending") : undefined
+              }
+              key={role}
+            >
               <div className="sdv-card-heading">
                 <h3>{label}</h3>
-                {visual?.peak === 0 &&
-                (role === "far_end" || role === "reference") ? (
+                {isRuntimeMic ? (
+                  <span
+                    className={`sdv-runtime-badge ${
+                      isRuntimeMicReady ? "is-ready" : "is-pending"
+                    }`}
+                  >
+                    {isRuntimeMicReady ? "运行时已合成" : "运行时合成 · 待执行"}
+                  </span>
+                ) : visual?.peak === 0 &&
+                  (role === "far_end" || role === "reference") ? (
                   <span className="sdv-silence-badge">数字静音</span>
                 ) : null}
               </div>
@@ -726,10 +797,22 @@ function WaveformUnit({
                 {visual
                   ? `${formatDuration(visual.duration_s)} · ${formatSampleRate(
                       visual.sample_rate,
-                    )} · ${visual.channels} 通道`
-                  : "时长 / 采样率 / 通道数未提供"}
+                    )} · ${visual.channels} 通道${
+                      isRuntimeMicReady &&
+                      runtimeMicrophone?.captureGain !== undefined &&
+                      runtimeMicrophone.captureGain < 1
+                        ? ` · 防削波增益 ${runtimeMicrophone.captureGain.toFixed(3)}`
+                        : ""
+                    }`
+                  : isRuntimeMic
+                    ? "执行后基于 RX 后回声参考、近端参考与噪声实时合成"
+                    : "时长 / 采样率 / 通道数未提供"}
               </p>
-              <div className="sdv-waveform">
+              <div
+                className={`sdv-waveform${
+                  isRuntimeMic && !isRuntimeMicReady ? " is-runtime-pending" : ""
+                }`}
+              >
                 {renderable && visual ? (
                   <svg
                     viewBox={`0 0 ${WAVEFORM_WIDTH} ${WAVEFORM_HEIGHT}`}
@@ -738,12 +821,15 @@ function WaveformUnit({
                     aria-labelledby={`${titleElementId} ${descriptionElementId}`}
                   >
                     <title id={titleElementId}>
-                      {label}预计算波形包络
+                      {isRuntimeMic
+                        ? `${label}运行时合成波形包络`
+                        : `${label}预计算波形包络`}
                     </title>
                     <desc id={descriptionElementId}>
                       {ACOUSTIC_SIGNAL_DESCRIPTIONS[role]}
-                      纵轴按当前样本四路共同峰值归一化，数据来自预计算
-                      wave_min_i16 与 wave_max_i16。
+                      {isRuntimeMic
+                        ? "纵轴按当前样本四路共同峰值归一化，数据来自本次执行后实时合成的 post-RX 麦克风音频。"
+                        : "纵轴按当前样本四路共同峰值归一化，数据来自预计算 wave_min_i16 与 wave_max_i16。"}
                     </desc>
                     {visual.peak === 0 ? (
                       <line
@@ -763,13 +849,21 @@ function WaveformUnit({
                       />
                     )}
                   </svg>
+                ) : isRuntimeMic ? (
+                  <span className="sdv-runtime-placeholder">
+                    {runtimePendingMessage}
+                  </span>
                 ) : (
                   <span>暂无预计算波形</span>
                 )}
               </div>
-              {isPlaying ? (
+              {isRuntimeMic && !isRuntimeMicReady ? (
+                <p className="sdv-runtime-audio-note">
+                  执行后生成运行时合成音频与试听入口（不展示静态预录麦克风）
+                </p>
+              ) : isPlaying && assetUrl ? (
                 <audio
-                  key={`${previewCase.case_id}:${role}`}
+                  key={`${previewCase.case_id}:${role}:${runtimeMicrophone?.sha256 ?? ""}`}
                   controls
                   autoPlay
                   preload="none"
@@ -778,7 +872,7 @@ function WaveformUnit({
                 >
                   当前浏览器不支持音频播放。
                 </audio>
-              ) : (
+              ) : assetUrl ? (
                 <button
                   className="sdv-listen"
                   type="button"
@@ -792,9 +886,9 @@ function WaveformUnit({
                   }
                 >
                   <Play size={11} fill="currentColor" aria-hidden="true" />
-                  试听
+                  {isRuntimeMic ? "试听运行时麦克风" : "试听"}
                 </button>
-              )}
+              ) : null}
             </article>
           );
         })}
@@ -811,9 +905,13 @@ function WaveformUnit({
 
       {!conversationMode && farEndVisual ? (
         <p className="sdv-composition">
-          {farEndVisual.peak === 0
-            ? "当前样本：干净近端参考 + 噪声 → 麦克风混合输入（未注入远端回声）"
-            : "远端播放信号经回声路径参与麦克风混合输入，具体组成以样本定义为准"}
+          {runtimeMicrophoneMode
+            ? farEndVisual.peak === 0
+              ? "当前样本：点击测试后由干净近端参考 + 噪声实时合成麦克风混合输入与波形（远端为数字静音）"
+              : "当前样本：点击测试后先经 VCP RX 生成回声参考，再与干净近端参考及噪声实时合成麦克风混合输入与波形"
+            : farEndVisual.peak === 0
+              ? "当前样本：干净近端参考 + 噪声 → 麦克风混合输入（未注入远端回声）"
+              : "远端播放信号经回声路径参与麦克风混合输入，具体组成以样本定义为准"}
         </p>
       ) : null}
     </article>
@@ -834,6 +932,8 @@ export default function ScopedDatasetVisualization({
   onOpenWaveforms,
   onOpenExtendedWaveforms,
   extendedPreviewCount,
+  runtimeMicrophoneMode = false,
+  getRuntimeMicrophone,
   renderCaseActions,
   renderCaseResult,
 }: Props) {
@@ -1338,6 +1438,8 @@ export default function ScopedDatasetVisualization({
                           playingTrack={playingTrack}
                           waveformA11yId={waveformA11yId}
                           variant="list"
+                          runtimeMicrophoneMode={runtimeMicrophoneMode}
+                          getRuntimeMicrophone={getRuntimeMicrophone}
                           renderCaseActions={renderCaseActions}
                           renderCaseResult={renderCaseResult}
                           renderContext={renderContext}
@@ -1414,6 +1516,8 @@ export default function ScopedDatasetVisualization({
                   playingTrack={playingTrack}
                   waveformA11yId={waveformA11yId}
                   variant="detail"
+                  runtimeMicrophoneMode={runtimeMicrophoneMode}
+                  getRuntimeMicrophone={getRuntimeMicrophone}
                   renderContext={renderContext}
                   onPlay={setPlayingTrack}
                   onOpenWaveforms={onOpenWaveforms}

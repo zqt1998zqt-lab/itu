@@ -686,6 +686,23 @@ function sameOutputHashes(
   return left?.tx === right?.tx && left?.rx === right?.rx;
 }
 
+export function effectiveMicrophoneMatchesDynamic(
+  effectiveMicSha: string | undefined,
+  dynamicMicSha: string,
+  execution: unknown,
+): boolean {
+  if (effectiveMicSha === dynamicMicSha) return true;
+  if (!isRecord(execution) || !isRecord(execution.native_preprocessing)) {
+    return false;
+  }
+  const beamforming = execution.native_preprocessing.beamforming;
+  return (
+    isRecord(beamforming)
+    && beamforming.source_sha256 === dynamicMicSha
+    && beamforming.output_sha256 === effectiveMicSha
+  );
+}
+
 function readCase(
   value: unknown,
   profile: SceneConditionProfile,
@@ -817,7 +834,10 @@ function readCase(
       : undefined;
     assert(
       isRecord(echoReference)
-        && echoReference.source === "vcp_rx_processed"
+        && (
+          echoReference.source === "vcp_rx_processed"
+          || echoReference.source === "native_nb8_rx_processed"
+        )
         && echoReference.processed_output === "rx"
         && echoReference.processed_sha256 === outputSha256.rx
         && echoReference.tx_echo_argument_sha256 === outputSha256.rx,
@@ -831,10 +851,15 @@ function readCase(
           === dynamicMicrophone.sha256,
       "20 组动态麦克风缺少绑定的波形与梅尔频谱",
     );
+    const micHashMatches = effectiveInputSha256 !== undefined
+      && effectiveMicrophoneMatchesDynamic(
+        effectiveInputSha256.microphone,
+        dynamicMicrophone.sha256,
+        value.execution,
+      );
     assert(
       effectiveInputSha256 !== undefined
-        && effectiveInputSha256.microphone
-          === dynamicMicrophone.sha256
+        && micHashMatches
         && outputSha256?.rx !== undefined
         && effectiveInputSha256.far_end === outputSha256.rx,
       "20 组动态麦克风未绑定 post-RX 输入身份",
@@ -1788,6 +1813,78 @@ export function sceneConditionCaseRxEvidence(
       previewCase.case_id,
     )}/outputs/rx?v=${encodeURIComponent(rxSha256)}`,
     visual,
+    reason: "",
+  };
+}
+
+export type SceneConditionCaseDynamicMicrophoneEvidence =
+  SceneConditionCaseTxEvidence & {
+    sha256?: string;
+    captureGain?: number;
+  };
+
+export function sceneConditionCaseDynamicMicrophoneEvidence(
+  previewCase: ScopedInputPreviewCase,
+  batch: SceneConditionBatch | null,
+  manifestSha256: string,
+): SceneConditionCaseDynamicMicrophoneEvidence {
+  const rxEvidence = sceneConditionCaseRxEvidence(
+    previewCase,
+    batch,
+    manifestSha256,
+  );
+  if (!rxEvidence.ready || !batch) {
+    return {
+      ready: false,
+      url: "",
+      visual: undefined,
+      reason:
+        batch && rxEvidence.reason !== "批次缺少该条件组"
+          ? rxEvidence.reason
+          : "运行时合成 · 待执行；点击测试后先经 VCP RX，再实时生成麦克风波形",
+    };
+  }
+  const caseRecord = batch.cases.find(
+    (candidate) => candidate.case_id === previewCase.case_id,
+  );
+  const dynamic = caseRecord?.dynamic_microphone;
+  const visual = caseRecord?.dynamic_microphone_visual;
+  const effective = caseRecord?.effective_input_sha256;
+  const rxSha256 = caseRecord?.output_sha256?.rx;
+  if (!dynamic || !visual || !effective || !rxSha256) {
+    return {
+      ready: false,
+      url: "",
+      visual: undefined,
+      reason: "该历史批次未记录运行时合成麦克风波形，请重新执行以生成",
+    };
+  }
+  if (
+    visual.source_sha256 !== dynamic.sha256
+    || effective.far_end !== rxSha256
+    || !effectiveMicrophoneMatchesDynamic(
+      effective.microphone,
+      dynamic.sha256,
+      caseRecord.execution,
+    )
+  ) {
+    return {
+      ready: false,
+      url: "",
+      visual: undefined,
+      reason: "运行时动态麦克风与 post-RX 身份哈希不一致",
+    };
+  }
+  return {
+    ready: true,
+    url: `${SCENE_CONDITION_BATCHES_URL}/${encodeURIComponent(
+      batch.batch_id,
+    )}/cases/${encodeURIComponent(
+      previewCase.case_id,
+    )}/inputs/dynamic-microphone?v=${encodeURIComponent(dynamic.sha256)}`,
+    visual,
+    sha256: dynamic.sha256,
+    captureGain: dynamic.capture_gain,
     reason: "",
   };
 }

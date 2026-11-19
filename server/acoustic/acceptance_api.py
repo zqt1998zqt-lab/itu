@@ -667,3 +667,75 @@ def case_output(batch_id: str, case_id: str, kind: str):
             "ETag": f'"{etag}"',
         },
     )
+
+
+@router.get("/batches/{batch_id}/cases/{case_id}/inputs/dynamic-microphone")
+def case_dynamic_microphone(batch_id: str, case_id: str):
+    snapshot = batch(batch_id)
+    record = next(
+        (row for row in snapshot["cases"] if row["case_id"] == case_id),
+        None,
+    )
+    if (
+        record is None
+        or record["status"] != "completed"
+        or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", case_id)
+    ):
+        raise HTTPException(404, "条件组动态麦克风不存在或未执行成功")
+    root = (
+        service.BUILD / "acceptance-batches" / batch_id / "cases" / case_id
+    ).resolve()
+    base = (service.BUILD / "acceptance-batches" / batch_id).resolve()
+    if not root.is_relative_to(base):
+        raise HTTPException(404, "非法产物路径")
+    assessment = root / "assessment.json"
+    if not assessment.is_file() or assessment.is_symlink():
+        raise HTTPException(409, "条件组计算报告身份校验失败")
+    assessment_payload = assessment.read_bytes()
+    if hashlib.sha256(assessment_payload).hexdigest() != record.get(
+        "assessment_sha256"
+    ):
+        raise HTTPException(409, "条件组计算报告身份校验失败")
+    evidence = json.loads(assessment_payload)
+    execution = record.get("execution")
+    dynamic = (
+        execution.get("dynamic_microphone")
+        if isinstance(execution, dict)
+        else None
+    )
+    if not isinstance(dynamic, dict):
+        raise HTTPException(404, "该条件组没有运行时动态麦克风")
+    if evidence.get("execution", {}).get("dynamic_microphone") != dynamic:
+        raise HTTPException(409, "动态麦克风与计算报告身份不一致")
+    raw_path = dynamic.get("path")
+    if not isinstance(raw_path, str) or not raw_path:
+        raise HTTPException(409, "动态麦克风文件名无效")
+    filename = Path(raw_path).name
+    if not filename:
+        raise HTTPException(409, "动态麦克风文件名无效")
+    mic_path = root / filename
+    if (
+        not mic_path.is_file()
+        or mic_path.is_symlink()
+        or not mic_path.resolve().is_relative_to(root)
+    ):
+        raise HTTPException(409, "动态麦克风身份校验失败")
+    expected = dynamic.get("sha256")
+    if not isinstance(expected, str) or not re.fullmatch(
+        r"[a-f0-9]{64}", expected
+    ):
+        raise HTTPException(409, "动态麦克风哈希校验失败")
+    payload = mic_path.read_bytes()
+    if hashlib.sha256(payload).hexdigest() != expected:
+        raise HTTPException(409, "动态麦克风哈希校验失败")
+    return Response(
+        content=payload,
+        media_type="audio/wav",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{case_id}-dynamic-microphone.wav"'
+            ),
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "ETag": f'"{expected}"',
+        },
+    )

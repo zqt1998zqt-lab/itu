@@ -39,6 +39,7 @@ import {
   readStressBatch,
   readStressDatasets,
   readStressPreview,
+  stressDynamicMicrophoneEvidence,
   stressSampleRate,
   stressRxEvidence,
   stressTxEvidence,
@@ -92,7 +93,7 @@ const CASE_STATUS_LABELS = {
   failed: "失败",
 } as const;
 const TRACK_DESCRIPTIONS = {
-  microphone: "麦克风混合输入，包含远端卷积回声与独立噪声；近端语音按当前工作负载加入。",
+  microphone: "执行时先经 VCP RX 生成回声参考，再由干净近端参考 + RX 后分段卷积回声 + 独立噪声实时合成。",
   far_end: "远端播放信号 / 回声参考，是送往扬声器的同步参考。",
   reference: "干净近端参考，是近端输入的真值。",
   noise: "独立噪声输入，用于背景噪声和噪声中的回声。",
@@ -451,6 +452,7 @@ function StressTrack({
   onPlay,
   outputPlaying,
   onToggleOutputPlayback,
+  runtimeDynamic = false,
 }: {
   role: (typeof SCOPED_INPUT_SIGNAL_ROLES)[number] | "rx" | "tx";
   caseId: string;
@@ -463,23 +465,31 @@ function StressTrack({
   onPlay?: () => void;
   outputPlaying?: boolean;
   onToggleOutputPlayback?: () => void;
+  runtimeDynamic?: boolean;
 }) {
-  const isOutput = role === "rx" || role === "tx";
+  const isOutput = role === "rx" || role === "tx" || runtimeDynamic;
   const label = role === "tx"
     ? "测试后音频 · TX"
     : role === "rx"
       ? "回声参考 · VCP RX 后"
+      : role === "microphone" && runtimeDynamic
+        ? "麦克风混合输入 · 运行时合成（RX 后）"
       : role === "far_end"
         ? "回声参考 · VCP RX 前 · far_end"
       : ACOUSTIC_SIGNAL_LABELS[role];
   return (
-    <article className={`ast-track is-${role}${visual.peak === 0 ? " is-silent" : ""}`} data-signal-role={role}>
+    <article
+      className={`ast-track is-${role}${visual.peak === 0 ? " is-silent" : ""}${runtimeDynamic ? " is-runtime-ready" : ""}`}
+      data-signal-role={role}
+      data-runtime-microphone={runtimeDynamic ? "ready" : undefined}
+    >
       <header>
         <div>
-          <span>{isOutput ? "测试后" : "测试前"}</span>
+          <span>{runtimeDynamic ? "运行时" : isOutput ? "测试后" : "测试前"}</span>
           <strong>{label}</strong>
         </div>
         <div className="ast-track-meta">
+          {runtimeDynamic ? <span className="ast-runtime-badge is-ready">运行时已合成</span> : null}
           {visual.peak === 0 ? <span className="ast-silence">数字静音</span> : null}
           <span>{formatDuration(visual.duration_s)}</span>
           <span>{formatRate(visual.sample_rate)}</span>
@@ -498,7 +508,13 @@ function StressTrack({
         <footer>
           <OutputAudioPreview
             caseId={caseId}
-            label={role === "rx" ? "RX 后回声参考音频" : "TX 输出音频"}
+            label={
+              runtimeDynamic
+                ? "运行时合成麦克风音频"
+                : role === "rx"
+                  ? "RX 后回声参考音频"
+                  : "TX 输出音频"
+            }
             url={audioUrl}
             playing={Boolean(outputPlaying)}
             onToggle={onToggleOutputPlayback}
@@ -527,6 +543,11 @@ function StressCaseFigures({
   previewCase,
   visuals,
   datasetId,
+  dynamicMicVisual,
+  dynamicMicAudioUrl,
+  dynamicMicReason,
+  dynamicMicPlaying,
+  onToggleDynamicMicPlayback,
   rxVisual,
   rxAudioUrl,
   txVisual,
@@ -543,6 +564,11 @@ function StressCaseFigures({
   previewCase: StressPreviewCase;
   visuals: Record<(typeof SCOPED_INPUT_SIGNAL_ROLES)[number], ScopedPreviewVisualTrack>;
   datasetId: string;
+  dynamicMicVisual?: ScopedPreviewVisualTrack;
+  dynamicMicAudioUrl?: string;
+  dynamicMicReason?: string;
+  dynamicMicPlaying?: boolean;
+  onToggleDynamicMicPlayback?: () => void;
   rxVisual?: ScopedPreviewVisualTrack;
   rxAudioUrl?: string;
   txVisual?: ScopedPreviewVisualTrack;
@@ -555,9 +581,12 @@ function StressCaseFigures({
   outputPlaying?: boolean;
   onToggleOutputPlayback?: () => void;
 }) {
-  const tracks = SCOPED_INPUT_SIGNAL_ROLES.map((role) => visuals[role]);
+  const staticInputVisuals = SCOPED_INPUT_SIGNAL_ROLES
+    .filter((role) => role !== "microphone")
+    .map((role) => visuals[role]);
   const allVisuals = [
-    ...tracks,
+    ...staticInputVisuals,
+    ...(dynamicMicVisual ? [dynamicMicVisual] : []),
     ...(rxVisual ? [rxVisual] : []),
     ...(txVisual ? [txVisual] : []),
   ];
@@ -565,28 +594,74 @@ function StressCaseFigures({
   const melCeilingDb = Math.max(-120, ...allVisuals.map((visual) => visual.mel_ceiling_db));
   return (
     <div className={`ast-track-grid${showMel ? " has-mel" : ""}`}>
-      {SCOPED_INPUT_SIGNAL_ROLES.map((role) => (
-        <StressTrack
-          key={role}
-          role={role}
-          caseId={previewCase.case_id}
-          visual={visuals[role]}
-          peakScale={peakScale}
-          melCeilingDb={melCeilingDb}
-          showMel={showMel}
-          audioUrl={onPlay ? inputAudioUrl(datasetId, previewCase, role) : undefined}
-          playing={playingTrack?.caseId === previewCase.case_id && playingTrack.role === role}
-          onPlay={
-            onPlay
-              ? () =>
-                  onPlay({
-                    caseId: previewCase.case_id,
-                    role,
-                  })
-              : undefined
+      {SCOPED_INPUT_SIGNAL_ROLES.map((role) => {
+        if (role === "microphone") {
+          if (dynamicMicVisual) {
+            return (
+              <StressTrack
+                key={role}
+                role="microphone"
+                runtimeDynamic
+                caseId={previewCase.case_id}
+                visual={dynamicMicVisual}
+                peakScale={peakScale}
+                melCeilingDb={melCeilingDb}
+                showMel={showMel}
+                audioUrl={dynamicMicAudioUrl}
+                outputPlaying={dynamicMicPlaying}
+                onToggleOutputPlayback={onToggleDynamicMicPlayback}
+              />
+            );
           }
-        />
-      ))}
+          return (
+            <article
+              key={role}
+              className="ast-track is-microphone is-unavailable"
+              data-signal-role="microphone"
+              data-runtime-microphone="pending"
+            >
+              <header>
+                <div>
+                  <span>运行时合成</span>
+                  <strong>麦克风混合输入 · 运行时合成（RX 后）</strong>
+                </div>
+                <div className="ast-track-meta">
+                  <span className="ast-runtime-badge is-pending">运行时合成 · 待执行</span>
+                </div>
+              </header>
+              <p>
+                {dynamicMicReason
+                  || "尚未执行；点击「运行本组」或「运行 100 组」后，先经 VCP RX 生成回声参考，再实时合成麦克风波形与音频。"}
+              </p>
+              <div className="ast-runtime-placeholder" role="status">
+                <span>执行后实时生成麦克风波形{showMel ? "与梅尔频谱" : ""}（不展示数据集静态预录麦克风）</span>
+              </div>
+            </article>
+          );
+        }
+        return (
+          <StressTrack
+            key={role}
+            role={role}
+            caseId={previewCase.case_id}
+            visual={visuals[role]}
+            peakScale={peakScale}
+            melCeilingDb={melCeilingDb}
+            showMel={showMel}
+            audioUrl={onPlay ? inputAudioUrl(datasetId, previewCase, role) : undefined}
+            playing={playingTrack?.caseId === previewCase.case_id && playingTrack.role === role}
+            onPlay={
+              onPlay
+                ? () =>
+                    onPlay({
+                      caseId: previewCase.case_id,
+                      role,
+                    })
+                : undefined
+            }
+          />
+        );
+      })}
       {rxVisual ? (
         <StressTrack
           role="rx"
@@ -859,6 +934,13 @@ const ExecuteCase = memo(function ExecuteCase({
         latest.batch.dataset_manifest_sha256,
       )
     : null;
+  const dynamicMic = latest.batch && latest.caseRecord
+    ? stressDynamicMicrophoneEvidence(
+        previewCaseFromBatchCase(latest.caseRecord),
+        latest.batch,
+        latest.batch.dataset_manifest_sha256,
+      )
+    : null;
   const playbackBase = latest.batch && latest.caseRecord
     ? `${latest.batch.batch_id}:${latest.caseRecord.case_id}`
     : "";
@@ -884,6 +966,11 @@ const ExecuteCase = memo(function ExecuteCase({
         previewCase={previewCase}
         visuals={visuals}
         datasetId={datasetId}
+        dynamicMicVisual={dynamicMic?.ready ? dynamicMic.visual : undefined}
+        dynamicMicAudioUrl={dynamicMic?.ready ? dynamicMic.url : undefined}
+        dynamicMicReason={dynamicMic && !dynamicMic.ready ? dynamicMic.reason : undefined}
+        dynamicMicPlaying={Boolean(playbackBase) && outputPlaybackKey === `${playbackBase}:dynamic-mic`}
+        onToggleDynamicMicPlayback={() => onToggleOutputPlayback(`${playbackBase}:dynamic-mic`)}
         rxVisual={rx?.ready ? rx.visual : undefined}
         rxAudioUrl={rx?.ready ? rx.url : undefined}
         rxPlaying={Boolean(playbackBase) && outputPlaybackKey === `${playbackBase}:rx`}
@@ -970,6 +1057,11 @@ const WaveformCase = memo(function WaveformCase({
     batch,
     preview.dataset_manifest_sha256,
   );
+  const dynamicMic = stressDynamicMicrophoneEvidence(
+    previewCase,
+    batch,
+    preview.dataset_manifest_sha256,
+  );
   const playbackBase = batch ? `${batch.batch_id}:${previewCase.case_id}` : "";
   return (
     <div ref={ref} className="ast-waveform-case-slot" data-case-id={previewCase.case_id} data-workload-category={previewCase.provenance.workload_category} data-lazy-state={nearViewport ? "mounted" : "deferred"}>
@@ -995,6 +1087,11 @@ const WaveformCase = memo(function WaveformCase({
             previewCase={previewCase}
             visuals={preview.visuals.cases[previewCase.case_id]}
             datasetId={preview.dataset_id}
+            dynamicMicVisual={dynamicMic.ready ? dynamicMic.visual : undefined}
+            dynamicMicAudioUrl={dynamicMic.ready ? dynamicMic.url : undefined}
+            dynamicMicReason={!dynamicMic.ready ? dynamicMic.reason : undefined}
+            dynamicMicPlaying={Boolean(playbackBase) && outputPlaybackKey === `${playbackBase}:dynamic-mic`}
+            onToggleDynamicMicPlayback={() => onToggleOutputPlayback(`${playbackBase}:dynamic-mic`)}
             rxVisual={rx.ready ? rx.visual : undefined}
             rxAudioUrl={rx.ready ? rx.url : undefined}
             rxPlaying={Boolean(playbackBase) && outputPlaybackKey === `${playbackBase}:rx`}
@@ -1942,6 +2039,11 @@ export default function AcousticStressTest({ scope, definition, algorithmCluster
                       currentBatch,
                       currentBatch.dataset_manifest_sha256,
                     );
+                    const dynamicMic = stressDynamicMicrophoneEvidence(
+                      previewIdentity,
+                      currentBatch,
+                      currentBatch.dataset_manifest_sha256,
+                    );
                     const diagnostics = caseRecord.stress_diagnostics;
                     return (
                       <article key={caseRecord.case_id} className="ast-result-row" data-case-id={caseRecord.case_id} data-workload-category={caseRecord.provenance.workload_category}>
@@ -1967,6 +2069,45 @@ export default function AcousticStressTest({ scope, definition, algorithmCluster
                             <dd>{item?.value != null ? `${scopedValue(item.value)} ${scopedMetricUnit(item.metric)}` : item ? "无数值" : "—"}</dd>
                           </div>
                         </dl>
+                        {dynamicMic.ready && dynamicMic.visual ? (
+                          <div className="ast-echo-output">
+                            <PrecomputedAudioFigures
+                              visual={dynamicMic.visual}
+                              label="麦克风混合输入 · 运行时合成（RX 后）"
+                              caseId={caseRecord.case_id}
+                              peakScale={dynamicMic.visual.peak}
+                              melCeilingDb={dynamicMic.visual.mel_ceiling_db}
+                              showMel={false}
+                            />
+                            <div className="ast-tx-actions">
+                              <a
+                                className="ast-tx-download"
+                                href={dynamicMic.url}
+                                download={`${caseRecord.case_id}-dynamic-microphone.wav`}
+                              >
+                                <Download size={12} aria-hidden="true" />
+                                下载运行时麦克风
+                              </a>
+                              <OutputAudioPreview
+                                caseId={caseRecord.case_id}
+                                label="运行时合成麦克风音频"
+                                url={dynamicMic.url}
+                                playing={
+                                  outputPlaybackKey
+                                  === `${currentBatch.batch_id}:${caseRecord.case_id}:dynamic-mic`
+                                }
+                                onToggle={() =>
+                                  toggleOutputPlayback(
+                                    `${currentBatch.batch_id}:${caseRecord.case_id}:dynamic-mic`,
+                                  )}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="ast-inline-note">
+                            运行时麦克风：{dynamicMic.reason}
+                          </p>
+                        )}
                         {rx.ready && rx.visual ? (
                           <div className="ast-echo-output">
                             <PrecomputedAudioFigures

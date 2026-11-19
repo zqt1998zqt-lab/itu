@@ -1339,3 +1339,44 @@
     margin-left: 24px;
   }
 }
+
+.ast-runtime-badge {
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 8.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.ast-runtime-badge.is-pending {
+  color: #5b6d82;
+  background: #f1f5f9;
+  border: 1px dashed #c4d2e0;
+}
+
+.ast-runtime-badge.is-ready {
+  color: #1f5c43;
+  background: #ebf7f1;
+  border: 1px solid #b8e0cb;
+}
+
+.ast-track.is-microphone.is-unavailable {
+  background: #f9fbfd;
+  border-style: dashed;
+  border-color: #cbd8e6;
+}
+
+.ast-runtime-placeholder {
+  display: grid;
+  min-height: 76px;
+  margin: 0 9px 9px;
+  padding: 10px 12px;
+  place-items: center;
+  color: #5d728a;
+  background: #f4f7fb;
+  border: 1px dashed #d2deeb;
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 1.45;
+  text-align: center;
+}

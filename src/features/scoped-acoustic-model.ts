@@ -210,9 +210,31 @@ export type ScopedBatchSummary = {
   execution_scope?: "single_case"; selected_case_id?: string;
   dataset_case_count?: number; dataset_observation_count?: number;
 };
+export type ScopedDynamicMicrophone = {
+  source: string;
+  formula?: string;
+  path?: string;
+  sha256: string;
+  sample_rate: number;
+  channels: number;
+  frames: number;
+  capture_gain: number;
+  peak_before_gain?: number;
+  playback_sha256: string;
+};
+export type ScopedSnapshotCase = {
+  case_id: string;
+  report_id: string;
+  status: string;
+  error?: string;
+  dynamic_microphone?: ScopedDynamicMicrophone;
+  dynamic_microphone_visual?: ScopedPreviewVisualTrack;
+  effective_input_sha256?: Record<string, string>;
+  execution?: Record<string, unknown>;
+};
 export type ScopedSnapshot = ScopedBatchSummary & {
   standard_compliance: false; items: ScopedResultItem[];
-  cases: { case_id: string; report_id: string; status: string; error?: string }[];
+  cases: ScopedSnapshotCase[];
   error?: string | null;
 };
 export type ScopedInputPreviewCase = {

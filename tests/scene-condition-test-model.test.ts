@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   readSceneConditionBatch,
   readSceneConditionBatchHistory,
+  sceneConditionCaseDynamicMicrophoneEvidence,
   sceneConditionCaseRxEvidence,
   sceneConditionCaseTxEvidence,
   SCENE_CONDITION_BATCHES_URL,
@@ -1381,4 +1382,80 @@ test("single-case scene snapshots reject tampered bindings and non-terminal comp
   assert.doesNotThrow(() =>
     readSceneConditionBatch(pending, { ...EXPECTED, caseId })
   );
+});
+
+
+test("sceneConditionCaseDynamicMicrophoneEvidence accepts post-RX and NB8 beamformed hashes", () => {
+  const source = fixture();
+  const caseId = source.cases[0].case_id;
+  const single = singleSceneBatch(source, caseId) as Record<string, any>;
+  const dynSha = hash("d");
+  const bfSha = hash("e");
+  const rxSha = hash("c");
+  single.cases[0].output_sha256 = {
+    tx: single.cases[0].output_sha256.tx,
+    rx: rxSha,
+  };
+  single.cases[0].rx_visual = {
+    ...single.cases[0].tx_visual,
+    source_sha256: rxSha,
+  };
+  for (const item of single.items) {
+    item.evidence_binding.output_sha256 = {
+      tx: single.cases[0].output_sha256.tx,
+      rx: rxSha,
+    };
+  }
+  single.cases[0].execution = {
+    echo_reference: {
+      source: "native_nb8_rx_processed",
+      processed_output: "rx",
+      processed_sha256: rxSha,
+      tx_echo_argument_sha256: rxSha,
+    },
+    native_preprocessing: {
+      beamforming: {
+        source_sha256: dynSha,
+        output_sha256: bfSha,
+      },
+    },
+  };
+  single.cases[0].dynamic_microphone = {
+    source: "post_rx_runtime_mix",
+    path: "/tmp/tx.dynamic-microphone.wav",
+    sha256: dynSha,
+    sample_rate: 16_000,
+    channels: 2,
+    frames: 192_000,
+    capture_gain: 1.0,
+    playback_sha256: rxSha,
+  };
+  single.cases[0].dynamic_microphone_visual = {
+    ...single.cases[0].tx_visual,
+    source_sha256: dynSha,
+    channels: 2,
+  };
+  single.cases[0].effective_input_sha256 = {
+    microphone: bfSha,
+    reference: single.cases[0].signals_sha256.reference,
+    noise: single.cases[0].signals_sha256.noise,
+    far_end: rxSha,
+  };
+  const parsed = readSceneConditionBatch(single, { ...EXPECTED, caseId });
+  const previewCase = {
+    case_id: caseId,
+    conditions: parsed.cases[0].conditions,
+    families: ["g_mos", "n_mos", "s_mos"],
+    signals: ["microphone", "far_end", "reference", "noise"],
+    signals_sha256: parsed.cases[0].signals_sha256,
+    provenance: parsed.cases[0].provenance,
+  };
+  const evidence = sceneConditionCaseDynamicMicrophoneEvidence(
+    previewCase,
+    parsed,
+    parsed.dataset_manifest_sha256,
+  );
+  assert.equal(evidence.ready, true);
+  assert.equal(evidence.sha256, dynSha);
+  assert.ok(evidence.url.includes(`/inputs/dynamic-microphone?v=${dynSha}`));
 });
